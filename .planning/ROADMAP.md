@@ -20,8 +20,8 @@
 **Plans:** 2 plans in 2 waves
 
 Plans:
-- [ ] 01-01-PLAN.md — Backend RAG fragment endpoint + difficulty-calibrated structural constraints
-- [ ] 01-02-PLAN.md — Frontend hybrid generation pipeline + quality gates + DSE booklet passage display
+- [x] 01-01-PLAN.md — Backend RAG fragment endpoint + difficulty-calibrated structural constraints
+- [x] 01-02-PLAN.md — Frontend hybrid generation pipeline + quality gates + DSE booklet passage display
 
 ---
 
