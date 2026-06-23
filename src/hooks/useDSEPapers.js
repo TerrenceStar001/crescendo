@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
-import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS } from '../utils/structuralConstraints';
+import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart } from '../utils/structuralConstraints';
 
 function parseJSONArray(raw) {
   if (!raw) return null;
@@ -673,7 +673,7 @@ ${stripped.slice(0, 6000)}`;
   const systemMsg = 'You are a DSE English Paper 1 passage writer.\n\n' +
     STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n\n' +
     'Output ONLY valid passage HTML (<h2> titles, <h3>Text N</h3> headers, <p> paragraphs). No markdown, no metadata, no word counts.';
-  const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: 5000, timeout: 180000 });
+  const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
   if (!raw) return null;
 
   let cleaned = raw.replace(/```(?:html)?\s*/gi, '').replace(/\s*```/g, '').trim();
@@ -690,7 +690,11 @@ ${stripped.slice(0, 6000)}`;
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  const endsNoPunctuation = /[a-z]$/i.test(cleaned.replace(/<[^>]+>$/g, '').trim());
+  // Fixed: Check if the last paragraph's CONTENT (inside </p>) ends without punctuation,
+  // not whether the raw string ends with a letter after stripping the closing tag.
+  const lastParagraphMatch = cleaned.match(/<p>([\s\S]*?)<\/p>\s*$/);
+  const lastParaContent = lastParagraphMatch ? lastParagraphMatch[1].trim() : '';
+  const endsNoPunctuation = lastParaContent.length > 0 && /[a-z0-9]$/i.test(lastParaContent) && !/[,;:!?)\]>}$]/.test(lastParaContent.slice(-1));
   let wasTruncated = wc > target.max || hasUnclosedTags || endsWithEllipsis || endsMidWord || endsNoPunctuation;
 
   // Minimum paragraph count check
@@ -709,10 +713,12 @@ ${stripped.slice(0, 6000)}`;
     }
   }
 
-  if (wasTruncated) {
-    console.warn(`[DSE] Passage truncated (${wc}w, unclosed:${hasUnclosedTags}, ellipsis:${endsWithEllipsis}, midword:${endsMidWord}, nopunct:${endsNoPunctuation}). Retrying.`);
+  // Only retry on genuine truncation signals, not word count overflow or false positives
+  const genuineTruncation = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  if (genuineTruncation) {
+    console.warn(`[DSE] Passage truncated (${wc}w). Retrying.`);
     const retryPrompt = prompt + '\n\nCRITICAL: Your previous output was cut off. Write a COMPLETE ' + target.min + '-' + target.max + ' word passage. Each paragraph in <p> tags. STOP after the final </p>.';
-    const retryRaw = await callAI(retryPrompt, { system: systemMsg, temperature: 0.5, maxTokens: 5000, timeout: 180000 });
+    const retryRaw = await callAI(retryPrompt, { system: systemMsg, temperature: 0.5, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
     if (retryRaw) {
       let retryCleaned = retryRaw.replace(/```(?:html)?\s*/gi, '').replace(/\s*```/g, '').trim();
       retryCleaned = retryCleaned.replace(/\n---+\s*[\s\S]*$/, '');
@@ -791,7 +797,7 @@ ${fragmentsSection}`;
   const systemMsg = 'You are a DSE English Paper 1 passage writer.\n\n' +
     STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n\n' +
     'Output ONLY valid passage HTML (<h2> titles, <h3>Text N</h3> headers, <p> paragraphs). No markdown, no metadata, no word counts.';
-  const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: 5000, timeout: 180000 });
+  const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
   if (!raw) return null;
 
   let cleaned = raw.replace(/```(?:html)?\s*/gi, '').replace(/\s*```/g, '').trim();
@@ -805,7 +811,9 @@ ${fragmentsSection}`;
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  const endsNoPunctuation = /[a-z]$/i.test(cleaned.replace(/<[^>]+>$/g, '').trim());
+  const lastParagraphMatch = cleaned.match(/<p>([\s\S]*?)<\/p>\s*$/);
+  const lastParaContent = lastParagraphMatch ? lastParagraphMatch[1].trim() : '';
+  const endsNoPunctuation = lastParaContent.length > 0 && /[a-z0-9]$/i.test(lastParaContent) && !/[,;:!?)\]>}$]/.test(lastParaContent.slice(-1));
   let wasTruncated = wc > target.max || hasUnclosedTags || endsWithEllipsis || endsMidWord || endsNoPunctuation;
 
   // Minimum paragraph count check
@@ -815,10 +823,12 @@ ${fragmentsSection}`;
     wasTruncated = true;
   }
 
-  if (wasTruncated) {
+  // Only retry on genuine truncation signals, not word count overflow or false positives
+  const genuineTruncation = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  if (genuineTruncation) {
     console.warn(`[DSE] RAG passage truncated (${wc}w). Retrying.`);
     const retryPrompt = prompt + '\n\nCRITICAL: Your previous output was cut off. Write a COMPLETE passage. Each paragraph in <p> tags. STOP after the final </p>.';
-    const retryRaw = await callAI(retryPrompt, { system: systemMsg, temperature: 0.5, maxTokens: 5000, timeout: 180000 });
+    const retryRaw = await callAI(retryPrompt, { system: systemMsg, temperature: 0.5, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
     if (retryRaw) {
       let retryCleaned = retryRaw.replace(/```(?:html)?\s*/gi, '').replace(/\s*```/g, '').trim();
       retryCleaned = retryCleaned.replace(/\n---+\s*[\s\S]*$/, '');
@@ -893,7 +903,7 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
   const systemMsg = 'You are a DSE English Paper 1 passage writer.\n\n' +
     STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n\n' +
     'Output ONLY valid passage HTML (<h2> titles, <h3>Text N</h3> headers, <p> paragraphs). No markdown, no metadata, no word counts.';
-  const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: 5000, timeout: 180000 });
+  const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
   if (!raw) return null;
 
   let cleaned = raw.replace(/```(?:html)?\s*/gi, '').replace(/\s*```/g, '').trim();
@@ -907,7 +917,9 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  const endsNoPunctuation = /[a-z]$/i.test(cleaned.replace(/<[^>]+>$/g, '').trim());
+  const lastParagraphMatch = cleaned.match(/<p>([\s\S]*?)<\/p>\s*$/);
+  const lastParaContent = lastParagraphMatch ? lastParagraphMatch[1].trim() : '';
+  const endsNoPunctuation = lastParaContent.length > 0 && /[a-z0-9]$/i.test(lastParaContent) && !/[,;:!?)\]>}$]/.test(lastParaContent.slice(-1));
   let wasTruncated = wc > target.max || hasUnclosedTags || endsWithEllipsis || endsMidWord || endsNoPunctuation;
 
   // Minimum paragraph count check
@@ -917,10 +929,12 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
     wasTruncated = true;
   }
 
-  if (wasTruncated) {
+  // Only retry on genuine truncation signals, not word count overflow or false positives
+  const genuineTruncation = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  if (genuineTruncation) {
     console.warn(`[DSE] Pure AI passage truncated (${wc}w). Retrying.`);
     const retryPrompt = prompt + '\n\nCRITICAL: Your previous output was cut off. Write a COMPLETE passage. Each paragraph in <p> tags. STOP after the final </p>.';
-    const retryRaw = await callAI(retryPrompt, { system: systemMsg, temperature: 0.5, maxTokens: 5000, timeout: 180000 });
+    const retryRaw = await callAI(retryPrompt, { system: systemMsg, temperature: 0.5, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
     if (retryRaw) {
       let retryCleaned = retryRaw.replace(/```(?:html)?\s*/gi, '').replace(/\s*```/g, '').trim();
       retryCleaned = retryCleaned.replace(/\n---+\s*[\s\S]*$/, '');
