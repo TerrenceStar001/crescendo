@@ -527,7 +527,7 @@ function buildSourceAttribution(passageMetadata) {
 
 **If this table is empty:** All claims were verified or cited — no user confirmation needed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **How to handle multi-text coordination?**
    - What we know: Real DSE Part B1 has 2-4 thematically linked short texts. The current pipeline generates one passage per session.
