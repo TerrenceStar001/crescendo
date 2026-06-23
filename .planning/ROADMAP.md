@@ -17,6 +17,11 @@
 5. User can identify at most 2 out of 10 passages as AI-generated vs real DSE
 
 **Requirements:** READ-01
+**Plans:** 2 plans in 2 waves
+
+Plans:
+- [ ] 01-01-PLAN.md — Backend RAG fragment endpoint + difficulty-calibrated structural constraints
+- [ ] 01-02-PLAN.md — Frontend hybrid generation pipeline + quality gates + DSE booklet passage display
 
 ---
 
