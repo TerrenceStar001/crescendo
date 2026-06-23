@@ -1,0 +1,23 @@
+{
+  "name": "Crescendo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "rm -rf node_modules/.vite && NODE_OPTIONS=\"--experimental-global-webcrypto\" vite",
+    "build": "NODE_OPTIONS=\"--experimental-global-webcrypto\" vite build",
+    "preview": "NODE_OPTIONS=\"--experimental-global-webcrypto\" vite build && NODE_OPTIONS=\"--experimental-global-webcrypto\" vite preview",
+    "backend": "node server/index.js"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.11.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-force-graph-3d": "^1.29.1",
+    "three": "^0.184.0",
+    "vite-plugin-pwa": "^1.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^5.0.0"
+  }
+}

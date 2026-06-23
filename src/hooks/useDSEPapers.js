@@ -1592,6 +1592,25 @@ ${passagePreview}`;
       }
       } // end if(!ragFlowSuccess || !finalQuestions?.length)
 
+      // Step 1.75: Pure AI fallback — generate entirely from AI when RAG and DSE OCR unavailable
+      if (!finalContent && callAI) {
+        try {
+          const pureAiResult = await generatePureAIPassage(callAI, difficulty);
+          if (pureAiResult?.content) {
+            finalContent = pureAiResult.content;
+            passageReconstructed = true;
+            passageTruncated = pureAiResult.truncated;
+            finalSource = 'dse';
+            const h2Match = pureAiResult.content.match(/<h2[^>]*>([^<]+)<\/h2>/);
+            if (h2Match) finalTitle = h2Match[1].trim();
+            yearInfo = { year: null, part: part };
+            console.log(`[DSE] Pure AI passage generated (${pureAiResult.aiWordCount}w)`);
+          }
+        } catch (e) {
+          console.warn('[DSE] Pure AI passage generation failed:', e?.message);
+        }
+      }
+
       // Step 2: Fallback to bundled if DSE extraction failed or AI couldn't generate questions
       if (!finalContent || (finalSource === 'dse' && !finalQuestions?.length)) {
         const candidates = bundled.filter(p => p.type === 'reading');

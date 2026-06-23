@@ -1,0 +1,1071 @@
+import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import useNotes from './hooks/useNotes';
+import useAI from './hooks/useAI';
+import useLocalStorage from './hooks/useLocalStorage';
+import SidebarNav from './components/SidebarNav';
+import ContextPanel from './components/ContextPanel';
+import NoteHeader from './components/NoteHeader';
+import Canvas from './components/Canvas';
+import CommandPalette from './components/CommandPalette';
+import SettingsPage from './components/SettingsPage';
+import { ViewProvider, useView } from './context/ViewContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import Dashboard from './components/Dashboard';
+import SkillRing from './components/SkillRing';
+import PerformanceChart from './components/PerformanceChart';
+import TheVoid from './components/TheVoid';
+import ActionBar from './components/ActionBar';
+import useKnowledgeHealth from './hooks/useKnowledgeHealth';
+import useStudyMode from './hooks/useStudyMode';
+import useSynthesis from './hooks/useSynthesis';
+import useSkillAnalytics from './hooks/useSkillAnalytics';
+import useDSEPapers from './hooks/useDSEPapers';
+import ReadingModule from './components/ReadingModule';
+import WritingModule from './components/WritingModule';
+import ListeningModule from './components/ListeningModule';
+import SpeakingModule from './components/SpeakingModule';
+import corpusIndex from './utils/corpusIndex';
+import './App.css';
+
+const CanvasView = lazy(() => import('./components/CanvasView'));
+const ConstellationGraph = lazy(() => import('./components/ConstellationGraph'));
+
+function CrescendoApp() {
+  const {
+    notes, trash, activeId, activeNote, createNote, deleteNote,
+    updateNote, setActive, restoreNote, emptyTrash, exportNotes, exportMarkdown,
+    importNotes, storageError,
+  } = useNotes();
+
+  const { viewMode, setViewMode, navTab, setNavTab, dseTab, setDseTab, focusMode, setFocusMode, panelWidth, setPanelWidth, toggleTheme } = useView();
+  const [halfLife, setHalfLife] = useLocalStorage('crescendo-knowledge-half-life', 30);
+  const { healthMap, decayingNotes, overallHealth, tagHealth, trend } = useKnowledgeHealth(notes, halfLife);
+  const { suggestions } = useSynthesis(notes, activeId);
+  const synthesisStats = useMemo(() => {
+    if (!suggestions?.length) return null;
+    return {
+      total: suggestions.length,
+      strong: suggestions.filter(s => s.type === 'strong').length,
+      weak: suggestions.filter(s => s.type !== 'strong').length,
+    };
+  }, [suggestions]);
+  const studyMode = useStudyMode();
+
+  const { config, updateConfig, isConfigured, generateBoth, testConnection } = useAI();
+  const skillAnalytics = useSkillAnalytics();
+  const dsePapers = useDSEPapers();
+
+  const callAI = useCallback(async (prompt, opts = {}) => {
+    const ep = (() => {
+      if (!config.endpoint) return '/api/ai/chat/completions';
+      if (config.endpoint.startsWith('/api/ai')) return config.endpoint;
+      const t = config.endpoint.replace(/\/+$/, '');
+      if (t.endsWith('/chat/completions')) return t;
+      return t + '/chat/completions';
+    })();
+    const model = config.model || 'opencode/deepseek-v4-flash-free';
+    const messages = [{ role: 'user', content: prompt }];
+    if (opts.system) { messages.unshift({ role: 'system', content: opts.system }); }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), opts.timeout || 30000);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
+      const res = await fetch(ep, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model, messages, max_tokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => '')}`);
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content?.trim() || '';
+    } catch (e) {
+      clearTimeout(timeout);
+      if (e.name === 'AbortError') throw new Error('AI request timed out');
+      throw e;
+    }
+  }, [config]);
+
+  useEffect(() => {
+    if (['reading', 'writing', 'listening', 'speaking', 'progress'].includes(dseTab)) {
+      setActive(null);
+    }
+  }, [dseTab, setActive]);
+
+  const [aiOpen, setAiOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showCmdPalette, setShowCmdPalette] = useState(false);
+  const [showQuickCapture, setShowQuickCapture] = useState(false);
+  const [quickCaptureText, setQuickCaptureText] = useState('');
+  const [showVoid, setShowVoid] = useState(false);
+  const [studyQueue, setStudyQueue] = useState([]);
+  const [studyQueueIndex, setStudyQueueIndex] = useState(0);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [colorPickerPos, setColorPickerPos] = useState({ top: 0, left: 0 });
+  const [saveStatus, setSaveStatus] = useState('');
+  const [undoInfo, setUndoInfo] = useState(null);
+  const undoQueueRef = useRef([]);
+  const [generatingStatus, setGeneratingStatus] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [tagDraft, setTagDraft] = useState('');
+  const [editingTagIndex, setEditingTagIndex] = useState(null);
+  const [importStatus, setImportStatus] = useState('');
+  const [showBacklinks, setShowBacklinks] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const debounceRef = useRef(null);
+  const searchDebounceRef = useRef(null);
+  const aiTimerRef = useRef(null);
+  const aiAbortRef = useRef(null);
+  const aiRunningRef = useRef(false);
+  const lastAiContentLenRef = useRef(0);
+  const canvasRef = useRef(null);
+  const undoTimeoutRef = useRef(null);
+  const activeNoteRef = useRef(null);
+  const tagInputRef = useRef(null);
+
+  const studyStats = useMemo(() => studyMode.getStats(), [showVoid]);
+
+  function handleQuickStudy() {
+    const queue = decayingNotes.length > 0
+      ? decayingNotes.slice(0, 5)
+      : notes.filter(n => (n.content || '').length > 100).slice(-3);
+    if (queue.length === 0) return;
+    const target = queue[0];
+    setActive(target.id);
+    studyMode.startSession(target, config);
+    setStudyQueue(queue);
+    setStudyQueueIndex(0);
+    setShowVoid(true);
+  }
+
+  useEffect(() => { activeNoteRef.current = activeNote; }, [activeNote]);
+
+  useEffect(() => {
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setSearchQuery(searchInput), 200);
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [searchInput]);
+
+  const indexTimeoutRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(indexTimeoutRef.current);
+    indexTimeoutRef.current = setTimeout(() => {
+      try { corpusIndex.rebuild(notes); } catch (e) { console.warn('Index rebuild:', e.message); }
+    }, 3000);
+    return () => clearTimeout(indexTimeoutRef.current);
+  }, [JSON.stringify(notes.map(n => ({ id: n.id, tags: n.tags })))]);
+
+  const filteredNotes = useMemo(() => {
+    if (!searchQuery) return notes;
+    const q = searchQuery.toLowerCase();
+    return notes.filter(n =>
+      (n.title || '').toLowerCase().includes(q) ||
+      (n.content || '').toLowerCase().includes(q) ||
+      (n.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }, [notes, searchQuery]);
+
+  const wordCount = useMemo(() => {
+    if (!activeNote?.content) return 0;
+    const text = activeNote.content.replace(/<[^>]+>/g, '');
+    return text.split(/\s+/).filter(Boolean).length;
+  }, [activeNote?.content]);
+
+  const charCount = useMemo(() => {
+    if (!activeNote?.content) return 0;
+    return activeNote.content.replace(/<[^>]+>/g, '').length;
+  }, [activeNote?.content]);
+
+  const backlinks = useMemo(() => {
+    if (!activeNote) return [];
+    const title = activeNote.title?.toLowerCase();
+    if (!title) return [];
+    return notes.filter(n =>
+      n.id !== activeNote.id &&
+      (n.content || '').toLowerCase().includes(`[[${title}]]`)
+    );
+  }, [activeNote, notes]);
+
+  const todos = useMemo(() => {
+    const result = [];
+    notes.forEach(n => {
+      const text = n.content.replace(/<[^>]+>/g, '');
+      const lines = text.split('\n');
+      lines.forEach((line, idx) => {
+        const m = line.match(/^\s*-\s*\[\s*([ xX])\s*\]\s*(.+)/);
+        if (m) {
+          result.push({
+            noteId: n.id,
+            noteTitle: n.title || 'Untitled',
+            done: m[1].toLowerCase() === 'x',
+            text: m[2],
+            lineIdx: idx,
+          });
+        }
+      });
+    });
+    return result;
+  }, [notes]);
+
+  function getSnippet(content, query) {
+    if (!query || !content) return '';
+    const text = content.replace(/<[^>]+>/g, '');
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text.slice(0, 80);
+    const start = Math.max(0, idx - 30);
+    const end = Math.min(text.length, idx + query.length + 50);
+    let snippet = text.slice(start, end);
+    if (start > 0) snippet = '...' + snippet;
+    if (end < text.length) snippet += '...';
+    return snippet;
+  }
+
+  function handleCreateNote() {
+    const id = createNote();
+    setActive(id);
+    setNavTab('notes');
+  }
+
+  function handleQuickSave() {
+    const text = quickCaptureText.trim();
+    if (!text) return;
+    const id = createNote({ title: 'Inbox', content: text });
+    setActive(id);
+    setShowQuickCapture(false);
+    setQuickCaptureText('');
+  }
+
+  function handleOpenDaily() {
+    const today = new Date().toISOString().slice(0, 10);
+    const existing = notes.find(n =>
+      (n.title || '').toLowerCase() === today || n.createdAt?.startsWith(today)
+    );
+    if (existing) {
+      setActive(existing.id);
+    } else {
+      const id = createNote({ title: today });
+      setActive(id);
+    }
+    setNavTab('notes');
+  }
+
+  function handleRandom() {
+    if (notes.length === 0) return;
+    const idx = Math.floor(Math.random() * notes.length);
+    setActive(notes[idx].id);
+    setNavTab('notes');
+  }
+
+  function handleDeleteNote(id) {
+    const note = notes.find(n => n.id === id);
+    deleteNote(id);
+    if (note) {
+      undoQueueRef.current = [note];
+      setUndoInfo({ id, note });
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = setTimeout(() => {
+        setUndoInfo(null);
+        undoQueueRef.current = [];
+      }, 5000);
+    }
+  }
+
+  function handleUndo() {
+    if (undoInfo) {
+      restoreNote(undoInfo.id);
+      setUndoInfo(null);
+      undoQueueRef.current = [];
+    }
+  }
+
+  function handleContentChange(html) {
+    if (!activeId) return;
+    updateNote(activeId, { content: html });
+    setSaveStatus('Saving...');
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setSaveStatus('Saved'), 1000);
+  }
+
+  const handleFormat = useCallback((cmd) => {
+    const el = canvasRef.current?.getElement();
+    if (!el) return;
+    el.focus();
+    if (cmd === 'heading2') {
+      document.execCommand('formatBlock', false, '<h2>');
+    } else if (cmd === 'heading3') {
+      document.execCommand('formatBlock', false, '<h3>');
+    } else if (cmd === 'blockquote') {
+      document.execCommand('formatBlock', false, '<blockquote>');
+    } else if (cmd === 'code') {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed && sel.rangeCount) {
+        const text = sel.toString();
+        document.execCommand('insertHTML', false, `<pre><code>${text}</code></pre>`);
+      }
+    } else {
+      document.execCommand(cmd, false, null);
+    }
+  }, []);
+
+  const handleExport = useCallback(() => {
+    exportNotes();
+    setImportStatus('Exported');
+    setTimeout(() => setImportStatus(''), 2000);
+  }, [exportNotes]);
+
+  const handleAIGenerate = useCallback(async () => {
+    if (!activeId || aiRunningRef.current) return;
+    const current = activeNoteRef.current;
+    if (!current) return;
+    aiRunningRef.current = true;
+    setGeneratingStatus('Generating...');
+    const controller = new AbortController();
+    aiAbortRef.current = controller;
+    try {
+      const needTitle = !current.userEditedTitle;
+      const needTags = !current.userEditedTags;
+      const updates = {};
+
+      const analysis = corpusIndex.analyze(current.content, notes);
+
+      if (!current.kindOverridden && analysis.kind) {
+        const len = current.content.length;
+        if (analysis.kind !== current.kind) {
+          updates.kind = analysis.kind;
+          updates.kindLastContentLength = len;
+        } else {
+          const prevLen = current.kindLastContentLength || 0;
+          const firstContent = prevLen === 0 && len > 0;
+          const delta = Math.abs(len - prevLen);
+          const significant = firstContent || delta > 500 || (prevLen > 0 && delta / prevLen > 0.5);
+          if (significant) {
+            updates.kind = analysis.kind;
+            updates.kindLastContentLength = len;
+          }
+        }
+      }
+
+      if (isConfigured) {
+        const result = await generateBoth(current.content, controller.signal);
+        if (needTitle && result.title) updates.title = result.title;
+        if (needTags && result.tags?.length) updates.tags = result.tags;
+      }
+      if (needTitle && !updates.title) updates.title = analysis.title;
+      if (needTags && (!updates.tags || updates.tags.length === 0)) updates.tags = analysis.tags;
+      if (updates.tags?.length || updates.title) {
+        updates.aiGeneratedOnce = true;
+      }
+      if (Object.keys(updates).length > 0) {
+        updateNote(activeId, updates);
+      }
+    } finally {
+      aiRunningRef.current = false;
+      aiAbortRef.current = null;
+      setGeneratingStatus('');
+    }
+  }, [activeId, isConfigured, generateBoth, updateNote, notes]);
+
+  function handleKindChange(slug) {
+    if (!activeId) return;
+    if (slug === '') {
+      updateNote(activeId, { kind: '', kindOverridden: false });
+    } else {
+      updateNote(activeId, { kind: slug, kindOverridden: true });
+      const note = activeNoteRef.current;
+      if (note?.content) {
+        corpusIndex.trainKind(slug, note.content);
+      }
+    }
+  }
+
+  function handleOpenVoid() {
+    const note = activeNoteRef.current;
+    if (!note) return;
+    studyMode.startSession(note, config);
+    setShowVoid(true);
+  }
+
+  function handleStudyComplete(noteId, correct, total) {
+    if (noteId) updateNote(noteId, { updatedAt: new Date().toISOString() });
+  }
+
+  function handleNextInQueue() {
+    const nextIdx = studyQueueIndex + 1;
+    if (nextIdx >= studyQueue.length) {
+      setShowVoid(false);
+      setStudyQueue([]);
+      return;
+    }
+    const next = studyQueue[nextIdx];
+    setActive(next.id);
+    studyMode.startSession(next, config);
+    setStudyQueueIndex(nextIdx);
+  }
+
+  function handleReviewNote(noteId) {
+    updateNote(noteId, { updatedAt: new Date().toISOString() });
+  }
+
+  useEffect(() => {
+    function handleKey(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCmdPalette(p => !p);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        handleCreateNote();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        setShowQuickCapture(true);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        handleOpenDaily();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleAIGenerate();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        handleFormat('bold');
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        e.preventDefault();
+        handleFormat('italic');
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+        e.preventDefault();
+        handleFormat('underline');
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        handleFormat('removeFormat');
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === '1') {
+        e.preventDefault();
+        setViewMode('list');
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === '2') {
+        e.preventDefault();
+        setViewMode('canvas');
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === '3') {
+        e.preventDefault();
+        setViewMode('constellation');
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowCmdPalette(false);
+        setShowQuickCapture(false);
+        setShowColorPicker(false);
+        setAiOpen(false);
+        setShowShortcuts(false);
+        setShowBacklinks(false);
+        setEditingTagIndex(null);
+        setTagDraft('');
+        return;
+      }
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey &&
+          document.activeElement?.tagName !== 'INPUT' &&
+          document.activeElement?.getAttribute('contenteditable') !== 'true') {
+        e.preventDefault();
+        setShowShortcuts(s => !s);
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [handleCreateNote, handleAIGenerate, handleFormat, setViewMode, handleOpenDaily]);
+
+  function handleTitleChange(title) {
+    if (activeId) updateNote(activeId, { title, userEditedTitle: title !== 'Untitled' });
+  }
+
+  function handleAddTag() {
+    if (!activeNote) return;
+    const newTags = [...(activeNote.tags || []), ''];
+    updateNote(activeId, { tags: newTags, userEditedTags: true });
+    setEditingTagIndex(newTags.length - 1);
+    setTagDraft('');
+    setTimeout(() => tagInputRef.current?.focus(), 0);
+  }
+
+  function handleRemoveTag(index) {
+    if (!activeNote) return;
+    const newTags = (activeNote.tags || []).filter((_, i) => i !== index);
+    updateNote(activeId, { tags: newTags, userEditedTags: true });
+  }
+
+  function handleTogglePin() {
+    if (!activeNote) return;
+    updateNote(activeId, { pinned: !activeNote.pinned });
+  }
+
+  function handleBatchDelete(ids) {
+    ids.forEach(id => {
+      const note = notes.find(n => n.id === id);
+      deleteNote(id);
+      if (note) {
+        undoQueueRef.current = [note];
+        setUndoInfo({ id, note });
+      }
+    });
+    clearTimeout(undoTimeoutRef.current);
+    undoTimeoutRef.current = setTimeout(() => {
+      setUndoInfo(null);
+      undoQueueRef.current = [];
+    }, 5000);
+  }
+
+  function handleBatchPin(ids, pinned) {
+    ids.forEach(id => updateNote(id, { pinned }));
+  }
+
+  function handleBatchTag(ids, tag) {
+    ids.forEach(id => {
+      const note = notes.find(n => n.id === id);
+      if (note && !(note.tags || []).includes(tag)) {
+        updateNote(id, { tags: [...(note.tags || []), tag] });
+      }
+    });
+  }
+
+  function handleDuplicate() {
+    if (!activeNote || !activeId) return;
+    const id = createNote({
+      title: activeNote.title + ' (copy)',
+      content: activeNote.content,
+      tags: [...(activeNote.tags || [])],
+      color: activeNote.color,
+    });
+    setActive(id);
+  }
+
+  function handleColorChange(color) {
+    if (activeId) updateNote(activeId, { color });
+    setShowColorPicker(false);
+  }
+
+  function handleResizeStart(e) {
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startW = panelWidth;
+
+    function onMove(ev) {
+      const w = Math.max(200, Math.min(400, startW + ev.clientX - startX));
+      setPanelWidth(w);
+      document.documentElement.style.setProperty('--panel-width', `${w}px`);
+    }
+
+    function onUp() {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  // Set initial panel width
+  useEffect(() => {
+    document.documentElement.style.setProperty('--panel-width', `${panelWidth}px`);
+  }, [panelWidth]);
+
+  // Welcome screen for empty state
+  if (!activeNote && notes.length === 0 && viewMode === 'list') {
+    return (
+      <div className={`app${focusMode ? ' app--focus' : ''}`}>
+        <SidebarNav
+          onOpenDaily={handleOpenDaily}
+          onOpenSettings={() => setAiOpen(true)}
+          onOpenNotes={() => { if (!activeNote && notes.length > 0) setActive(notes[0].id); }}
+        />
+        <ContextPanel
+          notes={[]}
+          trash={trash}
+          activeId={null}
+          onSelect={(id) => setActive(id)}
+          onCreate={handleCreateNote}
+          onDelete={handleDeleteNote}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchInput}
+          searchSnippet={null}
+          onRestoreFromTrash={(id) => restoreNote(id)}
+          onEmptyTrash={emptyTrash}
+          todos={todos}
+          updateNote={updateNote}
+          healthMap={healthMap}
+          onBatchDelete={handleBatchDelete}
+          onBatchPin={handleBatchPin}
+          onBatchTag={handleBatchTag}
+        />
+        <main className="app__main">
+          <Dashboard
+            notes={[]}
+            skillAnalytics={skillAnalytics}
+            onSwitchToModule={(mod) => setDseTab(mod)}
+            onCreate={handleCreateNote}
+            onOpenDaily={handleOpenDaily}
+            onRandom={handleRandom}
+          />
+        </main>
+
+        {showCmdPalette && (
+          <CommandPalette
+            notes={[]}
+            onSelect={(id) => setActive(id)}
+            onCreate={handleCreateNote}
+            onQuickCapture={() => setShowQuickCapture(true)}
+            onOpenDaily={handleOpenDaily}
+            onRandom={handleRandom}
+            onToggleTheme={() => {}}
+            onClose={() => setShowCmdPalette(false)}
+          />
+        )}
+
+        {showQuickCapture && quickCaptureOverlay()}
+
+        {showVoid && (
+          <TheVoid
+            note={activeNoteRef.current}
+            studySession={studyMode.getQuestions().length > 0 ? { questions: studyMode.getQuestions(), useAI: !!config.apiKey } : null}
+            onSubmitAnswer={(idx, answer) => studyMode.submitAnswer(idx, answer)}
+            onGenerateWithAI={(signal) => studyMode.generateWithAI(signal)}
+            onClose={() => { setShowVoid(false); setStudyQueue([]); }}
+            onReviewComplete={handleStudyComplete}
+            onRecordSession={(id, title) => studyMode.recordSession(id, title)}
+            noteHistory={activeNote ? studyMode.getNoteHistory(activeNote.id) : []}
+            queueSize={studyQueue.length}
+            queueIndex={studyQueueIndex}
+            onNextNote={handleNextInQueue}
+          />
+        )}
+      </div>
+    );
+  }
+
+  function quickCaptureOverlay() {
+    return (
+      <div className="cmd-palette-overlay" onClick={() => setShowQuickCapture(false)}>
+        <div className="cmd-palette" onClick={e => e.stopPropagation()}>
+          <div className="cmd-palette__input-wrap">
+            <span className="cmd-palette__prefix">&gt;</span>
+            <input
+              className="cmd-palette__input"
+              placeholder="Dump a thought..."
+              value={quickCaptureText}
+              onChange={e => setQuickCaptureText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleQuickSave(); }
+              }}
+              autoFocus
+            />
+          </div>
+          <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleQuickSave}
+              disabled={!quickCaptureText.trim()}
+              style={{
+                padding: '6px 16px',
+                background: quickCaptureText.trim() ? 'var(--color-accent)' : 'var(--color-border)',
+                color: quickCaptureText.trim() ? '#fff' : 'var(--color-text-muted)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                cursor: quickCaptureText.trim() ? 'pointer' : 'default',
+                fontFamily: 'inherit',
+                fontSize: '0.8rem',
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`app${focusMode ? ' app--focus' : ''}`}>
+      <SidebarNav
+        onOpenDaily={handleOpenDaily}
+        onOpenSettings={() => setAiOpen(true)}
+        onOpenNotes={() => { if (!activeNote && notes.length > 0) setActive(notes[0].id); }}
+      />
+      <ContextPanel
+        notes={filteredNotes}
+        trash={trash}
+        activeId={activeId}
+        onSelect={(id) => { setActive(id); setNavTab('notes'); }}
+        onCreate={handleCreateNote}
+        onDelete={handleDeleteNote}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchInput}
+        searchSnippet={searchQuery ? (n) => getSnippet(n.content, searchQuery) : null}
+        onRestoreFromTrash={(id) => restoreNote(id)}
+        onEmptyTrash={emptyTrash}
+        todos={todos}
+        updateNote={updateNote}
+        healthMap={healthMap}
+        onBatchDelete={handleBatchDelete}
+        onBatchPin={handleBatchPin}
+        onBatchTag={handleBatchTag}
+      />
+      <div className="app__panel-resize" onMouseDown={handleResizeStart} />
+
+      <main className="app__main">
+        {viewMode === 'constellation' ? (
+          <Suspense fallback={<div className="panel-empty" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
+            <ErrorBoundary>
+              <ConstellationGraph
+                notes={notes}
+                activeId={activeId}
+                onSelect={(id) => setActive(id)}
+                onFocusTag={() => {}}
+                focusTag={null}
+                onClearFocusTag={() => {}}
+                healthMap={healthMap}
+              />
+            </ErrorBoundary>
+          </Suspense>
+        ) : viewMode === 'canvas' ? (
+          <Suspense fallback={<div className="panel-empty" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
+            <ErrorBoundary>
+              <CanvasView
+                notes={notes}
+                activeId={activeId}
+                onSelect={(id) => setActive(id)}
+                onNodeDragStop={(id, pos) => updateNote(id, { position: pos })}
+                focusTag={null}
+                onFocusTag={() => {}}
+                onClearFocusTag={() => {}}
+                updateNote={updateNote}
+                suggestions={suggestions}
+                healthMap={healthMap}
+              />
+            </ErrorBoundary>
+          </Suspense>
+        ) : dseTab === 'dashboard' && !activeNote ? (
+          <Dashboard
+            notes={notes}
+            skillAnalytics={skillAnalytics}
+            onSwitchToModule={(mod) => setDseTab(mod)}
+            onCreate={handleCreateNote}
+            onOpenDaily={handleOpenDaily}
+            onRandom={handleRandom}
+          />
+        ) : dseTab === 'progress' ? (
+          <div className="dse-module">
+            <div className="dse-module__header">
+              <button className="dse-module__back" onClick={() => setDseTab('dashboard')}>← Dashboard</button>
+              <h1 className="dse-module__title">📊 Performance Analytics</h1>
+              <p className="dse-module__subtitle">Detailed breakdown of your DSE English progress</p>
+            </div>
+            <div className="dse-dashboard__rings" style={{ padding: 'var(--space-4)' }}>
+              {(['reading', 'writing', 'listening', 'speaking']).map(s => (
+                <SkillRing
+                  key={s}
+                  skill={s}
+                  percentage={skillAnalytics[s]?.overall || 0}
+                  dseLevel={skillAnalytics[s]?.dseLevel || '1'}
+                  onClick={() => setDseTab(s)}
+                />
+              ))}
+            </div>
+            <div className="dashboard__grid" style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+              <div className="dashboard__section">
+                <div className="dashboard__section-header">
+                  <h2 className="dashboard__section-title">📈 Grade History</h2>
+                </div>
+                <PerformanceChart sessions={skillAnalytics.getGradeHistory(null, 30)} />
+              </div>
+            </div>
+          </div>
+        ) : dseTab === 'reading' ? (
+          <ReadingModule
+            dsePapers={dsePapers}
+            skillAnalytics={skillAnalytics}
+            callAI={callAI}
+            notes={notes}
+            createNote={createNote}
+            onBack={() => { setDseTab('dashboard'); setActive(null); }}
+          />
+        ) : dseTab === 'writing' ? (
+          <WritingModule
+            dsePapers={dsePapers}
+            skillAnalytics={skillAnalytics}
+            callAI={callAI}
+            notes={notes}
+            onBack={() => { setDseTab('dashboard'); setActive(null); }}
+          />
+        ) : dseTab === 'listening' ? (
+          <ListeningModule
+            dsePapers={dsePapers}
+            skillAnalytics={skillAnalytics}
+            notes={notes}
+            onBack={() => { setDseTab('dashboard'); setActive(null); }}
+          />
+        ) : dseTab === 'speaking' ? (
+          <SpeakingModule
+            skillAnalytics={skillAnalytics}
+            callAI={callAI}
+            onBack={() => { setDseTab('dashboard'); setActive(null); }}
+          />
+        ) : (
+          <>
+            <NoteHeader
+              note={activeNote}
+              onBack={() => setActive(null)}
+              onAIGenerate={handleAIGenerate}
+              onTogglePin={handleTogglePin}
+              onDuplicate={handleDuplicate}
+              onTitleChange={handleTitleChange}
+              onAddTag={handleAddTag}
+              onRemoveTag={handleRemoveTag}
+              onColorChange={handleColorChange}
+              backlinks={backlinks.length}
+              onShowBacklinks={() => setShowBacklinks(true)}
+              generatingStatus={generatingStatus}
+              onStudy={handleOpenVoid}
+              onKindChange={handleKindChange}
+            />
+            <Canvas
+              ref={canvasRef}
+              value={activeNote.content}
+              onChange={handleContentChange}
+              onFormat={handleFormat}
+            />
+            <ActionBar
+              content={activeNote.content}
+              onOpenVoid={handleOpenVoid}
+              wordCount={wordCount}
+              onToggleFocus={() => setFocusMode(f => !f)}
+              isFocusMode={focusMode}
+            />
+            <div className="main-footer">
+              <div className="main-footer__left">
+                <span className="main-footer__stat">{wordCount} words</span>
+                <span className="main-footer__stat">{charCount} chars</span>
+                {saveStatus && <span className="main-footer__stat" style={{ color: 'var(--color-success)' }}>{saveStatus}</span>}
+              </div>
+              <div className="main-footer__right">
+                <button
+                  className="main-footer__btn"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setColorPickerPos({ top: rect.top - 180, left: rect.left - 80 });
+                    setShowColorPicker(!showColorPicker);
+                  }}
+                  title="Note color"
+                  aria-label="Note color"
+                >
+                  🎨
+                </button>
+                <button
+                  className="main-footer__btn"
+                  onClick={() => setShowCmdPalette(true)}
+                  title="Command palette (Ctrl+K)"
+                  aria-label="Command palette"
+                >
+                  ⌘
+                </button>
+              </div>
+            </div>
+
+            {showColorPicker && (
+              <div className="color-popover" style={{ top: colorPickerPos.top, left: colorPickerPos.left }}>
+                {['', '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#9b59b6', '#ff9ff3'].map(c => (
+                  <button
+                    key={c || 'none'}
+                    className={`color-popover__dot${activeNote.color === c ? ' color-popover__dot--active' : ''}${!c ? ' color-popover__dot--none' : ''}`}
+                    style={c ? { backgroundColor: c } : {}}
+                    onClick={() => handleColorChange(c)}
+                    title={c || 'No color'}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Backlinks Modal */}
+      {showBacklinks && (
+        <div className="cmd-palette-overlay" onClick={() => setShowBacklinks(false)}>
+          <div className="cmd-palette" onClick={e => e.stopPropagation()} style={{ maxHeight: '50vh' }}>
+            <div className="cmd-palette__input-wrap" style={{ justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 600, color: 'var(--color-text)', fontSize: '0.9rem' }}>
+                Backlinks to "{activeNote?.title}"
+              </span>
+              <button
+                onClick={() => setShowBacklinks(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '1rem' }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="cmd-palette__results">
+              {backlinks.length === 0 ? (
+                <div className="panel-empty">No backlinks</div>
+              ) : (
+                backlinks.map(n => (
+                  <div
+                    key={n.id}
+                    className="cmd-palette__result"
+                    onClick={() => { setActive(n.id); setShowBacklinks(false); }}
+                  >
+                    <span className="cmd-palette__result-icon">📄</span>
+                    <div className="cmd-palette__result-body">
+                      <span className="cmd-palette__result-title">{n.title || 'Untitled'}</span>
+                      <span className="cmd-palette__result-preview">
+                        {n.content.replace(/<[^>]+>/g, '').slice(0, 80)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* The Void */}
+      {showVoid && (
+        <TheVoid
+          note={activeNote}
+          studySession={studyMode.getQuestions().length > 0 ? { questions: studyMode.getQuestions(), useAI: !!config.apiKey } : null}
+          onSubmitAnswer={(idx, answer) => studyMode.submitAnswer(idx, answer)}
+          onGenerateWithAI={(signal) => studyMode.generateWithAI(signal)}
+          onClose={() => setShowVoid(false)}
+          onReviewComplete={handleStudyComplete}
+          onRecordSession={(id, title) => studyMode.recordSession(id, title)}
+          noteHistory={activeNote ? studyMode.getNoteHistory(activeNote.id) : []}
+          queueSize={studyQueue.length}
+          queueIndex={studyQueueIndex}
+          onNextNote={handleNextInQueue}
+        />
+      )}
+
+      {/* Settings */}
+      <SettingsPage
+        config={config}
+        onUpdate={updateConfig}
+        isOpen={aiOpen}
+        onClose={() => setAiOpen(false)}
+        testConnection={testConnection}
+        notes={notes}
+        exportNotes={exportNotes}
+        importNotes={importNotes}
+        halfLife={halfLife}
+        setHalfLife={setHalfLife}
+        studyStats={studyStats}
+      />
+
+      {/* Shortcuts */}
+      {showShortcuts && (
+        <div className="shortcut-overlay" onClick={() => setShowShortcuts(false)}>
+          <div className="shortcut-modal" onClick={e => e.stopPropagation()}>
+            <div className="shortcut-modal__header">
+              <h3>Keyboard Shortcuts</h3>
+              <button className="shortcut-modal__close" onClick={() => setShowShortcuts(false)}>✕</button>
+            </div>
+            <div className="shortcut-modal__body">
+              <table className="shortcut-table">
+                <tbody>
+                  <tr><td><kbd>Ctrl+N</kbd></td><td>New note</td></tr>
+                  <tr><td><kbd>Ctrl+K</kbd></td><td>Command palette</td></tr>
+                  <tr><td><kbd>Ctrl+Shift+N</kbd></td><td>Quick capture</td></tr>
+                  <tr><td><kbd>Ctrl+Shift+D</kbd></td><td>Daily note</td></tr>
+                  <tr><td><kbd>Ctrl+S</kbd></td><td>AI generate</td></tr>
+                  <tr><td><kbd>Ctrl+B</kbd></td><td>Bold</td></tr>
+                  <tr><td><kbd>Ctrl+I</kbd></td><td>Italic</td></tr>
+                  <tr><td><kbd>Ctrl+U</kbd></td><td>Underline</td></tr>
+                  <tr><td><kbd>Ctrl+Shift+F</kbd></td><td>Clear formatting</td></tr>
+                  <tr><td><kbd>Ctrl+1</kbd></td><td>List view</td></tr>
+                  <tr><td><kbd>Ctrl+2</kbd></td><td>Canvas view</td></tr>
+                  <tr><td><kbd>Ctrl+3</kbd></td><td>Graph view</td></tr>
+                  <tr><td><kbd>Escape</kbd></td><td>Close modals</td></tr>
+                  <tr><td><kbd>?</kbd></td><td>Shortcuts</td></tr>
+                </tbody>
+              </table>
+              <h4 style={{ marginTop: 16, fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Markdown Shortcuts</h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                <code>#</code>, <code>##</code>, <code>*</code>, <code>- [ ]</code>, <code>&gt;</code>, <code>```</code>, <code>---</code>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Command Palette */}
+      {showCmdPalette && (
+        <CommandPalette
+          notes={notes}
+          onSelect={(id) => { setActive(id); setNavTab('notes'); }}
+          onCreate={handleCreateNote}
+          onQuickCapture={() => setShowQuickCapture(true)}
+          onOpenDaily={handleOpenDaily}
+          onRandom={handleRandom}
+          onToggleTheme={toggleTheme}
+          onStudy={handleOpenVoid}
+          onClose={() => setShowCmdPalette(false)}
+        />
+      )}
+
+      {/* Quick Capture */}
+      {showQuickCapture && quickCaptureOverlay()}
+
+      {/* Undo Toast */}
+      {undoInfo && (
+        <div className="undo-toast">
+          <span className="undo-toast__text">
+            {undoQueueRef.current.length > 1 ? `${undoQueueRef.current.length} notes deleted` : 'Note deleted'}
+          </span>
+          <button className="undo-toast__btn" onClick={handleUndo}>Undo</button>
+        </div>
+      )}
+
+      {/* Storage Warning */}
+      {storageError && (
+        <div style={{
+          position: 'fixed', bottom: 'var(--space-5)', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 90, display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
+          background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning)',
+          borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)',
+          fontSize: 'var(--font-sm)', color: 'var(--color-warning)',
+        }}>
+          <span>⚠ {storageError}</span>
+          <button onClick={handleExport} style={{
+            padding: '3px 10px', background: 'var(--color-warning)', color: '#fff',
+            border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+            fontFamily: 'inherit', fontSize: 'var(--font-xs)',
+          }}>Export</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ViewProvider>
+      <CrescendoApp />
+    </ViewProvider>
+  );
+}
