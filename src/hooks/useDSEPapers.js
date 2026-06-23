@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
-import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart } from '../utils/structuralConstraints';
+import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart, GENRE_TEMPLATES, PROMPT_ENFORCEMENT_RULES } from '../utils/structuralConstraints';
 
 function parseJSONArray(raw) {
   if (!raw) return null;
@@ -670,8 +670,14 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
 REFERENCE PASSAGE (for style analysis only — write about a DIFFERENT topic):
 ${stripped.slice(0, 6000)}`;
 
+  const genreInstructions = getGenreInstructions(difficulty, part);
+  if (genreInstructions) {
+    prompt += `\n\n${genreInstructions}`;
+  }
+  prompt += PROMPT_ENFORCEMENT_RULES;
+
   const systemMsg = 'You are a DSE English Paper 1 passage writer.\n\n' +
-    STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n\n' +
+    STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n' + PROMPT_ENFORCEMENT_RULES + '\n\n' +
     'Output ONLY valid passage HTML (<h2> titles, <h3>Text N</h3> headers, <p> paragraphs). No markdown, no metadata, no word counts.';
   const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
   if (!raw) return null;
@@ -751,6 +757,14 @@ const difficultyToPart = { easy: 'B1', medium: 'A', hard: 'B2' };
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 const PAPER_TYPES = ['reading', 'writing', 'listening', 'speaking'];
 
+function getGenreInstructions(difficulty, part) {
+  const textTypes = TEXT_TYPE_REQUIREMENTS[part]?.types || ['news report'];
+  const typePick = textTypes[Math.floor(Math.random() * textTypes.length)];
+  const template = GENRE_TEMPLATES[typePick];
+  if (!template) return '';
+  return `TEXT TYPE: ${typePick}\nStructure: ${template.structure}\nVoice: ${template.voice}\nFeatures: ${template.features}`;
+}
+
 async function generatePassageFromRAG(fragments, callAI, difficulty = 'medium') {
   const part = difficultyToPart[difficulty] || 'A';
   const target = WORD_COUNT_TARGETS[part] || WORD_COUNT_TARGETS.A;
@@ -794,8 +808,14 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
 SOURCE FRAGMENTS:
 ${fragmentsSection}`;
 
+  const genreInstructions = getGenreInstructions(difficulty, part);
+  if (genreInstructions) {
+    prompt += `\n\n${genreInstructions}`;
+  }
+  prompt += PROMPT_ENFORCEMENT_RULES;
+
   const systemMsg = 'You are a DSE English Paper 1 passage writer.\n\n' +
-    STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n\n' +
+    STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n' + PROMPT_ENFORCEMENT_RULES + '\n\n' +
     'Output ONLY valid passage HTML (<h2> titles, <h3>Text N</h3> headers, <p> paragraphs). No markdown, no metadata, no word counts.';
   const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
   if (!raw) return null;
@@ -900,8 +920,18 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
   Asymmetrical Text Matching: Texts must NOT share a one-to-one thematic relationship.
   Multi-Layered Attribution: Separate narrator belief, cited expert argument, and anecdotal subject experience.`}`;
 
+  // Enhance with full genre template
+  const genreTemplate = GENRE_TEMPLATES[typePick];
+  if (genreTemplate) {
+    prompt = prompt.replace(
+      `TEXT TYPE: ${typePick}\nAvailable text types`,
+      `TEXT TYPE: ${typePick}\nStructure: ${genreTemplate.structure}\nVoice: ${genreTemplate.voice}\nFeatures: ${genreTemplate.features}\nAvailable text types`
+    );
+  }
+  prompt += PROMPT_ENFORCEMENT_RULES;
+
   const systemMsg = 'You are a DSE English Paper 1 passage writer.\n\n' +
-    STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n\n' +
+    STRUCTURAL_CONSTRAINTS + '\n' + ARGUMENTATION_FLOW + '\n' + PROMPT_ENFORCEMENT_RULES + '\n\n' +
     'Output ONLY valid passage HTML (<h2> titles, <h3>Text N</h3> headers, <p> paragraphs). No markdown, no metadata, no word counts.';
   const raw = await callAI(prompt, { system: systemMsg, temperature: 0.7, maxTokens: getMaxTokensForPart(part), timeout: 180000 });
   if (!raw) return null;

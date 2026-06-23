@@ -20,8 +20,97 @@ export const WORD_COUNT_TARGETS = {
   B2: { label: 'Part B2 — Harder', min: 1000, max: 1200, textCount: '1-2' },
 };
 
+// Token budget for AI generation: ~1.33x word count target to allow for HTML tags and formatting overhead
+// This prevents the AI from over-generating (5000 tokens ≈ 3750 words was 3x the 1200-word target)
+export function getMaxTokensForPart(part) {
+  const target = WORD_COUNT_TARGETS[part] || WORD_COUNT_TARGETS.A;
+  return Math.ceil(target.max * 1.33);
+}
+
 export const TEXT_TYPE_REQUIREMENTS = {
   B1: { types: ['news report', 'blog post', 'webpage/guide', 'forum post', 'letter to editor', 'advertisement'], description: 'Simple, accessible text types — short paragraphs, straightforward vocabulary' },
   A:  { types: ['news report', 'feature article', 'letter to editor', 'interview transcript', 'informational text'], description: 'Mixed text types with progressive difficulty — some inference required' },
   B2: { types: ['opinion piece/editorial', 'literary excerpt', 'academic text', 'feature article', 'argumentative essay'], description: 'Dense, complex texts — figurative language, multiple perspectives, cognitive ambivalence' },
 };
+
+export const GENRE_TEMPLATES = {
+  'news report': {
+    structure: 'Inverted pyramid: lead paragraph with who/what/when/where, followed by details and context. Short paragraphs (2-3 sentences). Objective tone.',
+    voice: 'Journalistic — third person, attribution to named sources, dateline-style openings',
+    features: 'Direct quotes from officials/residents, statistics, timeline of events'
+  },
+  'feature article': {
+    structure: 'Narrative arc: scene-setting opening, thematic development, multiple perspectives, open-ended close.',
+    voice: 'Literary-journalistic — first person or close third, sensory details, character-driven',
+    features: 'Vivid scene-setting, portraits, thematic metaphors, indirect commentary'
+  },
+  'opinion piece/editorial': {
+    structure: 'Thesis statement, supporting arguments with evidence, counterargument acknowledgment, unresolved conclusion.',
+    voice: 'Argumentative but measured — uses rhetorical devices sparingly, maintains credibility',
+    features: 'Explicit value judgments, policy references, appeals to shared values'
+  },
+  'academic text': {
+    structure: 'Introduction with research context, methodology/framework, findings, limitations, implications.',
+    voice: 'Formal, precise, hedged language (suggests, indicates, appears), passive constructions acceptable',
+    features: 'Technical terminology, data references, citations of prior work, qualified claims'
+  },
+  'literary excerpt': {
+    structure: 'Scene-based narrative with dialogue, internal monologue, environmental detail.',
+    voice: 'Subjective, sensory-rich, character interiority, varied sentence length',
+    features: 'Dialogue with dialect/colloquialisms, symbolic objects, temporal shifts'
+  },
+  'blog post': {
+    structure: 'Conversational opening, themed sections, personal anecdotes, call-to-reflection close.',
+    voice: 'First person, informal, direct address to reader, personal opinions',
+    features: 'Emojis (occasional), rhetorical questions, personal experience references'
+  },
+  'forum post': {
+    structure: 'Opinion statement, supporting reasons, engagement questions, casual sign-off.',
+    voice: 'Highly informal, abbreviated, direct, opinionated, community-specific slang',
+    features: 'Typos/grammar shortcuts, community references, threaded-reply style'
+  },
+  'letter to editor': {
+    structure: 'Reference to prior article/event, opinion stance, supporting arguments, call to action.',
+    voice: 'Formal but personal, civic-minded, references shared community experience',
+    features: 'Salutation-style openings, formal sign-offs, reference to public discourse'
+  },
+  'advertisement': {
+    structure: 'Headline, benefit statements, features/bullet points, call to action, disclaimers.',
+    voice: 'Persuasive, benefit-focused, urgent, audience-directed',
+    features: 'Bullet points, pricing, contact info, promotional language'
+  },
+  'webpage/guide': {
+    structure: 'Topic introduction, step-by-step or categorized information, practical tips.',
+    voice: 'Instructional, clear, organized, moderately formal',
+    features: 'Numbered steps, categorized sections, practical advice, resource links'
+  },
+  'interview transcript': {
+    structure: 'Brief context intro, Q&A exchanges, interviewer framing, subject responses.',
+    voice: 'Conversational, alternating voices, interviewer neutrality or personality',
+    features: 'Speaker labels, interruptions, filler words, non-verbal cues in brackets'
+  },
+  'informational text': {
+    structure: 'Topic overview, categorized information, comparative data, summary implications.',
+    voice: 'Objective, systematic, categorized, encyclopedic',
+    features: 'Categories/subcategories, comparative tables described in text, factual statements'
+  },
+  'argumentative essay': {
+    structure: 'Thesis, supporting arguments, counterarguments, synthesis.',
+    voice: 'Academic-formal, logical progression, evidence-based',
+    features: 'Transition signals, citation patterns, qualified claims'
+  },
+  'report': {
+    structure: 'Executive summary, findings by category, data/evidence, conclusions (or lack thereof).',
+    voice: 'Dry, formal, impersonal, data-driven, bureaucratic',
+    features: 'Bullet points, numbered items, tables described in text, formal headings, jargon'
+  }
+};
+
+export const PROMPT_ENFORCEMENT_RULES = `
+[PARAGRAPH LENGTH ENFORCEMENT]: Every paragraph must be 1-3 sentences maximum. Long paragraphs (5+ sentences) are a hallucination pattern — if the AI produces them, the passage is structurally invalid. Count sentences per paragraph and reject any with more than 3.
+
+[COLLOQUIAL DIALOGUE ENFORCEMENT]: When characters speak, their dialogue must sound like real people, not grammar textbooks. Use contractions (don't, can't, won't), sentence fragments, filler words (um, like, you know), interrupted speech, and regional expressions. Dialogue should NEVER be perfectly grammatical. At least 30% of dialogue must contain colloquialisms.
+
+[CONCRETE NOUN ENFORCEMENT]: Replace every abstract concept with a specific physical object, action, or sensory detail. Instead of "economic hardship" write "the electricity bill stacked on the kitchen counter." Instead of "social isolation" write "three weeks without hearing another person's voice." Show, don't tell.
+
+[MORALIZING ENDING FORBIDDEN]: The final paragraph MUST NOT contain any of these patterns: "in the end," "ultimately," "what we learned," "the lesson was," "looking back," "this story shows," "perhaps," "maybe we should." The ending must be a concrete image, an unresolved action, or a cold fact — NOT a reflection, moral, or summary.`;
