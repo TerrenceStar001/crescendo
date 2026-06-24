@@ -4902,6 +4902,358 @@ html[data-theme="dark"] {
   background: var(--color-accent-hover);
 }
 
+/* ===== Marked Script View ===== */
+.marked-script {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.marked-script__para {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.marked-script__para--all-correct {
+  background: transparent;
+}
+
+.marked-script__para--has-errors {
+  background: var(--color-error-bg);
+  border-left: 3px solid var(--color-error);
+}
+
+.marked-script__gutter {
+  width: 200px;
+  flex-shrink: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-right: var(--space-3);
+  border-right: 1px solid var(--color-border);
+}
+
+.marked-script__annotation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border-left: 3px solid transparent;
+}
+
+.marked-script__annotation--correct {
+  border-left-color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+.marked-script__annotation--wrong {
+  border-left-color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.marked-script__annotation--partial {
+  border-left-color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.marked-script__annotation-marker {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+.marked-script__annotation--correct .marked-script__annotation-marker {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.marked-script__annotation--wrong .marked-script__annotation-marker {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.marked-script__annotation--partial .marked-script__annotation-marker {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.marked-script__annotation-text {
+  flex: 1;
+  color: var(--color-text-secondary);
+}
+
+.marked-script__annotation-marks {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.marked-script__text {
+  flex: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text);
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -moz-hyphens: auto;
+}
+
+.marked-script__text p {
+  text-indent: 2em;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+.marked-script__text--highlighted {
+  background: rgba(239, 83, 80, 0.04);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+}
+
+.marked-script__empty {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--color-text-muted);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.85rem;
+}
+
+/* ===== Error Pattern Analysis ===== */
+.error-pattern {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.error-pattern__card {
+  flex: 1;
+  min-width: 220px;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.error-pattern__header {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.error-pattern__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.error-pattern__label {
+  width: 100px;
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+  flex-shrink: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.error-pattern__bar-bg {
+  flex: 1;
+  height: 8px;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.error-pattern__bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.5s;
+}
+
+.error-pattern__value {
+  width: 36px;
+  text-align: right;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.error-pattern__weakest-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: var(--space-2);
+}
+
+.error-pattern__recommendation {
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--color-canvas);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* ===== Drill Generator ===== */
+.drill-generator {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.drill-generator__card {
+  text-align: center;
+  padding: var(--space-5);
+}
+
+.drill-generator__cta {
+  padding: var(--space-2) var(--space-6);
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  transition: background var(--transition-base);
+}
+
+.drill-generator__cta:hover {
+  background: var(--color-accent-hover);
+}
+
+.drill-generator__cta:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.drill-generator__loading {
+  text-align: center;
+  padding: var(--space-5);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.drill-generator__error {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.drill-generator__question {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+}
+
+.drill-generator__actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+/* ===== Reading Results Tablet ===== */
+@media (max-width: 1024px) {
+  .marked-script__gutter {
+    width: auto;
+    position: static;
+    border-right: none;
+    padding-left: 0;
+    margin-bottom: var(--space-2);
+  }
+  .marked-script {
+    flex-direction: column;
+  }
+  .marked-script__para {
+    flex-direction: column;
+  }
+  .marked-script__annotation {
+    display: inline-block;
+    margin-right: var(--space-2);
+    margin-bottom: var(--space-1);
+  }
+  .error-pattern {
+    flex-direction: column;
+  }
+  .error-pattern__card {
+    width: 100%;
+  }
+  .drill-generator__actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .reading__results {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 768px) {
+  .reading__results {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+  .reading__results-summary {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-3);
+  }
+  .reading__results-stats {
+    justify-content: center;
+  }
+  .reading__results-actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .reading__results-btn {
+    width: 100%;
+    text-align: center;
+  }
+  .marked-script__annotation {
+    display: inline-block;
+    margin-right: var(--space-1);
+    margin-bottom: var(--space-1);
+  }
+}
+
 /* ===== Writing Module ===== */
 .writing__body {
   flex: 1;
