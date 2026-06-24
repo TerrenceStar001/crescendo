@@ -1,7 +1,8 @@
 ---
 phase: 3
 slug: notes-analysis-overhaul
-status: draft
+status: approved
+reviewed_at: 2026-06-24
 shadcn_initialized: false
 preset: not applicable
 created: 2026-06-24
@@ -61,12 +62,13 @@ Existing scale from `:root` in `App.css` lines 45-50:
 | Body / passage | 1rem (16px) | 400 (Regular) | 1.6 | `Georgia, 'Times New Roman', serif` |
 | Annotation / label | 0.7rem (~11px) | 400 (Regular) | 1.4 | `system-ui, -apple-system, sans-serif` |
 | Section heading | 0.8rem (~13px) | 600 (Semibold) | 1.3 | `system-ui, -apple-system, sans-serif` |
-| Stat value (display) | 1.5rem (24px) | 700 (Bold) | 1.2 | `system-ui, -apple-system, sans-serif` |
+| Stat value (display) | 1.5rem (24px) | 600 (Semibold) | 1.2 | `system-ui, -apple-system, sans-serif` |
 
-**Weights used:**
+**Weights used (consolidated to 2):**
 - 400 (Regular) — passage text, body copy, annotation descriptions
-- 600 (Semibold) — section headers, stat labels, drill CTA text
-- 700 (Bold) — percentages, counts, highlight indicators, passage titles
+- 600 (Semibold) — section headers, stat labels, drill CTA text, percentages, counts, highlight indicators, passage titles
+
+> 700 (Bold) removed per checker requirement. All previous 700 usages converted to 600 (Semibold). Remaining visual hierarchy achieved via font size and color instead.
 
 **Line heights:**
 - Body / passage: 1.6 (existing, from `.reading__passage-text`)
@@ -336,6 +338,18 @@ All new CSS follows the existing BEM-like pattern from `App.css`:
 - Marked-script annotations appear inline between paragraphs (no gutter)
 - All sections fully stacked
 - Actions row buttons stack vertically on small screens
+
+---
+
+## Visual Focal Point
+
+MarkedScriptView (annotated passage) is the primary visual anchor on the results screen — colored highlights and margin annotations draw the eye first.
+
+| Layer | Element | What draws attention |
+|-------|---------|---------------------|
+| Primary | MarkedScriptView passage | Per-paragraph highlights (green/amber/red) + margin annotation markers (✓ ✗) instantly communicate which questions were correct, wrong, or partial |
+| Secondary | Error pattern analysis cards | Clustered by skill/type for systematic error review — bars and percentages reinforce the visual story |
+| Tertiary | Drill generator CTA | Sits below analysis as the actionable next step — primary accent button signals the final action |
 
 ---
 
