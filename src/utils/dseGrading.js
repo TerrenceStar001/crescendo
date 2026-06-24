@@ -1,3 +1,5 @@
+import { checkAnswer } from './answerChecking';
+
 const DSE_LEVEL_ORDER = ['1', '2', '3', '4', '5', '5*', '5**'];
 
 const levelValues = { '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '5*': 6, '5**': 7 };
@@ -252,9 +254,8 @@ export function computeSubScores(skill, questions, answers) {
     const type = q.type || 'mcq';
     if (subScores[type] === undefined) { subScores[type] = 0; counts[type] = 0; }
     counts[type] += q.marks || 1;
-    if (isQuestionCorrect(q, answers?.[q.id])) {
-      subScores[type] += q.marks || 1;
-    }
+    const result = checkAnswer(q, answers?.[q.id]);
+    subScores[type] += result.marksEarned;
   }
 
   const result = {};

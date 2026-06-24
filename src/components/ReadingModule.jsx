@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import QuestionRenderer, { isQuestionCorrect } from './QuestionRenderer';
-import { computeWeightedScore, computeSubScores, scoreToDseLevel } from '../utils/dseGrading';
+import QuestionRenderer from './QuestionRenderer';
+import { computeWeightedScore, computeSubScores, scoreToDseLevel, isQuestionCorrect } from '../utils/dseGrading';
+import { computeScore } from '../utils/answerChecking';
 
 export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack }) {
   const [phase, setPhase] = useState('start');
@@ -183,8 +184,9 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
       questionTimersRef.current[finalQ.id] = (questionTimersRef.current[finalQ.id] || 0) + elapsed;
     }
 
-    const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0);
-    const marksEarned = questions.reduce((s, q) => s + ((isQuestionCorrect(q, answers[q.id]) ? (q.marks || 1) : 0)), 0);
+    const scoreResult = computeScore(questions, answers);
+    const totalMarks = scoreResult.maxMarks;
+    const marksEarned = scoreResult.marksEarned;
     const percentage = totalMarks > 0 ? Math.round((marksEarned / totalMarks) * 100) : 0;
     const weighted = computeWeightedScore(questions, answers, 'reading');
     const subScores = computeSubScores('reading', questions, answers);
@@ -197,12 +199,13 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
       totalQuestions: totalMarks,
       percentage: Math.round((marksEarned / totalMarks) * 100),
       subScores,
-      questions: questions.map(q => ({
+      questions: questions.map((q, i) => ({
         id: q.id, type: q.type, questionType: q.type,
         stem: q.stem, options: q.options,
         correctAnswer: q.correctAnswer,
         userAnswer: answers[q.id] || null,
-        isCorrect: isQuestionCorrect(q, answers[q.id]),
+        isCorrect: scoreResult.results?.[i]?.correct || false,
+        marksEarned: scoreResult.results?.[i]?.marksEarned || 0,
         marks: q.marks || 1,
         timeSpent: Math.round((questionTimersRef.current[q.id] || 0) / 1000),
       })),
