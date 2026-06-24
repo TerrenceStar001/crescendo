@@ -406,42 +406,61 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
         <div className="reading__body">
           <div className="reading__passage-col">
             <div className="reading__passage-card">
-            <div className={`reading__passage-part-badge ${partClass}`}>
-              {partLabel}
-            </div>
-            <h2 className="reading__passage-title" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-              {currentPassage?.title || 'Reading Passage'}
-              {paper?.metadata?.passageReconstructed ? (
-                <span className="reading__source-badge reading__source-badge--ai">AI</span>
+              {/* Exam framework header — DSE booklet style */}
+              <div className="reading__exam-framework">
+                <div className="reading__exam-framework-left">
+                  <span className="reading__seat-number">Seat No. __________</span>
+                </div>
+                <div className="reading__exam-framework-center">
+                  <span className="reading__exam-title">Hong Kong Diploma of Secondary Education Examination</span>
+                </div>
+                <div className="reading__exam-framework-right">
+                  <span className="reading__exam-year">2024</span>
+                </div>
+              </div>
+
+              {/* Single part badge — no duplication */}
+              <div className={`reading__passage-part-badge ${partClass}`}>
+                {partLabel}
+              </div>
+
+              {/* Passage title — NO AI badge, clean serif */}
+              <h2 className="reading__passage-title">
+                {currentPassage?.title || 'Reading Passage'}
+              </h2>
+
+              {/* Passage body with line number gutter */}
+              <div className="reading__passage-body">
+                <div className="reading__line-gutter" aria-hidden="true">
+                  {/* Line numbers injected by CSS counter — no JS needed */}
+                </div>
+                <div className="reading__passage-text">
+                  <div dangerouslySetInnerHTML={{ __html: currentPassage?.content || '' }} />
+                </div>
+              </div>
+
+              {/* Source attribution — single source, no duplication with wordcount */}
+              {paper?.metadata?.ragGenerated && (paper.metadata.sourceName || paper.metadata.sourceDate) && (
+                <div className="reading__passage-source">
+                  Adapted from {paper.metadata.sourceName}{paper.metadata.sourceDate ? `, ${paper.metadata.sourceDate}` : ''}
+                </div>
+              )}
+              {!paper?.metadata?.ragGenerated && paper?.metadata?.aiGenerated && !paper.metadata.sourceName && (
+                <div className="reading__passage-source">Adapted from a news article</div>
+              )}
+
+              {/* Truncation warning */}
+              {paper?.metadata?.passageTruncated ? (
+                <div className="reading__truncation-warning">
+                  ⚠️ Passage was truncated in the source — AI reconstructed most content but some details may be incomplete.
+                </div>
               ) : null}
-            </h2>
-            <div className="reading__passage-body">
-              <div className="reading__passage-text">
-                <div dangerouslySetInnerHTML={{ __html: currentPassage?.content || '' }} />
+
+              {/* Word count — simplified, no redundant source info */}
+              <div className="reading__passage-wordcount">
+                {currentPassage?.wordCount || currentPassage?.content?.split(/\s+/).length || 0} words
               </div>
             </div>
-            {paper?.metadata?.ragGenerated && (paper.metadata.sourceName || paper.metadata.sourceDate) && (
-              <div className="reading__passage-source">
-                Adapted from {paper.metadata.sourceName}{paper.metadata.sourceDate ? `, ${paper.metadata.sourceDate}` : ''}
-              </div>
-            )}
-            {!paper?.metadata?.ragGenerated && paper?.metadata?.aiGenerated && !paper.metadata.sourceName && (
-              <div className="reading__passage-source">Adapted from a news article</div>
-            )}
-            {paper?.metadata?.passageTruncated ? (
-              <div className="reading__truncation-warning">
-                ⚠️ Passage was truncated in the source — AI reconstructed most content but some details may be incomplete.
-              </div>
-            ) : null}
-            <div className="reading__passage-wordcount">
-              {currentPassage?.wordCount || currentPassage?.content?.split(/\s+/).length || 0} words
-              {paper?.metadata?.ragGenerated && paper.metadata.sourceName
-                ? ` · Adapted from ${paper.metadata.sourceName}${paper.metadata.sourceDate ? `, ${paper.metadata.sourceDate}` : ''}`
-                : paper?.metadata?.aiGenerated && !paper.metadata.sourceName
-                  ? ' · AI-generated passage'
-                  : ''}
-            </div>
-          </div>
           </div>
           <div className="reading__questions-col">
             {paper?.metadata?.readOnly ? (
