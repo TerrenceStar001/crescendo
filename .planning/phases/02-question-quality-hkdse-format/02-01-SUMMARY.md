@@ -105,3 +105,12 @@ None — no external service configuration required.
 - `questionTypes.js` ready for import by `useDSEPapers.js` (plan 02-02 or 02-05) for type-distribution-driven question generation
 - `QuestionRenderer.jsx` now handles all 9 DSE question types — ready for integration with question validation and answer checking
 - Build passes at `18ade03` and `dd48bcf` — Ready for Plan 02-02 (answer checking)
+
+## Self-Check: PASSED
+
+- ✓ `src/utils/questionTypes.js` — exists with all 8 exports
+- ✓ `src/components/QuestionRenderer.jsx` — exists with 3 new components, 9 TYPE_LABELS, 9 switch cases
+- ✓ `18ade03` — Task 1 commit found
+- ✓ `dd48bcf` — Task 2 commit found
+- ✓ `27b1086` — SUMMARY commit found
+- ✓ `npm run build` — passes without errors
