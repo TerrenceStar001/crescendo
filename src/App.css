@@ -4213,14 +4213,6 @@ html[data-theme="dark"] {
   background: var(--color-text-muted);
   opacity: 0.7;
 }
-.reading__source-badge--ai {
-  background: #2e7d32;
-  color: #fff;
-}
-html[data-theme="dark"] .reading__source-badge--ai {
-  background: #1b5e20;
-  color: #a5d6a7;
-}
 .reading__results-source {
   display: flex;
   align-items: center;
@@ -4261,13 +4253,13 @@ html[data-theme="dark"] .reading__source-badge--ai {
 
 /* ===== DSE Booklet Passage Display (Phase 1) ===== */
 
-/* Passage card — paper-like container */
+/* Passage card — sterile DSE booklet style, no radius or shadow */
 .reading__passage-card {
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: 0;
   padding: var(--space-5) var(--space-6);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   max-width: 720px;
   margin: 0 auto;
 }
@@ -4305,9 +4297,6 @@ html[data-theme="dark"] .reading__source-badge--ai {
   line-height: 1.3;
   color: var(--color-text);
   margin-bottom: var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 /* Passage body — flex container for possible line gutter */
@@ -4326,6 +4315,8 @@ html[data-theme="dark"] .reading__source-badge--ai {
   color: var(--color-text);
   text-align: justify;
   hyphens: auto;
+  -webkit-hyphens: auto;
+  -moz-hyphens: auto;
 }
 
 /* DSE booklet paragraph style: first-line indent instead of block spacing */
@@ -4367,6 +4358,79 @@ html[data-theme="dark"] .reading__source-badge--ai {
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border);
   text-indent: 0;
+}
+
+/* ===== DSE Exam Framework Header ===== */
+.reading__exam-framework {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0 var(--space-3) 0;
+  margin-bottom: var(--space-3);
+  border-bottom: 2px solid var(--color-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+.reading__exam-framework-left {
+  flex: 0 0 auto;
+}
+.reading__exam-framework-center {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.reading__exam-framework-right {
+  flex: 0 0 auto;
+  text-align: right;
+}
+.reading__seat-number {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.reading__exam-title {
+  font-weight: 700;
+  color: var(--color-text);
+}
+.reading__exam-year {
+  font-weight: 600;
+}
+
+/* ===== Line Number Gutter ===== */
+.reading__line-gutter {
+  width: 40px;
+  flex-shrink: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  text-align: right;
+  padding-right: var(--space-3);
+  padding-left: var(--space-2);
+  user-select: none;
+  border-right: 1px solid var(--color-border);
+  counter-reset: line;
+  opacity: 0.6;
+}
+/* Each <p> in the passage increments the line counter */
+.reading__passage-text > p {
+  counter-increment: line;
+}
+.reading__line-gutter::before {
+  content: counter(line);
+  display: block;
+}
+
+/* Subtle page boundary between texts */
+.reading__passage-text h3 + p {
+  margin-top: var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
 }
 
 .reading__questions-col {
@@ -4523,7 +4587,7 @@ html[data-theme="dark"] .reading__source-badge--ai {
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid var(--color-border);
+  border-bottom: 2px solid var(--color-text);
   margin-bottom: 10px;
 }
 
@@ -5401,10 +5465,10 @@ html[data-theme="dark"] .reading__source-badge--ai {
 .matching__select:focus { border-color: var(--color-accent); outline: none; }
 .matching__select:disabled { opacity: 0.7; cursor: default; }
 
-/* Section header variants */
-.reading__section-header--A { border-bottom-color: var(--color-accent); }
-.reading__section-header--B1 { border-bottom-color: #ff9800; }
-.reading__section-header--B2 { border-bottom-color: #e91e63; }
+/* Section header variants — solid dark, no accent colors */
+.reading__section-header--A { border-bottom-color: var(--color-text); }
+.reading__section-header--B1 { border-bottom-color: var(--color-text); }
+.reading__section-header--B2 { border-bottom-color: var(--color-text); }
 
 /* ===== Listening Module ===== */
 .listening__body {
