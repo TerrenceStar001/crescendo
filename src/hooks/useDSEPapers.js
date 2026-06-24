@@ -2,6 +2,9 @@ import { useState, useCallback, useMemo } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
 import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart, GENRE_TEMPLATES, PROMPT_ENFORCEMENT_RULES } from '../utils/structuralConstraints';
+import { composeFullPrompt } from '../utils/questionGenerator';
+import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
+import { QUESTION_TYPE_DISTRIBUTIONS, getTypeDistributionForPart } from '../utils/questionTypes';
 
 function parseJSONArray(raw) {
   if (!raw) return null;
@@ -298,6 +301,7 @@ function ensureNGCount(questions) {
   });
 }
 
+// Legacy validator — kept for backward compatibility. New code uses questionValidator.js
 function validateQuestions(questions, passagePlain) {
   const warnings = [];
   if (!questions?.length) return { valid: false, warnings: ['No questions'] };
@@ -1134,100 +1138,8 @@ export default function useDSEPapers() {
         const passagePreview = finalContent.replace(/<[^>]+>/g, '').replace(/&[^;]+;/g, ' ').slice(0, 4000);
         if (passagePreview.length > 200) {
           const numQuestions = difficulty === 'easy' ? 15 : difficulty === 'hard' ? 25 : 20;
-          const qPrompt = `You are a DSE English Paper 1 examiner. Below is a reading passage for comprehension assessment.
-
-TASK: Create ${numQuestions} original comprehension questions. Each must be answerable solely from the passage.
-
-CRITICAL — The "type" field MUST be exactly one of these 9 values (no alternatives):
-- "mcq" — multiple choice with 4 labelled options (A/B/C/D)
-- "tfng" — True / False / Not Given (stem must be a STATEMENT, not a question)
-- "gap-fill" — fill in the blank with word(s) from the passage
-- "short-answer" — answer with a word/phrase from the passage
-- "matching" — match items from two columns (minimum 3 pairs). REQUIRES: "pairs" array [{"item": "1", "match": "C"}, {"item": "2", "match": "A"}, {"item": "3", "match": "B"}] and "options" array [{"label": "A", "text": "description"}, {"label": "B", "text": "description"}, {"label": "C", "text": "description"}]
-- "open-ended" — explain or give an opinion (no single correct answer)
-- "summary-cloze" — fill in numbered blanks from a table summarizing multiple paragraphs
-- "pronoun-ref" — "What does [word] in paragraph X refer to?"
-- "semantic-connect" — match causes to effects, or claims to evidence (include pairs and options)
-
-TYPE DIVERSITY: You MUST use at least 4 different question types. A good distribution for ${numQuestions} questions is: roughly 4–5 mcq, 3–4 tfng, 2–3 gap-fill, 2–3 short-answer, 1–2 open-ended, 1 matching, 1 pronoun-ref, 1 semantic-connect, 1 summary-cloze. Include at least 1 of the 3 advanced types (summary-cloze, pronoun-ref, semantic-connect).
-
-SKILL TESTED — The "skillTested" field is SEPARATE from type. Choose one per question:
-- mainIdea: understanding the overall argument/purpose
-- detail: recalling specific facts
-- inference: reading between the lines
-- vocabInContext: word meaning from context
-- tone: identifying the author's attitude
-- purpose: why something is mentioned
-
-TFNG RULES (Binary Overhaul):
-- The stem MUST be a declarative STATEMENT ending with a period (.) — NOT a question.
-- The correctAnswer must be exactly "T", "F", or "NG" (single letter).
-- FALSE requires explicit, verifiable contradiction in the text. The statement must directly conflict with a specific sentence, not merely differ from the overall implication.
-- NOT GIVEN applies when a statement is highly plausible and aligns with common sense, but simply cannot be verified from the text. Create NG items by:
-  * Inserting an unmentioned comparison (e.g., stating X is "more effective" than Y when the text only says both are effective).
-  * Inserting an unverified motive (e.g., stating a character did X "because of" Y when the text mentions the action but not the rationale).
-- CRITICAL: Do NOT treat "False" and "Not Given" interchangeably. An NG answer must be a statement the passage neither confirms nor contradicts — not one it contradicts.
-- If you include 4+ TFNG questions, at least 2 MUST be "NG". If 2–3 TFNG, at least 1 MUST be "NG".
-
-MCQ & DISTRACTOR DESIGN (The Distractor Engine):
-- The stem MUST be a QUESTION ending with a question mark (?) — NOT a statement. Statements should use "tfng" type instead.
-- Only ONE option can be correct. The other three must be "plausible but partial" — 100% true from a different section of the text, but incorrect for this specific question.
-- Design each distractor as one of these cognitive traps:
-  * OVER-GENERALIZATION: Take a narrow sentiment from one character and frame it as the systemic consensus.
-  * TEMPORAL/CAUSAL FLIP: Reverse the cause-and-effect relationship from a complex sentence.
-  * KEYWORD BAIT: Use exact, highly visible phrases from the text but alter the syntax to change the meaning entirely.
-- Each distractor must share FEWER THAN HALF of its words with any other option.
-- Do NOT use negations of the correct answer as a distractor.
-
-OPEN-ENDED & SHORT-ANSWER DESIGN (The Open-Ended Paradigm):
-- These must NOT be answerable by copying a single line. Target synthesis across structural gaps.
-- Force candidates to locate two competing forces within the text, bridge them, and articulate the tension.
-- Focus stems on paradox, irony, and divergence:
-  * Instead of asking what a character's plan is, ask why their plan contradicts their stated values.
-  * Instead of asking for a definition, ask how different stakeholders interpret the same term differently.
-- Use "Justification" prompts that require evidence for both perspectives before concluding.
-- For these questions, the rubric field is REQUIRED for marks ≥2 — list evidence demands in requiredPoints and shallow responses in unacceptableAnswers.
-
-COHERENCE & STRUCTURAL DESIGN (The Structural Shift):
-- Shift question targets from what the text says to why the author chose to say it this way at this specific moment.
-- Implement items targeting macro-coherence:
-  * FUNCTIONAL TRANSITION: Ask about the relationship between two adjacent paragraphs where the transition marker has been omitted.
-  * STRUCTURAL METAPHOR: Target opening hooks or closing imagery, asking how they mirror the psychological or systemic themes of the entire piece.
-  * PERSPECTIVE SHIFT: Ask how the introduction of a new voice (e.g., an academic report following a personal narrative) alters the validity of previous arguments.
-- These suit open-ended, short-answer, or tfng types — use the rubric field to capture the two competing elements the student must bridge.
-
-DISTRIBUTION RULES: Distribute questions evenly across the entire passage — use the paragraphRef field to indicate which paragraph each question targets. At least 30% of questions must target the second half of the passage.
-
-PARAPHRASE RULES: Do NOT copy exact sentences from the passage into question stems, TFNG statements, or gap-fill context. Paraphrase and rephrase to test comprehension, not visual pattern-matching. For gap-fill, the blank word must NOT appear verbatim in the immediately adjacent text — the student must understand meaning, not spot the word.
-
-TRUNCATION RULES: The words "truncated", "cut off", "incomplete", "missing", "not shown", "not included", "before the passage", "after the passage" are BANNED in stems and explanations. If any of these words appear, the question is automatically rejected. The passage is COMPLETE and fully visible — every question must be answerable from the provided text.
-
-For questions with marks ≥2, include a "rubric" field:
-"rubric": {
-  "requiredPoints": ["answer point 1", "answer point 2"],
-  "unacceptableAnswers": ["wrong answer", "common mistake"]
-}
-
-For each question output this JSON:
-{
-  "stem": "question text or statement",
-  "type": "mcq | tfng | gap-fill | short-answer | matching | open-ended | summary-cloze | pronoun-ref | semantic-connect",
-  "skillTested": "mainIdea | detail | inference | vocabInContext | tone | purpose",
-  "paragraphRef": integer (the paragraph number this question targets; 1 = first paragraph),
-  "marks": integer (1-3),
-  "options": [{"label": "A", "text": "option text"}],
-  "pairs": [{"item": "1", "match": "C"}, {"item": "2", "match": "A"}],
-  "rubric": { "requiredPoints": ["..."], "unacceptableAnswers": ["..."] },
-  "correctAnswer": "the answer",
-  "explanation": "explain with passage reference"
-}
-
-Return ONLY a valid JSON array. No other text. No comments, no trailing commas, no JavaScript syntax. Every string must be double-quoted. Every object in the array must be comma-separated.
-
-CONCISENESS RULE (CRITICAL): Keep each question extremely short. Each question object must average ≤500 characters total. Explanations: max 1 sentence. Option texts: max 8 words each. Marks: omit rubric for 1-mark questions. Tight stems only — no fluff.
-
-PASSAGE:
-${passagePreview}`;
+          const typeDist = getTypeDistributionForPart(part);
+          const qPrompt = composeFullPrompt(passagePreview, numQuestions, part, typeDist);
 
           async function tryRAGQuestions(basePrompt, maxRetries = 2) {
             const systemMsg = 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.';
@@ -1270,6 +1182,11 @@ ${passagePreview}`;
                   if (validated.length >= 3) {
                     const enriched = ensureNGCount(validated);
                     const quality = validateQuestions(enriched, passagePreview);
+                    // Also run new validator for enhanced type-specific checks
+                    const newQuality = validateQuestionsNew(enriched, passagePreview);
+                    if (!newQuality.valid) {
+                      lastQualityWarnings.push(...newQuality.warnings);
+                    }
                     lastQualityWarnings = quality.warnings;
                     if (quality.valid) {
                       console.log(`[DSE] RAG AI generated ${validated.length} clean questions (attempt ${attempt})`);
@@ -1403,100 +1320,8 @@ ${passagePreview}`;
                   if ((finalContent || cleaned).length > 200) {
                     const passagePreview = (finalContent || cleaned).replace(/<[^>]+>/g, '').replace(/&[^;]+;/g, ' ').slice(0, 4000);
                     const numQuestions = difficulty === 'easy' ? 15 : difficulty === 'hard' ? 25 : 20;
-                    const qPrompt = `You are a DSE English Paper 1 examiner. Below is a reading passage for comprehension assessment.
-
-TASK: Create ${numQuestions} original comprehension questions. Each must be answerable solely from the passage.
-
-CRITICAL — The "type" field MUST be exactly one of these 9 values (no alternatives):
-- "mcq" — multiple choice with 4 labelled options (A/B/C/D)
-- "tfng" — True / False / Not Given (stem must be a STATEMENT, not a question)
-- "gap-fill" — fill in the blank with word(s) from the passage
-- "short-answer" — answer with a word/phrase from the passage
-- "matching" — match items from two columns (minimum 3 pairs). REQUIRES: "pairs" array [{"item": "1", "match": "C"}, {"item": "2", "match": "A"}, {"item": "3", "match": "B"}] and "options" array [{"label": "A", "text": "description"}, {"label": "B", "text": "description"}, {"label": "C", "text": "description"}]
-- "open-ended" — explain or give an opinion (no single correct answer)
-- "summary-cloze" — fill in numbered blanks from a table summarizing multiple paragraphs
-- "pronoun-ref" — "What does [word] in paragraph X refer to?"
-- "semantic-connect" — match causes to effects, or claims to evidence (include pairs and options)
-
-TYPE DIVERSITY: You MUST use at least 4 different question types. A good distribution for ${numQuestions} questions is: roughly 4–5 mcq, 3–4 tfng, 2–3 gap-fill, 2–3 short-answer, 1–2 open-ended, 1 matching, 1 pronoun-ref, 1 semantic-connect, 1 summary-cloze. Include at least 1 of the 3 advanced types (summary-cloze, pronoun-ref, semantic-connect).
-
-SKILL TESTED — The "skillTested" field is SEPARATE from type. Choose one per question:
-- mainIdea: understanding the overall argument/purpose
-- detail: recalling specific facts
-- inference: reading between the lines
-- vocabInContext: word meaning from context
-- tone: identifying the author's attitude
-- purpose: why something is mentioned
-
-TFNG RULES (Binary Overhaul):
-- The stem MUST be a declarative STATEMENT ending with a period (.) — NOT a question.
-- The correctAnswer must be exactly "T", "F", or "NG" (single letter).
-- FALSE requires explicit, verifiable contradiction in the text. The statement must directly conflict with a specific sentence, not merely differ from the overall implication.
-- NOT GIVEN applies when a statement is highly plausible and aligns with common sense, but simply cannot be verified from the text. Create NG items by:
-  * Inserting an unmentioned comparison (e.g., stating X is "more effective" than Y when the text only says both are effective).
-  * Inserting an unverified motive (e.g., stating a character did X "because of" Y when the text mentions the action but not the rationale).
-- CRITICAL: Do NOT treat "False" and "Not Given" interchangeably. An NG answer must be a statement the passage neither confirms nor contradicts — not one it contradicts.
-- If you include 4+ TFNG questions, at least 2 MUST be "NG". If 2–3 TFNG, at least 1 MUST be "NG".
-
-MCQ & DISTRACTOR DESIGN (The Distractor Engine):
-- The stem MUST be a QUESTION ending with a question mark (?) — NOT a statement. Statements should use "tfng" type instead.
-- Only ONE option can be correct. The other three must be "plausible but partial" — 100% true from a different section of the text, but incorrect for this specific question.
-- Design each distractor as one of these cognitive traps:
-  * OVER-GENERALIZATION: Take a narrow sentiment from one character and frame it as the systemic consensus.
-  * TEMPORAL/CAUSAL FLIP: Reverse the cause-and-effect relationship from a complex sentence.
-  * KEYWORD BAIT: Use exact, highly visible phrases from the text but alter the syntax to change the meaning entirely.
-- Each distractor must share FEWER THAN HALF of its words with any other option.
-- Do NOT use negations of the correct answer as a distractor.
-
-OPEN-ENDED & SHORT-ANSWER DESIGN (The Open-Ended Paradigm):
-- These must NOT be answerable by copying a single line. Target synthesis across structural gaps.
-- Force candidates to locate two competing forces within the text, bridge them, and articulate the tension.
-- Focus stems on paradox, irony, and divergence:
-  * Instead of asking what a character's plan is, ask why their plan contradicts their stated values.
-  * Instead of asking for a definition, ask how different stakeholders interpret the same term differently.
-- Use "Justification" prompts that require evidence for both perspectives before concluding.
-- For these questions, the rubric field is REQUIRED for marks ≥2 — list evidence demands in requiredPoints and shallow responses in unacceptableAnswers.
-
-COHERENCE & STRUCTURAL DESIGN (The Structural Shift):
-- Shift question targets from what the text says to why the author chose to say it this way at this specific moment.
-- Implement items targeting macro-coherence:
-  * FUNCTIONAL TRANSITION: Ask about the relationship between two adjacent paragraphs where the transition marker has been omitted.
-  * STRUCTURAL METAPHOR: Target opening hooks or closing imagery, asking how they mirror the psychological or systemic themes of the entire piece.
-  * PERSPECTIVE SHIFT: Ask how the introduction of a new voice (e.g., an academic report following a personal narrative) alters the validity of previous arguments.
-- These suit open-ended, short-answer, or tfng types — use the rubric field to capture the two competing elements the student must bridge.
-
-DISTRIBUTION RULES: Distribute questions evenly across the entire passage — use the paragraphRef field to indicate which paragraph each question targets. At least 30% of questions must target the second half of the passage.
-
-PARAPHRASE RULES: Do NOT copy exact sentences from the passage into question stems, TFNG statements, or gap-fill context. Paraphrase and rephrase to test comprehension, not visual pattern-matching. For gap-fill, the blank word must NOT appear verbatim in the immediately adjacent text — the student must understand meaning, not spot the word.
-
-TRUNCATION RULES: The words "truncated", "cut off", "incomplete", "missing", "not shown", "not included", "before the passage", "after the passage" are BANNED in stems and explanations. If any of these words appear, the question is automatically rejected. The passage is COMPLETE and fully visible — every question must be answerable from the provided text.
-
-For questions with marks ≥2, include a "rubric" field:
-"rubric": {
-  "requiredPoints": ["answer point 1", "answer point 2"],
-  "unacceptableAnswers": ["wrong answer", "common mistake"]
-}
-
-For each question output this JSON:
-{
-  "stem": "question text or statement",
-  "type": "mcq | tfng | gap-fill | short-answer | matching | open-ended | summary-cloze | pronoun-ref | semantic-connect",
-  "skillTested": "mainIdea | detail | inference | vocabInContext | tone | purpose",
-  "paragraphRef": integer (the paragraph number this question targets; 1 = first paragraph),
-  "marks": integer (1-3),
-  "options": [{"label": "A", "text": "option text"}],
-  "pairs": [{"item": "1", "match": "C"}, {"item": "2", "match": "A"}],
-  "rubric": { "requiredPoints": ["..."], "unacceptableAnswers": ["..."] },
-  "correctAnswer": "the answer",
-  "explanation": "explain with passage reference"
-}
-
-Return ONLY a valid JSON array. No other text. No comments, no trailing commas, no JavaScript syntax. Every string must be double-quoted. Every object in the array must be comma-separated.
-
-CONCISENESS RULE (CRITICAL): Keep each question extremely short. Each question object must average ≤500 characters total. Explanations: max 1 sentence. Option texts: max 8 words each. Marks: omit rubric for 1-mark questions. Tight stems only — no fluff.
-
-PASSAGE:
-${passagePreview}`;
+          const typeDist = getTypeDistributionForPart(part);
+          const qPrompt = composeFullPrompt(passagePreview, numQuestions, part, typeDist);
 
                       async function tryGenerateQuestions(basePrompt, maxRetries = 2) {
                        const systemMsg = 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.';
@@ -1540,6 +1365,11 @@ ${passagePreview}`;
                             if (validated.length >= 3) {
                               const enriched = ensureNGCount(validated);
                               const quality = validateQuestions(enriched, passagePreview);
+                              // Also run new validator for enhanced type-specific checks
+                              const newQuality = validateQuestionsNew(enriched, passagePreview);
+                              if (!newQuality.valid) {
+                                lastQualityWarnings.push(...newQuality.warnings);
+                              }
                               lastQualityWarnings = quality.warnings;
                               if (quality.valid) {
                                 console.log(`[DSE] AI generated ${validated.length} clean questions (attempt ${attempt})`);
