@@ -38,6 +38,12 @@ Plans:
 5. Answer checking supports DSE-style marking: partial marks, alternative answers, spelling tolerance
 
 **Requirements:** READ-02, READ-03, READ-04, READ-07
+**Plans:** 3 plans in 2 waves
+
+Plans:
+- [ ] 02-01-PLAN.md — Question type config + new input components (Summary Cloze, Pronoun Reference, Semantic Matching)
+- [ ] 02-02-PLAN.md — DSE answer checking system with partial marks, alternatives, spelling tolerance
+- [ ] 02-03-PLAN.md — Per-type generation prompts + validation pipeline
 
 ---
 
