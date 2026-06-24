@@ -7,6 +7,9 @@ const TYPE_LABELS = {
   'short-answer': 'Short Answer',
   matching: 'Matching',
   'open-ended': 'Open-ended',
+  'summary-cloze': 'Summary Cloze',
+  'pronoun-ref': 'Reference Question',
+  'semantic-connect': 'Semantic Matching',
 };
 
 function parseOptions(raw) {
@@ -265,6 +268,171 @@ function OpenEndedInput({ question, value, onSelect, showResult, disabled }) {
   );
 }
 
+function SummaryClozeInput({ question, value, onSelect, showResult, disabled }) {
+  const { id, stem, answers, correctAnswer, explanation } = question;
+  // Inline summary cloze: split stem on {N} blank markers and interleave spans with inputs
+  const blankPattern = /\{(\d+)\}/g;
+  const parts = [];
+  let lastIdx = 0;
+  let match;
+  while ((match = blankPattern.exec(stem)) !== null) {
+    const before = stem.slice(lastIdx, match.index);
+    if (before) parts.push({ type: 'text', value: before });
+    parts.push({ type: 'blank', index: parseInt(match[1], 10) - 1 });
+    lastIdx = match.index + match[0].length;
+  }
+  if (lastIdx < stem.length) parts.push({ type: 'text', value: stem.slice(lastIdx) });
+
+  const val = value || {};
+
+  return (
+    <>
+      <div className="mcq__stem">
+        {parts.map((part, i) => {
+          if (part.type === 'text') return <span key={i}>{part.value}</span>;
+          const idx = part.index;
+          const userAns = String(val[idx] || '');
+          const answerKey = answers && answers[idx] ? answers[idx] : '';
+          const isCorrect = showResult && userAns.toLowerCase().trim() === answerKey.toLowerCase().trim();
+          return (
+            <span key={i} className="gf__blank-row" style={{ display: 'inline', margin: '0 2px' }}>
+              <input type="text" className={`gf__input${showResult ? (isCorrect ? ' gf__input--correct' : ' gf__input--wrong') : ''}`}
+                style={{ width: 80, display: 'inline' }}
+                placeholder={`${idx + 1}...`}
+                value={userAns}
+                onChange={e => onSelect(id, { ...val, [idx]: e.target.value })}
+                disabled={disabled || showResult}
+              />
+              {showResult && !isCorrect && (
+                <span className="gf__correct-answer" style={{ fontSize: '0.75rem' }}>→ {answerKey}</span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+      {showResult && explanation && (
+        <div className="mcq__explanation mcq__explanation--correct">
+          <span className="mcq__explanation-icon">{'\uD83D\uDCA1'}</span>
+          <span>{explanation}</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+function PronounRefInput({ question, value, onSelect, showResult, disabled }) {
+  const { id, stem, options, correctAnswer, explanation } = question;
+
+  if (options && Array.isArray(options) && options.length > 0) {
+    // MCQ-style rendering with options
+    const parsed = parseOptions(options);
+    return (
+      <>
+        <p className="mcq__stem">{stem}</p>
+        <div className="mcq__options">
+          {(parsed.length > 0 ? parsed : options).map((opt, i) => {
+            const optLabel = opt.label || String.fromCharCode(65 + i);
+            const optText = opt.text || opt;
+            const isSelected = value === optLabel;
+            const isCorrect = showResult && optLabel === correctAnswer;
+            const isWrong = showResult && isSelected && optLabel !== correctAnswer;
+            let className = 'mcq__option';
+            if (isSelected && !showResult) className += ' mcq__option--selected';
+            if (isCorrect && showResult) className += ' mcq__option--correct';
+            if (isWrong) className += ' mcq__option--wrong';
+            return (
+              <button key={optLabel} className={className}
+                onClick={() => !disabled && !showResult && onSelect(id, optLabel)}
+                disabled={disabled || showResult}
+              >
+                <span className="mcq__option-key">{optLabel}</span>
+                <span className="mcq__option-text">{optText}</span>
+                {isCorrect && showResult && <span className="mcq__option-icon">{'\u2713'}</span>}
+                {isWrong && <span className="mcq__option-icon">{'\u2717'}</span>}
+              </button>
+            );
+          })}
+        </div>
+        {showResult && explanation && (
+          <div className={`mcq__explanation ${value === correctAnswer ? 'mcq__explanation--correct' : 'mcq__explanation--wrong'}`}>
+            <span className="mcq__explanation-icon">{value === correctAnswer ? '\uD83D\uDCA1' : '\uD83D\uDCD6'}</span>
+            <span>{explanation}</span>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // No options provided — render as short-answer textarea
+  return (
+    <>
+      <p className="mcq__stem">{stem}</p>
+      <textarea className="sa__textarea"
+        placeholder="Type your answer..."
+        value={value || ''}
+        onChange={e => onSelect(id, e.target.value)}
+        disabled={disabled || showResult}
+        rows={2}
+      />
+      {showResult && correctAnswer && (
+        <div className="mcq__explanation mcq__explanation--correct">
+          <span className="mcq__explanation-icon">{'\uD83D\uDCD6'}</span>
+          <span>Answer: {correctAnswer}</span>
+        </div>
+      )}
+      {showResult && explanation && (
+        <div className="mcq__explanation mcq__explanation--correct">
+          <span>{explanation}</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SemanticConnectInput({ question, value, onSelect, showResult, disabled }) {
+  const { id, stem, pairs, options, correctAnswer, explanation } = question;
+  const answers = value || {};
+  return (
+    <>
+      <p className="mcq__stem">{stem}</p>
+      <div className="matching__grid" style={{ marginTop: 8 }}>
+        <div className="matching__row" style={{ fontWeight: 'bold', borderBottom: '1px solid var(--color-border)' }}>
+          <span className="matching__item">Cause / Claim</span>
+          <select className="matching__select" disabled style={{ opacity: 1 }}>
+            <option>Effect / Evidence</option>
+          </select>
+        </div>
+        {(pairs || []).map((p, i) => (
+          <div key={p.item || i} className="matching__row">
+            <span className="matching__item">{p.item}</span>
+            <select className="matching__select"
+              value={answers[p.item] || ''}
+              onChange={e => onSelect(id, { ...answers, [p.item]: e.target.value })}
+              disabled={disabled || showResult}
+            >
+              <option value="">—</option>
+              {(options || []).map(o => (
+                <option key={o.label} value={o.label}>{o.label}. {o.text}</option>
+              ))}
+            </select>
+            {showResult && (
+              <span style={{ marginLeft: 8, fontSize: '0.8rem', color: answers[p.item] === p.match ? 'var(--color-success)' : 'var(--color-error)' }}>
+                {answers[p.item] === p.match ? '\u2713' : '\u2717'} <span style={{ color: 'var(--color-text-muted)' }}>({p.match})</span>
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {showResult && explanation && (
+        <div className="mcq__explanation mcq__explanation--correct">
+          <span className="mcq__explanation-icon">{'\uD83D\uDCA1'}</span>
+          <span>{explanation}</span>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function QuestionRenderer({ question, value, onSelect, showResult, disabled, number }) {
   if (!question) return null;
   const q = { ...question, number };
@@ -277,6 +445,9 @@ export default function QuestionRenderer({ question, value, onSelect, showResult
     case 'short-answer': input = <ShortAnswerInput {...{ question: q, value, onSelect, showResult, disabled }} />; break;
     case 'matching': input = <MatchingInput {...{ question: q, value, onSelect, showResult, disabled }} />; break;
     case 'open-ended': input = <OpenEndedInput {...{ question: q, value, onSelect, showResult, disabled }} />; break;
+    case 'summary-cloze': input = <SummaryClozeInput {...{ question: q, value, onSelect, showResult, disabled }} />; break;
+    case 'pronoun-ref': input = <PronounRefInput {...{ question: q, value, onSelect, showResult, disabled }} />; break;
+    case 'semantic-connect': input = <SemanticConnectInput {...{ question: q, value, onSelect, showResult, disabled }} />; break;
     default: input = <MCQInput {...{ question: q, value, onSelect, showResult, disabled }} />;
   }
 
@@ -340,6 +511,21 @@ export function isQuestionCorrect(question, answer) {
         .filter(t => t.length > 3 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'some', 'than', 'that', 'they', 'this', 'very', 'what', 'when', 'where', 'which', 'who', 'will', 'with', 'from', 'their', 'there', 'would', 'about', 'into', 'over', 'such', 'your'].includes(t));
       if (keyTerms.length === 0) return userText.length > 0;
       return keyTerms.some(term => userText.toLowerCase().includes(term));
+    }
+    case 'summary-cloze': {
+      if (question.answers && Array.isArray(question.answers)) {
+        if (!answer || typeof answer !== 'object') return false;
+        return question.answers.every((a, i) => String(answer[i] || '').toLowerCase().trim() === a.toLowerCase().trim());
+      }
+      return answer === question.correctAnswer;
+    }
+    case 'pronoun-ref': {
+      return String(answer || '').toLowerCase().trim() === String(question.correctAnswer || '').toLowerCase().trim();
+    }
+    case 'semantic-connect': {
+      if (!answer || typeof answer !== 'object') return false;
+      const pairs = question.pairs || [];
+      return pairs.every(p => answer[p.item] === p.match);
     }
     default:
       return answer === question.correctAnswer;
