@@ -4915,6 +4915,9 @@ html[data-theme="dark"] {
   font-size: 1rem;
   line-height: 1.6;
   color: var(--color-text);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .marked-script__para {
@@ -4923,6 +4926,9 @@ html[data-theme="dark"] {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   transition: background var(--transition-fast);
+  width: 100%;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
 }
 
 .marked-script__para--all-correct {
@@ -5011,7 +5017,8 @@ html[data-theme="dark"] {
 }
 
 .marked-script__text {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 1rem;
   line-height: 1.6;
@@ -5026,6 +5033,22 @@ html[data-theme="dark"] {
   text-indent: 2em;
   margin-bottom: 0;
   margin-top: 0;
+}
+
+.marked-script__text h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-indent: 0;
+  margin: 0.8em 0 0.3em;
+  color: var(--color-text);
+}
+
+.marked-script__text h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-indent: 0;
+  margin: 0.6em 0 0.2em;
+  color: var(--color-text-secondary);
 }
 
 .marked-script__text--highlighted {
