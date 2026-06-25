@@ -188,7 +188,8 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       const session = await dsePapers.generateWritingSession({ notes }, callAI);
       if (session) {
         setSessionData(session);
-        setPartA({ essay: '', prompt: session.partA?.prompt });
+        const partAPrompt = session.partA?.prompt || null;
+        setPartA(prev => ({ ...prev, essay: '', prompt: partAPrompt }));
         setPartB({ chosenOption: null, essay: '', prompt: null });
         setTimeRemaining(TOTAL_DURATION);
         setPhase('choosing');
@@ -1046,7 +1047,9 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   // Writing phase (writingPartA or writingPartB)
   const isPartA = phase === 'writingPartA';
   const isPartB = phase === 'writingPartB';
-  const currentPrompt = isPartA ? (partA.prompt || sessionData?.partA?.prompt) : (partB.prompt || sessionData?.partB?.options?.[partB.chosenOption]);
+  const resolvedPartAPrompt = partA.prompt || sessionData?.partA?.prompt;
+  const resolvedPartBPrompt = partB.prompt || sessionData?.partB?.options?.[partB.chosenOption];
+  const currentPrompt = isPartA ? resolvedPartAPrompt : resolvedPartBPrompt;
   const badge = getBadgeInfo(currentPrompt?.type);
   const essayContent = isPartA ? partA.essay : partB.essay;
   const partLabel = isPartA ? 'Part A' : 'Part B';

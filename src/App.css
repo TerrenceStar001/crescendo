@@ -6046,6 +6046,7 @@ html[data-theme="dark"] {
   background-position: 0 0, 40px 0;
   background-size: 100% 28px, 100% 100%;
   background-repeat: repeat-y, no-repeat;
+  padding-left: 48px;
 }
 
 .writing__editor-area {
