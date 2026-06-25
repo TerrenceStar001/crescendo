@@ -6,27 +6,32 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
 
   const answerMap = useMemo(() => userAnswers || {}, [userAnswers]);
 
-  const paragraphs = useMemo(() => {
+  const { items, totalContentParas } = useMemo(() => {
     try {
       const temp = document.createElement('div');
       temp.innerHTML = passageHtml;
-      return Array.from(temp.children)
+      let paraCount = 0;
+      const parsed = Array.from(temp.children)
         .filter(el => el.tagName === 'P' || el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'BLOCKQUOTE')
-        .map((el, i) => ({
-          seqNum: i + 1,
-          html: el.innerHTML,
-          tagName: el.tagName,
-        }));
+        .map(el => {
+          const isP = el.tagName === 'P';
+          if (isP) paraCount++;
+          return {
+            html: el.innerHTML,
+            tagName: el.tagName,
+            isContent: isP,
+            paraNum: isP ? paraCount : null,
+          };
+        });
+      return { items: parsed, totalContentParas: paraCount };
     } catch {
-      return [];
+      return { items: [], totalContentParas: 0 };
     }
   }, [passageHtml]);
 
-  if (paragraphs.length === 0) return null;
+  if (items.length === 0) return null;
 
-  const totalParagraphs = paragraphs.length;
-
-  const { questionMap, sortedQuestions } = useMemo(() => {
+  const { questionMap } = useMemo(() => {
     const map = {};
     const qLen = questions.length;
     let globalNum = 0;
@@ -35,11 +40,11 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
       const q = questions[i];
       let ref = q.paragraphRef;
 
-      if (ref === null || ref === undefined || typeof ref !== 'number' || ref < 1 || ref > totalParagraphs) {
-        const perPara = Math.max(1, Math.floor(qLen / Math.max(1, totalParagraphs)));
+      if (ref === null || ref === undefined || typeof ref !== 'number' || ref < 1 || ref > totalContentParas) {
+        const perPara = Math.max(1, Math.floor(qLen / Math.max(1, totalContentParas)));
         ref = Math.ceil((i + 1) / perPara);
         if (ref < 1) ref = 1;
-        if (ref > totalParagraphs) ref = totalParagraphs;
+        if (ref > totalContentParas) ref = totalContentParas;
       }
 
       if (!map[ref]) map[ref] = [];
@@ -48,17 +53,8 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
       map[ref].push({ ...q, result, questionNumber: globalNum });
     }
 
-    const flat = [];
-    for (let p = 1; p <= totalParagraphs; p++) {
-      if (map[p]) {
-        for (const q of map[p]) {
-          flat.push(q);
-        }
-      }
-    }
-
-    return { questionMap: map, sortedQuestions: flat };
-  }, [questions, answerMap, totalParagraphs]);
+    return { questionMap: map };
+  }, [questions, answerMap, totalContentParas]);
 
   const totalCorrect = useMemo(() => {
     let correct = 0;
@@ -69,9 +65,7 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
     return correct;
   }, [questions, answerMap]);
 
-  const allCorrect = totalCorrect === questions.length;
-
-  if (allCorrect) {
+  if (totalCorrect === questions.length) {
     return (
       <div className="marked-script">
         <div className="marked-script__empty">
@@ -83,29 +77,19 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
 
   return (
     <div className="marked-script">
-      {paragraphs.map((para, i) => {
-        const annotations = questionMap[para.seqNum];
-        const wrongCount = (annotations || []).filter(
-          a => !a.result.correct && answerMap[a.id] !== null && answerMap[a.id] !== undefined
-        ).length;
-        const partialCount = (annotations || []).filter(
-          a => !a.result.correct && a.result.marksEarned > 0
-        ).length;
-        const hasErrors = wrongCount > 0 || partialCount > 0;
+      {items.map((item, i) => {
+        const annotations = item.isContent ? (questionMap[item.paraNum] || []) : [];
 
         return (
-          <div
-            key={i}
-            className={`marked-script__para${hasErrors ? ' marked-script__para--has-errors' : ''}`}
-          >
+          <div key={i} className={`marked-script__para${annotations.length > 0 ? ' marked-script__para--has-errors' : ''}`}>
             <div className="marked-script__text">
-              {para.tagName === 'P' ? (
-                <p dangerouslySetInnerHTML={{ __html: para.html }} />
+              {item.tagName === 'P' ? (
+                <p dangerouslySetInnerHTML={{ __html: item.html }} />
               ) : (
-                React.createElement(para.tagName.toLowerCase(), { dangerouslySetInnerHTML: { __html: para.html } })
+                React.createElement(item.tagName.toLowerCase(), { dangerouslySetInnerHTML: { __html: item.html } })
               )}
             </div>
-            {(annotations || []).map((q, qi) => {
+            {annotations.map((q, qi) => {
               const isCorrect = q.result.correct;
               const isPartial = !q.result.correct && q.result.marksEarned > 0;
               const modClass = isCorrect
@@ -116,9 +100,9 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
 
               const ua = answerMap[q.id];
               const displayAnswer = q.type === 'matching' && ua && typeof ua === 'object'
-                ? Object.entries(ua).map(([k, v]) => `${k} → ${v}`).join(', ')
+                ? Object.entries(ua).map(([k, v]) => `${k} \u2192 ${v}`).join(', ')
                 : q.type === 'gap-fill' && q.answers && ua && typeof ua === 'object'
-                  ? q.answers.map((a, i) => `${i + 1}. ${ua[i] || '—'}`).join(', ')
+                  ? q.answers.map((a, idx) => `${idx + 1}. ${ua[idx] || '\u2014'}`).join(', ')
                   : (ua || '\u2014');
 
               return (
