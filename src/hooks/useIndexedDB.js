@@ -105,6 +105,7 @@ export function useIndexedDB() {
     DRAFTS: 'crescendo-writing-drafts',
     RECORDINGS: 'crescendo-speech-recordings',
     SESSION_ANSWERS: 'crescendo-session-answers',
+    WRITING_SESSIONS: 'crescendo-writing-sessions',
   };
 
   return { getItem, setItem, updateItem, deleteItem, getKeys, clearAll, getStorageEstimate, DSE_KEYS };

@@ -5638,6 +5638,9 @@ html[data-theme="dark"] {
   width: 100%;
 }
 
+/* ===== Writing Module — Phase 4 Overhaul ===== */
+/* Phase 4: DSE Authenticity — new styles for Part A/B split, 4-option selector, correction display, history, comparison */
+
 /* ===== MCQ Component ===== */
 .mcq {
   padding: var(--space-3);

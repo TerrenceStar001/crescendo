@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
 import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart, GENRE_TEMPLATES, PROMPT_ENFORCEMENT_RULES } from '../utils/structuralConstraints';
+import { getAvailablePrompts, markPromptUsed } from '../utils/writingPrompts';
 import { composeFullPrompt } from '../utils/questionGenerator';
 import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
 import { QUESTION_TYPE_DISTRIBUTIONS, getTypeDistributionForPart } from '../utils/questionTypes';
@@ -1569,71 +1570,105 @@ export default function useDSEPapers() {
     }
   }, [getCachedPapers, cachePapers, bundled]);
 
-  const generateWritingPrompt = useCallback(async (options = {}, callAI) => {
+  const generateWritingSession = useCallback(async (options = {}, callAI) => {
     setIsLoading(true);
     setError(null);
     try {
-      const { difficulty = 'medium', type = 'essay', topic = '' } = options;
-      const notes = options.notes || [];
-
+      const { notes = [], forceAI = false } = options;
       const noteContexts = notes
         .filter(n => (n.content || '').length > 100)
         .slice(0, 5)
         .map(n => `[Note: ${n.title || 'Untitled'}]\n${n.content.replace(/<[^>]+>/g, '').slice(0, 1000)}`)
         .join('\n\n');
 
-      const prompt = `Generate a HKDSE English Writing (Paper 2) prompt matching the official DSE format.
+      let partA, partB;
 
-Type: ${type === 'essay' ? 'Argumentative / Discursive essay' : type === 'letter' ? 'Formal / Informal letter' : type === 'article' ? 'Magazine / Newspaper article' : 'Report / Proposal'}
-Difficulty: ${difficulty}
-Target word count: ${difficulty === 'easy' ? '300' : difficulty === 'medium' ? '400' : '500'} words (DSE Part B standard)
+      // Part A: try curated bank first
+      if (!forceAI) {
+        const partAPrompts = getAvailablePrompts('A', 1);
+        if (partAPrompts.length > 0) {
+          partA = { prompt: partAPrompts[0], source: 'curated' };
+          markPromptUsed(partAPrompts[0].id);
+        }
+      }
+
+      if (!partA) {
+        const aiPrompt = `Generate a short HKDSE English Paper 2 Part A writing prompt.
 
 Requirements:
-- The prompt must follow HKDSE Paper 2 format: role context + task description + guiding questions
-- Part A task type: short task (200 words, e.g. letter, email, blog comment)
-- Part B task type: long task (400-500 words) matching the specified type above
-- Rubric categories: content (7 marks), organization (7 marks), language (7 marks) = 21 total (matching HKDSE)
-- Lexical difficulty: IELTS band 7-9 vocabulary for DSE 5-5** level
+- Text type: one of: email, letter, blog comment, questionnaire response, short article, speech
+- Context paragraph setting up a realistic situation
+- Task instruction
+- 3-4 bullet-point guiding ideas
+- Word limit: ~200 words
+- Difficulty: medium
 
-${noteContexts ? `Student's notes for context:\n${noteContexts}\n\nUse these topics for inspiration in generating the prompt.` : ''}
+${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
 
 Return as JSON:
-{ "prompt": "the full prompt text including role, task, and guiding questions",
-  "type": "${type}",
-  "wordLimit": { "min": 400, "max": 500 },
-  "difficulty": "${difficulty}",
-  "rubricCategories": ["content", "organization", "language"],
-  "rubricMaxMarks": { "content": 7, "organization": 7, "language": 7 },
-  "suggestedPoints": ["point 1", "point 2", "point 3"] }`;
+{ "type": "letter|speech|blog|article",
+  "title": "Short title",
+  "context": "Context paragraph",
+  "task": "Task instruction",
+  "wordLimit": { "min": 180, "max": 250 },
+  "suggestedPoints": ["point 1", "point 2", "point 3"],
+  "instructions": "Exam-style instructions" }`;
 
-      const raw = await callAI(prompt, {
-        system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Target: IELTS band 7.24 = DSE 5** Writing. ' +
-          'Generate a writing prompt in valid JSON format following official HKDSE Paper 2 format (role + task + guiding questions). Return ONLY valid JSON.\n\n' +
-          `${STRUCTURAL_CONSTRAINTS}\n${ARGUMENTATION_FLOW}`,
-        temperature: 0.8,
-        maxTokens: 1000,
-      });
+        const raw = await callAI(aiPrompt, {
+          system: 'You are an expert HKDSE English examiner. Generate a short Part A writing prompt in valid JSON. Return ONLY valid JSON.',
+          temperature: 0.8,
+          maxTokens: 800,
+        });
 
-      const parsed = parseJSONObject(raw);
-      if (!parsed) throw new Error('AI returned invalid JSON');
+        const parsed = parseJSONObject(raw);
+        if (parsed) {
+          partA = {
+            prompt: { id: `ai_partA_${Date.now()}`, ...parsed, source: 'ai-generated' },
+            source: 'ai-generated',
+          };
+        }
+      }
+
+      // Part B: try curated bank first (get 4)
+      if (!forceAI) {
+        const partBPrompts = getAvailablePrompts('B', 4);
+        if (partBPrompts.length === 4) {
+          partB = { options: partBPrompts, source: 'curated' };
+          partBPrompts.forEach(markPromptUsed);
+        }
+      }
+
+      if (!partB) {
+        const aiPrompt = `Generate 4 distinct HKDSE English Paper 2 Part B writing prompts (D-37: one call for all 4 options).
+
+Each prompt must have a DIFFERENT text type from: article, letter, speech, report, story, blog, review, proposal.
+Each must have a different topic domain covering at least 4 different areas.
+
+${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
+
+Return as JSON array of 4 objects:
+[{ "type": "article", "title": "...", "context": "...", "task": "...", "wordLimit": { "min": 380, "max": 450 }, "suggestedPoints": ["...", "..."], "instructions": "..." }]`;
+
+        const raw = await callAI(aiPrompt, {
+          system: 'You are an expert HKDSE English examiner. Generate 4 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON.',
+          temperature: 0.9,
+          maxTokens: 2000,
+        });
+
+        const parsed = parseJSONArray(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          partB = {
+            options: parsed.slice(0, 4).map(p => ({ id: `ai_partB_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, ...p, source: 'ai-generated' })),
+            source: 'ai-generated',
+          };
+        }
+      }
 
       const session = {
-        id: `ai_writing_${Date.now()}`,
-        type: 'writing',
-        source: 'ai-generated',
-        difficulty,
-        createdAt: new Date().toISOString(),
-        prompt: parsed.prompt || '',
-        metadata: {
-          wordLimit: parsed.wordLimit || { min: 250, max: 350 },
-          type: parsed.type || type,
-          suggestedPoints: parsed.suggestedPoints || [],
-          aiGenerated: true,
-        },
+        partA,
+        partB,
+        duration: 7200,
       };
-
-      const existing = await getCachedPapers('writing') || [];
-      await cachePapers([session, ...existing]);
 
       return session;
     } catch (e) {
@@ -1643,6 +1678,108 @@ Return as JSON:
       setIsLoading(false);
     }
   }, [getCachedPapers, cachePapers]);
+
+  const buildCorrectionPrompt = useCallback((part, essay, promptInfo, selfAssessment) => {
+    const level5Descriptors = `Content (7): "The content is relevant and extensive, shows awareness of purpose, engages the reader's interest."
+Organization (7): "The structure is coherent, appropriate to genre. Paragraphing effective. Cohesion successful."
+Language (7): "Range of sentence structures used accurately. Grammar sufficiently accurate. Vocabulary moderately wide, appropriate. Register appropriate."`;
+
+    const level3Descriptors = `Content: "Most content is relevant. Several examples of creativity evident."
+Organization: "Some sections are coherent. Paragraphing effective in parts."
+Language: "Simple and some complex sentences well formed. Basic punctuation and grammar accurate. Common vocabulary appropriate."`;
+
+    return `You are an expert HKDSE English examiner (Paper 2 Writing).
+
+TASK TO EVALUATE (Part ${part}):
+---PROMPT---
+Context: ${promptInfo?.context || ''}
+Task: ${promptInfo?.task || ''}
+Text type: ${promptInfo?.type || 'essay'}
+---END PROMPT---
+
+---STUDENT'S ESSAY---
+${essay?.text || ''}
+---END ESSAY---
+
+${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas.` : ''}
+
+HKEAA LEVEL DESCRIPTORS:
+Level 5 (highest):
+${level5Descriptors}
+
+Level 3 (mid):
+${level3Descriptors}
+
+Assess the essay using HKEAA criteria. Content, Organization, Language each out of 7. ${promptInfo?.type ? `TEXT TYPE ADJUSTMENT: This is a ${promptInfo.type}. Adjust criteria to match conventions for this text type.` : ''}
+
+Return ONLY valid JSON with this exact schema:
+{
+  "content": { "score": 0-7, "feedback": "..." },
+  "organization": { "score": 0-7, "feedback": "..." },
+  "language": { "score": 0-7, "feedback": "..." },
+  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Overall feedback..." },
+  "sectionBreakdown": {
+    "introduction": { "score": 0-7, "feedback": "..." },
+    "body1": { "score": 0-7, "feedback": "..." },
+    "body2": { "score": 0-7, "feedback": "..." },
+    "conclusion": { "score": 0-7, "feedback": "..." }
+  },
+  "errors": [
+    { "original": "original text", "correction": "corrected", "explanation": "why", "type": "grammar|vocabulary|structure|style|punctuation|spelling|content", "severity": "Critical|Major|Minor", "location": { "paragraph": 1, "line": 2 } }
+  ],
+  "goodLanguage": [ { "phrase": "...", "comment": "..." } ],
+  "vocabularySuggestions": [ { "original": "word", "suggestion": "improved word", "cefrLevel": "B2|C1", "context": "sentence context" } ],
+  "pitfallsAvoided": [ "common DSE mistake avoided" ],
+  "inlineAnnotations": [ { "text": "original", "replacement": "corrected", "type": "grammar", "color": "#ef5350" } ]
+}`;
+  }, []);
+
+  const parseCorrectionResponse = useCallback((rawText) => {
+    if (!rawText) return null;
+    const cleaned = rawText.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
+    let parsed = null;
+    try { parsed = JSON.parse(cleaned); } catch {
+      const m = cleaned.match(/\{[\s\S]*\}/);
+      if (m) { try { parsed = JSON.parse(m[0]); } catch {} }
+    }
+    if (!parsed) return null;
+    ['content', 'organization', 'language'].forEach(cat => {
+      if (parsed[cat]) {
+        parsed[cat].score = typeof parsed[cat].score === 'number' ? Math.max(0, Math.min(7, Math.round(parsed[cat].score))) : 0;
+      }
+    });
+    if (!parsed.overall) parsed.overall = {};
+    if (!parsed.errors || !Array.isArray(parsed.errors)) parsed.errors = [];
+    if (!parsed.vocabularySuggestions || !Array.isArray(parsed.vocabularySuggestions)) parsed.vocabularySuggestions = [];
+    if (!parsed.goodLanguage || !Array.isArray(parsed.goodLanguage)) parsed.goodLanguage = [];
+    if (!parsed.sectionBreakdown) parsed.sectionBreakdown = {};
+    if (!parsed.pitfallsAvoided || !Array.isArray(parsed.pitfallsAvoided)) parsed.pitfallsAvoided = [];
+    if (!parsed.inlineAnnotations || !Array.isArray(parsed.inlineAnnotations)) parsed.inlineAnnotations = [];
+    return parsed;
+  }, []);
+
+  const combineCorrections = useCallback((partAResult, partBResult) => {
+    const contentScore = Math.round(((partAResult?.content?.score || 0) + (partBResult?.content?.score || 0)) / 2);
+    const orgScore = Math.round(((partAResult?.organization?.score || 0) + (partBResult?.organization?.score || 0)) / 2);
+    const langScore = Math.round(((partAResult?.language?.score || 0) + (partBResult?.language?.score || 0)) / 2);
+    const totalA = (partAResult?.content?.score || 0) + (partAResult?.organization?.score || 0) + (partAResult?.language?.score || 0);
+    const totalB = (partBResult?.content?.score || 0) + (partBResult?.organization?.score || 0) + (partBResult?.language?.score || 0);
+    const combinedTotal = totalA + totalB;
+    const combinedPct = Math.round((combinedTotal / 42) * 100);
+
+    return {
+      content: { score: contentScore, feedback: [partAResult?.content?.feedback, partBResult?.content?.feedback].filter(Boolean).join(' ') },
+      organization: { score: orgScore, feedback: [partAResult?.organization?.feedback, partBResult?.organization?.feedback].filter(Boolean).join(' ') },
+      language: { score: langScore, feedback: [partAResult?.language?.feedback, partBResult?.language?.feedback].filter(Boolean).join(' ') },
+      overall: { total: combinedTotal, maxTotal: 42, percentage: combinedPct, narrativeSummary: [partAResult?.overall?.narrativeSummary, partBResult?.overall?.narrativeSummary].filter(Boolean).join(' ') },
+      errors: [...(partAResult?.errors || []), ...(partBResult?.errors || [])],
+      vocabularySuggestions: [...(partAResult?.vocabularySuggestions || []), ...(partBResult?.vocabularySuggestions || [])],
+      goodLanguage: [...(partAResult?.goodLanguage || []), ...(partBResult?.goodLanguage || [])],
+      sectionBreakdown: { ...(partAResult?.sectionBreakdown || {}), ...(partBResult?.sectionBreakdown || {}) },
+      pitfallsAvoided: [...(partAResult?.pitfallsAvoided || []), ...(partBResult?.pitfallsAvoided || [])],
+      inlineAnnotations: [...(partAResult?.inlineAnnotations || []), ...(partBResult?.inlineAnnotations || [])],
+    };
+  }, []);
 
   const getPapersBySource = useCallback(async (source) => {
     const all = await getCachedPapers('reading');
@@ -1770,7 +1907,10 @@ Give 2-3 concrete, specific recommendations for their next practice session base
     error,
     getPaper,
     generateReadingSession,
-    generateWritingPrompt,
+    generateWritingSession,
+    buildCorrectionPrompt,
+    parseCorrectionResponse,
+    combineCorrections,
     getPapersBySource,
     getAvailableSources,
     getReadingHistory,
@@ -1778,5 +1918,5 @@ Give 2-3 concrete, specific recommendations for their next practice session base
     generateReadingNotes,
     clearCache,
     bundled,
-  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingPrompt, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, clearCache]);
+  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, clearCache]);
 }
