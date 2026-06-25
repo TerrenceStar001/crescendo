@@ -609,6 +609,9 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
         passageContent={reviewSession.passageContent || ''}
         passagePreview={(reviewSession.passageContent || '').replace(/<[^>]+>/g, '').slice(0, 2000)}
         part={revPart}
+        answerFlags={{}}
+        handleFlagAnswer={() => {}}
+        handleUnflagAnswer={() => {}}
         notesGenerated={notesGenerated}
         callAI={callAI}
         onBack={() => { setPhase('start'); setReviewSession(null); }}

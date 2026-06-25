@@ -90,7 +90,16 @@ export async function generateDrills(passagePreview, weakTypes, part, mistakesCo
       typeof q.marks === 'number' && q.marks >= 1
     );
 
-    return isValid ? parsed.slice(0, 3) : null;
+    if (!isValid) return null;
+    const result = parsed.slice(0, 3);
+    let idCounter = 0;
+    result.forEach(q => {
+      q.id = q.id || `drill-${++idCounter}-${Date.now()}`;
+      q.correctAnswer = q.correctAnswer || '';
+      q.explanation = q.explanation || 'Based on the passage.';
+      if (q.type === 'short-answer' && !q.wordLimit) q.wordLimit = 50;
+    });
+    return result;
   } catch {
     return null;
   }

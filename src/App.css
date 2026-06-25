@@ -4103,6 +4103,10 @@ html[data-theme="dark"] {
   margin-top: var(--space-3);
 }
 
+.reading__results .reading__history {
+  max-width: 100%;
+}
+
 .reading__history-summary {
   font-size: var(--font-sm);
   font-weight: 600;

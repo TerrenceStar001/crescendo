@@ -106,17 +106,21 @@ export default function DrillGenerator({ passagePreview, weakTypes, part, mistak
           <h4 style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 12 }}>
             Practice these questions
           </h4>
-          {drills.map((q, i) => (
-            <div key={q.id || i} className="drill-generator__question">
+          {drills.map((q, i) => {
+            const qid = q.id || `drill-idx-${i}`;
+            return (
+            <div key={qid} className="drill-generator__question">
               <QuestionRenderer
                 question={q}
                 number={i + 1}
-                value={drillAnswers[q.id] || null}
-                onSelect={handleDrillAnswer}
+                value={drillAnswers[qid] || null}
+                onSelect={(id, val) => handleDrillAnswer(qid, val)}
                 showResult={drillPhase === 'answered'}
                 disabled={drillPhase === 'answered'}
               />
             </div>
+            );
+          })}
           ))}
           <div className="drill-generator__actions">
             {drillPhase === 'answering' && (

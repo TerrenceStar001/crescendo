@@ -643,7 +643,7 @@ async function generatePassageFromReference(reference, callAI, difficulty = 'med
   const part = difficultyToPart[difficulty] || 'A';
   const target = WORD_COUNT_TARGETS[part] || WORD_COUNT_TARGETS.A;
 
-  const prompt = `You are a DSE English Paper 1 passage writer. Write a NEW original passage on a DIFFERENT topic from the reference below.
+  let prompt = `You are a DSE English Paper 1 passage writer. Write a NEW original passage on a DIFFERENT topic from the reference below.
 
 OUTPUT FORMAT — CRITICAL (follow exactly):
 - Each text MUST have an <h2> title. Multi-text passages MUST use <h3>Text N</h3> before each text's content.
@@ -778,7 +778,7 @@ async function generatePassageFromRAG(fragments, callAI, difficulty = 'medium') 
     `[FRAGMENT ${i + 1}] Source: ${f.sourceName || 'Unknown'}, ${f.sourceDate || 'Date unknown'}\n${f.text}`
   ).join('\n\n');
 
-  const prompt = `You are a DSE English Paper 1 passage writer. Write an original passage based on the source fragments below.
+  let prompt = `You are a DSE English Paper 1 passage writer. Write an original passage based on the source fragments below.
 
 OUTPUT FORMAT — CRITICAL (follow exactly):
 - Each text MUST have an <h2> title. Multi-text passages MUST use <h3>Text N</h3> before each text's content.
@@ -895,7 +895,7 @@ async function generatePureAIPassage(callAI, difficulty = 'medium') {
   const typesStr = textTypes.types.join(', ');
   const typePick = textTypes.types[Math.floor(Math.random() * textTypes.types.length)];
 
-  const prompt = `You are a DSE English Paper 1 passage writer. Write an original passage.
+  let prompt = `You are a DSE English Paper 1 passage writer. Write an original passage.
 
 OUTPUT FORMAT — CRITICAL (follow exactly):
 - Each text MUST have an <h2> title. Multi-text passages MUST use <h3>Text N</h3> before each text's content.
