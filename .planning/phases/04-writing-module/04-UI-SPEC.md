@@ -35,7 +35,6 @@ Declared values (existing CSS custom properties — must use these only):
 |-------|-------|-------|
 | --space-1 | 4px | Icon gaps, inline padding, tight element spacing |
 | --space-2 | 8px | Compact element spacing, small gaps |
-| --space-3 | 12px | Label-to-content gaps, small button padding |
 | --space-4 | 16px | Default element spacing, card padding |
 | --space-5 | 24px | Section padding, button padding (X axis) |
 | --space-6 | 32px | Layout gaps, major section padding |
@@ -46,6 +45,7 @@ Exceptions:
 1. **Ruled-line editor line height**: 28px (non-standard — emulates DSE answer booklet ruled spacing). Use explicit `line-height: 28px` on `.writing__editor--exam` — do NOT use a spacing token.
 2. **DSE exam header padding**: 8px top/bottom padding (existing `.reading__exam-framework` pattern uses explicit `8px` — match this).
 3. **Timer warning flash**: Transition duration of 400ms for the warning pulse animation when timer drops below thresholds — overrides the standard 150ms transition.
+4. **--space-3 value**: 12px is not in the standard scale {4, 8, 16, 24, 32, 48, 64} but is a valid 4-grid value (12 = 4×3). Use 12px for label-to-content gaps and small button padding when 8px is too tight and 16px is too loose. This is a one-off exception, not a new scale tier.
 
 **Source:** Existing CSS custom properties from `:root` / `html[data-theme="dark"]` in `src/App.css` lines 51-57.
 
@@ -53,29 +53,26 @@ Exceptions:
 
 ## Typography
 
+**4 sizes, 2 weights maximum** (enforced by design system constraints):
+
 | Role | Size | Weight | Line Height | CSS Token |
 |------|------|--------|-------------|-----------|
-| Body | 16px (1rem) | 400 | 1.5 | `--font-base` |
-| Label / Meta | 12.8px (0.8rem) | 600 | 1.3 | `--font-sm` |
-| Heading (section) | 24px (1.5rem) | 700 | 1.2 | `--font-xl` |
+| Caption / Small print | 11.2px (0.7rem) | 400 | 1.4 | `--font-xs` |
+| Label / Meta / Body / Prompt | 16px (1rem) | 400 | 1.5 | `--font-base` |
+| Heading / Timer | 24px (1.5rem) | 700 | 1.2 | `--font-xl` |
 | Display (module title) | 32px (2rem) | 700 | 1.15 | `--font-2xl` |
-| Small print (caption) | 11.2px (0.7rem) | 400 | 1.4 | `--font-xs` |
-| Small print (bold) | 12.8px (0.8rem) | 600 | 1.4 | `--font-sm` |
 
-**Additional utility sizes (already in use, map to existing tokens):**
+**Size 16px (`--font-base`) is the catch-all** — used for: body text, ruled-line editor, prompt card task, subheadings, labels, meta text, and small print emphasis. Avoid creating separate sizes for visually close roles. Line-height may vary per component (e.g., editor uses 28px line-height for ruled-line spacing) but font-size stays at 16px.
 
-| Usage | Size | CSS Token |
-|-------|------|-----------|
-| Subheading (prompt label) | 16.8px (1.05rem) | `--font-lg` |
-| Timer text | 24px (1.5rem) | `--font-xl` (with `font-variant-numeric: tabular-nums`) |
+**Weight 700 is the emphasis weight** — used for: headings, display, timer, labels needing emphasis, error chart labels. Weight 400 covers everything else. No 600 weight.
 
 **New writing-specific typography rules:**
 
-- **DSE exam header**: 11.2px (0.7rem), weight 700 center, uppercase letter-spacing 0.04em — match existing `.reading__exam-title` pattern.
+- **DSE exam header**: 11.2px (0.7rem), weight 700, centered, uppercase letter-spacing 0.04em — match existing `.reading__exam-title` pattern.
 - **Ruled-line editor text**: 16px (1rem), weight 400, line-height 28px for ruled-line spacing — write as explicit value.
-- **Prompt card task text**: 15.2px (0.95rem), weight 400, line-height 1.65 — existing `.writing__prompt-text` pattern.
-- **Error correction text in annotations**: 12.8px (0.8rem), weight 400, line-height 1.5 — new token: `--font-sm` suffices.
-- **Error chart labels**: 11.2px (0.7rem), weight 600, uppercase — match existing `.writing__feedback-stat-label` pattern.
+- **Prompt card task text**: 16px (1rem), weight 400, line-height 1.65 — uses `--font-base`, no separate size.
+- **Error correction text in annotations**: 11.2px (0.7rem), weight 400, line-height 1.5 — uses `--font-xs`.
+- **Error chart labels**: 11.2px (0.7rem), weight 700, uppercase — uses `--font-xs` with weight 700.
 
 **Source:** Existing CSS tokens from `src/App.css` lines 45-49. Additional writing-specific specs derived from existing `.writing__*` styles and CONTEXT.md D-27 through D-36.
 
@@ -129,6 +126,19 @@ Exceptions:
 | ≤ 5 min | `--color-error` (flashing, 400ms animation) |
 
 **Source:** Existing CSS tokens from `src/App.css` lines 17-61. Error type color mapping derived from CONTEXT.md D-16, D-23 specifics. Timer colors derived from Reading Module pattern and CONTEXT.md D-30.
+
+### Visual Hierarchy — Primary Screen Focal Point
+
+On the main writing exam screen, the **focal point hierarchy** is:
+
+| Element | Priority | Role |
+|---------|----------|------|
+| RuledLineEditor | Primary (focal) | Center-screen essay area — largest surface, draws the eye |
+| WritingExamHeader | Secondary (anchor) | Top banner — sets exam context frame |
+| WritingTimer | Secondary (peripheral) | Top-right — glanceable status, not constant focus |
+| WritingPromptCard | Tertiary (collapsible) | Left/above editor — referenced occasionally, not persistent focus |
+
+No single element competes with the RuledLineEditor for visual attention. The editor occupies ~60% of viewport width (or full-width in distraction-free mode). The prompt card is dismissible to maximize editor prominence.
 
 ---
 
