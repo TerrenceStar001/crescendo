@@ -5639,7 +5639,44 @@ html[data-theme="dark"] {
 }
 
 /* ===== Writing Module — Phase 4 Overhaul ===== */
-/* Phase 4: DSE Authenticity — new styles for Part A/B split, 4-option selector, correction display, history, comparison */
+/* Phase 4: DSE Authenticity — new styles for Part A/B split, 3-option selector, correction display, history, comparison */
+
+/* --- Practice Mode Selector --- */
+.writing__practice-mode-selector {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+
+.writing__practice-mode-btn {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.writing__practice-mode-btn:hover {
+  border-color: var(--color-accent);
+}
+
+.writing__practice-mode-btn--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+}
+
+@media (max-width: 768px) {
+  .writing__practice-mode-selector {
+    flex-direction: column;
+  }
+}
 
 /* --- Writing Start Screen --- */
 .writing__start {

@@ -1629,28 +1629,28 @@ Return as JSON:
         }
       }
 
-      // Part B: try curated bank first (get 4)
+      // Part B: try curated bank first (get 3)
       if (!forceAI) {
-        const partBPrompts = getAvailablePrompts('B', 4);
-        if (partBPrompts.length === 4) {
+        const partBPrompts = getAvailablePrompts('B', 3);
+        if (partBPrompts.length === 3) {
           partB = { options: partBPrompts, source: 'curated' };
           partBPrompts.forEach(markPromptUsed);
         }
       }
 
       if (!partB) {
-        const aiPrompt = `Generate 4 distinct HKDSE English Paper 2 Part B writing prompts (D-37: one call for all 4 options).
+        const aiPrompt = `Generate 3 distinct HKDSE English Paper 2 Part B writing prompts.
 
 Each prompt must have a DIFFERENT text type from: article, letter, speech, report, story, blog, review, proposal.
-Each must have a different topic domain covering at least 4 different areas.
+Each must have a different topic domain covering at least 3 different areas.
 
 ${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
 
-Return as JSON array of 4 objects:
+Return as JSON array of 3 objects:
 [{ "type": "article", "title": "...", "context": "...", "task": "...", "wordLimit": { "min": 380, "max": 450 }, "suggestedPoints": ["...", "..."], "instructions": "..." }]`;
 
         const raw = await callAI(aiPrompt, {
-          system: 'You are an expert HKDSE English examiner. Generate 4 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON.',
+          system: 'You are an expert HKDSE English examiner. Generate 3 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON.',
           temperature: 0.9,
           maxTokens: 2000,
         });
@@ -1658,7 +1658,7 @@ Return as JSON array of 4 objects:
         const parsed = parseJSONArray(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
           partB = {
-            options: parsed.slice(0, 4).map(p => ({ id: `ai_partB_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, ...p, source: 'ai-generated' })),
+            options: parsed.slice(0, 3).map(p => ({ id: `ai_partB_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, ...p, source: 'ai-generated' })),
             source: 'ai-generated',
           };
         }

@@ -47,6 +47,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   const [reviewSession, setReviewSession] = useState(null);
   const [compareSessionId, setCompareSessionId] = useState(null);
   const [pastWritingSessions, setPastWritingSessions] = useState([]);
+  const [practiceMode, setPracticeMode] = useState('both'); // 'both' | 'partA' | 'partB'
   const editorRef = useRef(null);
   const timerRef = useRef(null);
   const saveTimerRef = useRef(null);
@@ -206,13 +207,21 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   }, []);
 
   const handleConfirmOption = useCallback(() => {
+    if (practiceMode === 'partA') {
+      setPhase('writingPartA');
+      return;
+    }
     if (partB.chosenOption === null) return;
     const opt = sessionData?.partB?.options?.[partB.chosenOption];
     if (opt) {
       setPartB(prev => ({ ...prev, prompt: opt }));
     }
-    setPhase('writingPartA');
-  }, [partB.chosenOption, sessionData]);
+    if (practiceMode === 'partB') {
+      setPhase('writingPartB');
+    } else {
+      setPhase('writingPartA');
+    }
+  }, [partB.chosenOption, sessionData, practiceMode]);
 
   // --- Essay change handler ---
   const handleEssayChange = useCallback((html) => {
@@ -429,12 +438,12 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             <div className="writing__start-card">
               <div className="writing__start-card-badge writing__start-card-badge--b">Part B (Choose from options)</div>
               <div className="writing__start-card-title">Extended Writing Task</div>
-              <div className="writing__start-card-desc">Choose ONE of 4 options, write 400\u2013500 words</div>
-              <div className="writing__start-card-types">
-                {PART_B_TYPES.slice(0, 4).map(t => (
-                  <span key={t} className="writing__start-card-type-chip">{t}</span>
-                ))}
-                {PART_B_TYPES.length > 4 && <span className="writing__start-card-type-chip">+{PART_B_TYPES.length - 4} more</span>}
+                <div className="writing__start-card-desc">Choose ONE of 3 options, write 400\u2013500 words</div>
+                <div className="writing__start-card-types">
+                  {PART_B_TYPES.slice(0, 3).map(t => (
+                    <span key={t} className="writing__start-card-type-chip">{t}</span>
+                  ))}
+                  {PART_B_TYPES.length > 3 && <span className="writing__start-card-type-chip">+{PART_B_TYPES.length - 3} more</span>}
               </div>
             </div>
           </div>
@@ -454,42 +463,67 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
 
   // Choosing Part B option
   if (phase === 'choosing') {
-    const options = sessionData?.partB?.options || [];
+    const options = (sessionData?.partB?.options || []).slice(0, 3);
+    const showPartBSelection = practiceMode !== 'partA';
     return (
       <div className="dse-module">
         <div className="dse-module__header">
           <button className="dse-module__back" onClick={() => setPhase('start')}>← Back</button>
-          <h1 className="dse-module__title">Choose ONE Task for Part B</h1>
+          <h1 className="dse-module__title">Writing Practice</h1>
         </div>
-        <div className="writing__part-b-header">Choose ONE of the following tasks:</div>
-        <div className="writing__part-b-options">
-          {options.map((opt, idx) => {
-            const badge = getBadgeInfo(opt.type);
-            return (
-              <button
-                key={idx}
-                className={`writing__part-b-option ${partB.chosenOption === idx ? 'writing__part-b-option--selected' : ''}`}
-                onClick={() => handleSelectOption(idx)}
-              >
-                <span className="writing__part-b-option-badge" style={{ background: badge.color }}>
-                  {badge.label}
-                </span>
-                <div className="writing__part-b-option-title">{opt.title}</div>
-                <div className="writing__part-b-option-desc">{opt.context?.slice(0, 80)}...</div>
-                <div className="writing__part-b-option-limit">
-                  {opt.wordLimit?.min}\u2013{opt.wordLimit?.max} words
-                </div>
-              </button>
-            );
-          })}
+        <div className="writing__practice-mode-selector">
+          <button
+            className={`writing__practice-mode-btn ${practiceMode === 'both' ? 'writing__practice-mode-btn--active' : ''}`}
+            onClick={() => setPracticeMode('both')}
+          >
+            Both Parts (Real DSE)
+          </button>
+          <button
+            className={`writing__practice-mode-btn ${practiceMode === 'partA' ? 'writing__practice-mode-btn--active' : ''}`}
+            onClick={() => setPracticeMode('partA')}
+          >
+            Part A Only
+          </button>
+          <button
+            className={`writing__practice-mode-btn ${practiceMode === 'partB' ? 'writing__practice-mode-btn--active' : ''}`}
+            onClick={() => setPracticeMode('partB')}
+          >
+            Part B Only
+          </button>
         </div>
+        {showPartBSelection && (
+          <>
+            <div className="writing__part-b-header">Choose ONE of the following tasks:</div>
+            <div className="writing__part-b-options">
+              {options.map((opt, idx) => {
+                const badge = getBadgeInfo(opt.type);
+                return (
+                  <button
+                    key={idx}
+                    className={`writing__part-b-option ${partB.chosenOption === idx ? 'writing__part-b-option--selected' : ''}`}
+                    onClick={() => handleSelectOption(idx)}
+                  >
+                    <span className="writing__part-b-option-badge" style={{ background: badge.color }}>
+                      {badge.label}
+                    </span>
+                    <div className="writing__part-b-option-title">{opt.title}</div>
+                    <div className="writing__part-b-option-desc">{opt.context?.slice(0, 80)}...</div>
+                    <div className="writing__part-b-option-limit">
+                      {opt.wordLimit?.min}\u2013{opt.wordLimit?.max} words
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         <div className="writing__part-b-confirm">
           <button
             className="writing__start-btn--primary"
             onClick={handleConfirmOption}
-            disabled={partB.chosenOption === null}
+            disabled={showPartBSelection ? partB.chosenOption === null : false}
           >
-            Confirm Selection
+            {practiceMode === 'partA' ? 'Start Part A' : 'Confirm Selection'}
           </button>
         </div>
       </div>
