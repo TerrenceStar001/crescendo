@@ -209,7 +209,7 @@ New components to be built in this phase, with their interaction contracts:
 
 ### 3. PartBOptionSelector
 - **States:** loading, ready, empty
-- **Interaction:** Grid of ~8 option cards. Each shows: text type badge, title, short description. Click to select. (This is NEW — replaces the simple difficulty picker for Part B.)
+- **Interaction:** Grid of 4 option cards (post-2024 curriculum). Each shows: text type badge, title, short description. Click to select. (This is NEW — replaces the simple difficulty picker for Part B.)
 - **Copy:** "Choose ONE of the following tasks:" header.
 - **CSS namespace:** `.writing__part-b-options`
 

@@ -89,6 +89,6 @@ Plans:
 Plans:
 
 - [ ] 04-01-PLAN.md — Foundation: prompt bank, generation pipeline, correction prompt design (Wave 1)
-- [ ] 04-02-PLAN.md — Core exam: state machine, timer, ruled editor, Part B selector, auto-save (Wave 1)
+- [ ] 04-02-PLAN.md — Core exam: state machine, timer, ruled editor, Part B selector, auto-save (Wave 2)
 - [ ] 04-03-PLAN.md — Correction: AI pipeline, rubric results, error list, vocab, save to history (Wave 2)
 - [ ] 04-04-PLAN.md — Advanced: inline annotations, error chart, resubmit, history, comparison (Wave 2)

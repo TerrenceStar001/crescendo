@@ -913,27 +913,12 @@ const handleSubmit = useCallback(async () => {
 
 **Note on A1:** This is the most significant assumption. The HKEAA sample paper (2024) clearly shows Part B = 4 questions, but older papers (pre-2024) had 8. The planner must confirm which format to target, as this affects the prompt bank size and option presentation UI.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Part B option count: 4 or 8?**
-   - What we know: Pre-2024 = 8 options (one per elective module). 2024+ = 4 options (real-world topics).
-   - What's unclear: Which format to target for this practice tool.
-   - Recommendation: The planner should decide based on whether they want to match the latest HKDSE format (4 options) or the older format students might still practice (8 options). Both are reasonable.
-
-2. **Should correction include Part A only, Part B only, or both?**
-   - What we know: Both parts are marked separately in the real exam.
-   - What's unclear: Whether to run one AI call for both essays (more efficient, combined feedback) or separate calls (more thorough).
-   - Recommendation: One AI call with both essays, asking for separate Part A and Part B scores plus a combined overall assessment. This is more efficient and provides holistic feedback.
-
-3. **How to handle AI generation for Part B options?**
-   - What we know: 4 options are needed per session.
-   - What's unclear: Generate all 4 in one AI call (efficient, may produce similar-quality options) or one-by-one (consistent quality, slower).
-   - Recommendation: One AI call requesting 4 distinct text-type prompts with varying topics. This matches better the real exam where all 4 are of comparable quality.
-
-4. **Should the exam timer auto-submit or soft-stop?**
-   - What we know: Real DSE collects all papers at the 2-hour mark.
-   - What's unclear: Auto-submit (what the student wrote is final) vs soft-stop (timer reaches 0 but student can still submit).
-   - Recommendation: Match Reading Module — auto-submit at 0. This matches real exam pressure.
+1. **Part B option count: 4 or 8?** — RESOLVED: 4 options (post-2024 DSE curriculum). Locked as D-05 in CONTEXT.md.
+2. **Should correction include Part A only, Part B only, or both?** — RESOLVED: Separate AI calls per part (Part A → correct → Part B → correct → combined results). Locked as D-38 in CONTEXT.md.
+3. **How to handle AI generation for Part B options?** — RESOLVED: All 4 options generated in a single AI call requesting 4 distinct text-type prompts. Locked as D-37 in CONTEXT.md.
+4. **Should the exam timer auto-submit or soft-stop?** — RESOLVED: Auto-submit at 0 (matches Reading Module). Locked as D-39 in CONTEXT.md.
 
 ## Dependencies & Risks
 

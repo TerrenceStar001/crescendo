@@ -21,12 +21,12 @@ Overhaul the Writing Module (HKDSE Paper 2) to match real DSE in prompt variety,
 - **D-02:** All 8 DSE text types: article, letter, speech, report, story, blog, review, proposal.
 - **D-03:** Hybrid prompt source — curated bank (~20 per text type) stored in `src/assets/writing-prompts.json` (JSON file, same pattern as `bundled-content.json`), plus AI generation for variety when online.
 - **D-04:** Prompt bank uses full metadata per entry: `{ id, part, type, title, context, task, wordLimit, suggestedPoints, instructions, difficulty, source }`.
-- **D-05:** Part B presents ~8 options for the student to choose from — this matches real DSE format. Researcher must verify exact number and presentation format.
+- **D-05:** Part B presents **4 options** for the student to choose from — matches post-2024 DSE curriculum reform. 8-option format was pre-2024 (tied to elective modules). Use 4 options for authenticity.
 - **D-06:** Single 2-hour countdown timer (no split between Part A/B). Student manages their own time.
 - **D-07:** Full DSE prompt card display: context paragraph, task instructions, bullet-point requirements, word limit, text type badge.
 - **D-08:** Used prompts tracked in localStorage to avoid repeats.
 - **D-09:** Topic domains cover all DSE-relevant areas: social issues, education, environment, technology, health, media, culture, career, sports.
-- **D-10:** Part A text types aligned with real HKDSE — researcher must verify what types appear in real Part A.
+- **D-10:** Part A text types are practical/functional: email, letter, blog comment, questionnaire response, short article, speech (confirmed from 2020-2024 past papers).
 
 ### Correction Rubric Depth
 
@@ -66,9 +66,14 @@ Overhaul the Writing Module (HKDSE Paper 2) to match real DSE in prompt variety,
 - **D-35:** Browseable session history (essay text, correction results, scores) stored in IndexedDB via useIndexedDB.
 - **D-36:** Side-by-side session comparison to track score and error pattern changes over time.
 
+### Planning Resolved Decisions
+
+- **D-37:** Part B: generate all 4 options in a single AI call into one JSON array.
+- **D-38:** Correction: separate AI calls per part (Part A → submit → correct → Part B → submit → correct → combined results).
+- **D-39:** Timer expiry: auto-submit at 0 (matches Reading Module pattern). No soft-stop or grace period.
+
 ### the agent's Discretion
 
-- Exact Part B option count per session — researcher to verify real DSE format
 - Part A specific text type distribution — researcher to verify from real papers
 - Auto-save debounce timing — 30s was discussed but agent can adjust
 - Sound alert implementation (Web Audio API vs HTML Audio)
