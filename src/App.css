@@ -6030,7 +6030,7 @@ html[data-theme="dark"] {
 }
 
 .writing__editor--exam:focus {
-  background: var(--color-surface);
+  background-color: var(--color-surface);
 }
 
 .writing__editor--exam[contenteditable]:empty::before {

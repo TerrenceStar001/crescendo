@@ -1067,12 +1067,15 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                 {currentPrompt.title && <h3 className="writing__prompt-card-title">{currentPrompt.title}</h3>}
                 {currentPrompt.context && <p className="writing__prompt-card-context">{currentPrompt.context}</p>}
                 {currentPrompt.task && <div className="writing__prompt-card-task">{currentPrompt.task}</div>}
-                {currentPrompt.wordLimit && (
+                {isPartA && currentPrompt.instructions && (
+                  <div className="writing__prompt-card-instructions">{currentPrompt.instructions}</div>
+                )}
+                {!isPartA && currentPrompt.wordLimit && (
                   <div className="writing__prompt-card-meta">
                     Word limit: {currentPrompt.wordLimit.min}\u2013{currentPrompt.wordLimit.max} words
                   </div>
                 )}
-                {currentPrompt.suggestedPoints && currentPrompt.suggestedPoints.length > 0 && (
+                {!isPartA && currentPrompt.suggestedPoints && currentPrompt.suggestedPoints.length > 0 && (
                   <div className="writing__prompt-card-points">
                     <span className="writing__prompt-card-points-label">Consider these points:</span>
                     <ul>{currentPrompt.suggestedPoints.map((p, i) => <li key={i}>{p}</li>)}</ul>
