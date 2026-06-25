@@ -26,13 +26,11 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
 
   const totalParagraphs = paragraphs.length;
 
-  // Group questions by paragraph and assign sequential global numbers
   const { questionMap, sortedQuestions } = useMemo(() => {
     const map = {};
     const qLen = questions.length;
     let globalNum = 0;
 
-    // First pass: assign paragraph refs with sequential global numbering
     for (let i = 0; i < qLen; i++) {
       const q = questions[i];
       let ref = q.paragraphRef;
@@ -50,7 +48,6 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
       map[ref].push({ ...q, result, questionNumber: globalNum });
     }
 
-    // Flatten all questions in reading order (by paragraph, then by position within paragraph)
     const flat = [];
     for (let p = 1; p <= totalParagraphs; p++) {
       if (map[p]) {
@@ -88,7 +85,6 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
     <div className="marked-script">
       {paragraphs.map((para, i) => {
         const annotations = questionMap[para.seqNum];
-
         const wrongCount = (annotations || []).filter(
           a => !a.result.correct && answerMap[a.id] !== null && answerMap[a.id] !== undefined
         ).length;
@@ -100,45 +96,49 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
         return (
           <div
             key={i}
-            className={`marked-script__para${hasErrors ? ' marked-script__para--has-errors' : ' marked-script__para--all-correct'}`}
+            className={`marked-script__para${hasErrors ? ' marked-script__para--has-errors' : ''}`}
           >
-            <div className="marked-script__gutter">
-              {(annotations || []).map((q, qi) => {
-                const isCorrect = q.result.correct;
-                const isPartial = !q.result.correct && q.result.marksEarned > 0;
-                const modClass = isCorrect
-                  ? 'marked-script__annotation--correct'
-                  : isPartial
-                    ? 'marked-script__annotation--partial'
-                    : 'marked-script__annotation--wrong';
-
-                return (
-                  <div key={qi} className={`marked-script__annotation ${modClass}`}>
-                    <span
-                      className="marked-script__annotation-marker"
-                      aria-label={isCorrect ? 'Correct' : 'Wrong'}
-                    >
-                      {isCorrect ? '\u2713' : '\u2717'}
-                    </span>
-                    <span className="marked-script__annotation-text">
-                      Q{q.questionNumber} — {q.result.feedback}
-                    </span>
-                    {q.marks > 1 && (
-                      <span className="marked-script__annotation-marks">
-                        [{Math.round(q.result.marksEarned)}/{q.result.maxMarks}m]
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className={`marked-script__text${hasErrors ? ' marked-script__text--highlighted' : ''}`}>
+            <div className="marked-script__text">
               {para.tagName === 'P' ? (
                 <p dangerouslySetInnerHTML={{ __html: para.html }} />
               ) : (
                 React.createElement(para.tagName, { dangerouslySetInnerHTML: { __html: para.html } })
               )}
             </div>
+            {(annotations || []).map((q, qi) => {
+              const isCorrect = q.result.correct;
+              const isPartial = !q.result.correct && q.result.marksEarned > 0;
+              const modClass = isCorrect
+                ? 'marked-script__annotation--correct'
+                : isPartial
+                  ? 'marked-script__annotation--partial'
+                  : 'marked-script__annotation--wrong';
+
+              return (
+                <div key={qi} className={`marked-script__annotation ${modClass}`}>
+                  <span className="marked-script__annotation-marker" aria-label={isCorrect ? 'Correct' : 'Wrong'}>
+                    {isCorrect ? '\u2713' : '\u2717'}
+                  </span>
+                  <span className="marked-script__annotation-text">
+                    <strong>Q{q.questionNumber}.</strong> {q.stem}
+                  </span>
+                  <span className="marked-script__annotation-answer">
+                    Your answer: <strong>{answerMap[q.id] || '\u2014'}</strong>
+                    {!isCorrect && q.correctAnswer && (
+                      <> | Correct: <strong style={{ color: 'var(--color-success)' }}>{q.correctAnswer}</strong></>
+                    )}
+                  </span>
+                  {q.result.feedback && (
+                    <span className="marked-script__annotation-feedback">{q.result.feedback}</span>
+                  )}
+                  {q.marks > 1 && (
+                    <span className="marked-script__annotation-marks">
+                      [{Math.round(q.result.marksEarned)}/{q.result.maxMarks}m]
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}

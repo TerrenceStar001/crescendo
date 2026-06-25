@@ -1,6 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import QuestionRenderer from './QuestionRenderer';
 import { generateDrills } from '../utils/drillGenerator';
+
+const STORAGE_KEY = 'crescendo-drill-state';
 
 /**
  * DrillGenerator — 6-state state machine for targeted practice question generation.
@@ -20,10 +22,33 @@ import { generateDrills } from '../utils/drillGenerator';
 export default function DrillGenerator({ passagePreview, weakTypes, part, mistakesContext, callAI }) {
   if (!callAI) return null;
 
-  const [phase, setPhase] = useState('idle'); // idle | generating | ready | answering | answered | failed
+  const [phase, setPhase] = useState('idle');
   const [drills, setDrills] = useState([]);
   const [drillAnswers, setDrillAnswers] = useState({});
   const [drillPhase, setDrillPhase] = useState('answering');
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.drills?.length) {
+          setDrills(state.drills);
+          setDrillAnswers(state.drillAnswers || {});
+          setDrillPhase(state.drillPhase || 'answering');
+          setPhase(state.phase === 'generating' || state.phase === 'failed' ? 'idle' : state.phase);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (drills.length > 0) {
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ drills, drillAnswers, drillPhase, phase }));
+      } catch {}
+    }
+  }, [drills, drillAnswers, drillPhase, phase]);
 
   const handleGenerate = useCallback(async () => {
     setPhase('generating');
@@ -121,7 +146,6 @@ export default function DrillGenerator({ passagePreview, weakTypes, part, mistak
             </div>
             );
           })}
-          ))}
           <div className="drill-generator__actions">
             {drillPhase === 'answering' && (
               <button
