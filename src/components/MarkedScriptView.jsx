@@ -102,7 +102,7 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
               {para.tagName === 'P' ? (
                 <p dangerouslySetInnerHTML={{ __html: para.html }} />
               ) : (
-                React.createElement(para.tagName, { dangerouslySetInnerHTML: { __html: para.html } })
+                React.createElement(para.tagName.toLowerCase(), { dangerouslySetInnerHTML: { __html: para.html } })
               )}
             </div>
             {(annotations || []).map((q, qi) => {
@@ -114,6 +114,13 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
                   ? 'marked-script__annotation--partial'
                   : 'marked-script__annotation--wrong';
 
+              const ua = answerMap[q.id];
+              const displayAnswer = q.type === 'matching' && ua && typeof ua === 'object'
+                ? Object.entries(ua).map(([k, v]) => `${k} → ${v}`).join(', ')
+                : q.type === 'gap-fill' && q.answers && ua && typeof ua === 'object'
+                  ? q.answers.map((a, i) => `${i + 1}. ${ua[i] || '—'}`).join(', ')
+                  : (ua || '\u2014');
+
               return (
                 <div key={qi} className={`marked-script__annotation ${modClass}`}>
                   <span className="marked-script__annotation-marker" aria-label={isCorrect ? 'Correct' : 'Wrong'}>
@@ -123,7 +130,7 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
                     <strong>Q{q.questionNumber}.</strong> {q.stem}
                   </span>
                   <span className="marked-script__annotation-answer">
-                    Your answer: <strong>{answerMap[q.id] || '\u2014'}</strong>
+                    Your answer: <strong>{displayAnswer}</strong>
                     {!isCorrect && q.correctAnswer && (
                       <> | Correct: <strong style={{ color: 'var(--color-success)' }}>{q.correctAnswer}</strong></>
                     )}
