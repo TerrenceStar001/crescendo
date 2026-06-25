@@ -23,7 +23,13 @@
 
 ## v2 Requirements
 
-None deferred.
+### Writing — Module Overhaul
+
+- [ ] **WRITE-01**: Writing prompts cover all DSE Paper 2 text types (article, letter, speech, report, story, blog, review, proposal) with Part A (compulsory, short practical) + Part B (choose from 4 options, extended)
+- [ ] **WRITE-02**: AI correction produces detailed rubric scores (Content 7, Language 7, Organisation 7) matching HKEAA marking scheme per part, with overall DSE level via dseGrading.js
+- [ ] **WRITE-03**: Error analysis highlights grammar, vocab, structural, and content issues with severity, line references, inline annotations, and cross-session pattern tracking
+- [ ] **WRITE-04**: Timer and exam environment match real DSE Paper 2 — 2-hour HH:MM:SS countdown with warnings, ruled-line DSE answer booklet editor, no word count display, sound alerts, distraction-free mode
+- [ ] **WRITE-05**: Writing Module UI/UX reflects real DSE Paper 2 booklet layout — exam header, instruction language, Part B option cards, auto-save/crash-recovery, session history with side-by-side comparison
 
 ## Out of Scope
 
@@ -47,10 +53,16 @@ None deferred.
 | READ-05 | Phase 3 | Pending |
 | READ-06 | Phase 3 | Pending |
 | READ-07 | Phase 2 | Pending |
+| WRITE-01 | Phase 4 | Pending |
+| WRITE-02 | Phase 4 | Pending |
+| WRITE-03 | Phase 4 | Pending |
+| WRITE-04 | Phase 4 | Pending |
+| WRITE-05 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 7 total
-- Mapped to phases: 7
+- v2 requirements: 5 total
+- Mapped to phases: 12
 - Unmapped: 0 ✓
 
 ---
