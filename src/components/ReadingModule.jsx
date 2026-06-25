@@ -581,105 +581,39 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
 
   if (phase === 'history-review') {
     if (!reviewSession) return null;
-    const hq = reviewSession.questions || [];
+    // Transform reviewSession data to ReadingResults-compatible format
+    const revResults = {
+      percentage: reviewSession.percentage || 0,
+      score: reviewSession.score || 0,
+      totalQuestions: reviewSession.totalQuestions || 0,
+      dseLevel: reviewSession.dseLevel || '—',
+      duration: reviewSession.duration || 0,
+      subScores: reviewSession.subScores || {},
+    };
+    const revQuestions = (reviewSession.questions || []).map(q => ({
+      ...q,
+      id: q.id || `rev-q-${Math.random().toString(36).slice(2, 8)}`,
+    }));
+    const revAnswers = {};
+    for (const q of revQuestions) {
+      revAnswers[q.id] = q.userAnswer;
+    }
+    const revPartMap = { easy: 'B1', medium: 'A', hard: 'B2' };
+    const revPart = (paper?.metadata?.part) || revPartMap[reviewSession.difficulty] || 'A';
     return (
-      <div className="dse-module">
-        <div className="dse-module__header">
-          <button className="dse-module__back" onClick={() => { setPhase('start'); setReviewSession(null); }}>← Back</button>
-          <h1 className="dse-module__title">📜 Session Review</h1>
-        </div>
-        <div className="reading__results">
-          <div className="reading__results-summary">
-            <div className="reading__results-ring" style={{ '--pct': reviewSession.percentage || 0, '--color': (reviewSession.percentage || 0) >= 80 ? 'var(--color-success)' : (reviewSession.percentage || 0) >= 60 ? 'var(--color-warning)' : 'var(--color-error)' }}>
-              <svg viewBox="0 0 36 36" className="reading__results-svg">
-                <path className="reading__results-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path className="reading__results-fill" strokeDasharray={`${reviewSession.percentage || 0}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <text x="18" y="20.5" className="reading__results-text" textAnchor="middle">{reviewSession.percentage || 0}%</text>
-              </svg>
-            </div>
-            <div className="reading__results-stats">
-              <div className="reading__results-stat">
-                <span className="reading__results-stat-value">{reviewSession.score || 0}/{reviewSession.totalQuestions || 0}</span>
-                <span className="reading__results-stat-label">Marks</span>
-              </div>
-              <div className="reading__results-stat">
-                <span className="reading__results-stat-value" style={{ color: (reviewSession.percentage || 0) >= 80 ? 'var(--color-success)' : (reviewSession.percentage || 0) >= 60 ? 'var(--color-warning)' : 'var(--color-error)' }}>{reviewSession.dseLevel || '—'}</span>
-                <span className="reading__results-stat-label">DSE Level</span>
-              </div>
-              <div className="reading__results-stat">
-                <span className="reading__results-stat-value">
-                  {reviewSession.difficulty === 'easy' ? '🌱 B1' : reviewSession.difficulty === 'medium' ? '🔥 A' : '💎 B2'}
-                </span>
-                <span className="reading__results-stat-label">Section</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="reading__results-source">
-            Completed {reviewSession.completedAt ? new Date(reviewSession.completedAt).toLocaleString() : '—'}
-          </div>
-
-          {reviewSession.passageContent && (
-            <details className="reading__history" open>
-              <summary className="reading__history-summary" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                📄 Passage
-              </summary>
-              <div className="reading__passage" style={{ maxHeight: 400, overflow: 'auto', marginTop: 8, padding: 12, borderRadius: 8, background: 'var(--color-bg-secondary)' }}>
-                <div dangerouslySetInnerHTML={{ __html: reviewSession.passageContent }} />
-              </div>
-            </details>
-          )}
-
-          <div className="reading__results-review" style={{ marginTop: 16 }}>
-            <h3>Review Questions</h3>
-            {hq.map((q, i) => {
-              const correct = q.isCorrect;
-              const displayAnswer = q.type === 'matching' && q.userAnswer && typeof q.userAnswer === 'object'
-                ? Object.entries(q.userAnswer).map(([k, v]) => `${k} → ${v}`).join(', ')
-                : q.type === 'gap-fill' && q.answers && q.userAnswer && typeof q.userAnswer === 'object'
-                  ? q.answers.map((a, i) => `${i + 1}. ${(q.userAnswer || {})[i] || '—'}`).join(', ')
-                  : (q.userAnswer || '—');
-              return (
-                <div key={q.id || i} className={`reading__results-review-item ${correct ? '' : 'reading__results-review-item--wrong'}`}>
-                  <div className="reading__results-review-header">
-                    <span className={`reading__results-review-status ${correct ? 'reading__results-review-status--correct' : 'reading__results-review-status--wrong'}`}>
-                      {correct ? '✓' : '✗'}
-                    </span>
-                    {q.skillTested && <span className="reading__skill-tag" style={{ marginRight: 6, fontSize: '0.6rem', padding: '1px 5px', borderRadius: 3, background: 'var(--color-bg-tertiary)', color: 'var(--color-text-muted)' }}>{q.type || '?'}</span>}
-                    <span className="reading__results-review-q">Q{i + 1}. {q.stem}</span>
-                    <span className="mcq__marks" style={{ marginLeft: 'auto' }}>[{q.marks || 1}m]</span>
-                  </div>
-                  <div className="reading__results-review-answers">
-                    <span>Your answer: <strong>{displayAnswer}</strong></span>
-                    {!correct && q.correctAnswer && <span>Correct: <strong style={{ color: 'var(--color-success)' }}>{q.correctAnswer}</strong></span>}
-                  </div>
-                  {Array.isArray(q.options) && q.options.length >= 2 && (
-                    <div className="reading__results-review-options" style={{ fontSize: '0.75rem', marginTop: 4, color: 'var(--color-text-muted)' }}>
-                      {q.options.map((o, oi) => <span key={oi} style={{ marginRight: 12 }}>{o.label}. {o.text}</span>)}
-                    </div>
-                  )}
-                  {(q.type === 'matching' || q.type === 'semantic-connect') && Array.isArray(q.pairs) && q.pairs.length > 0 && (
-                    <div className="reading__results-review-pairs" style={{ fontSize: '0.75rem', marginTop: 4, color: 'var(--color-text-muted)' }}>
-                      Pairs: {q.pairs.map(p => `${p.item} → ${p.match}`).join(', ')}
-                    </div>
-                  )}
-                  {q.timeSpent > 0 && (
-                    <div style={{ fontSize: '0.7rem', marginTop: 4, color: 'var(--color-text-muted)' }}>
-                      Time: {Math.floor(q.timeSpent / 60)}:{(q.timeSpent % 60).toString().padStart(2, '0')}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="reading__results-actions">
-            <button className="reading__results-btn" onClick={() => { setPhase('start'); setReviewSession(null); }}>
-              ← Back to Reading
-            </button>
-          </div>
-        </div>
-      </div>
+      <ReadingResults
+        results={revResults}
+        questions={revQuestions}
+        answers={revAnswers}
+        paper={paper}
+        passageContent={reviewSession.passageContent || ''}
+        passagePreview={(reviewSession.passageContent || '').replace(/<[^>]+>/g, '').slice(0, 2000)}
+        part={revPart}
+        notesGenerated={notesGenerated}
+        callAI={callAI}
+        onBack={() => { setPhase('start'); setReviewSession(null); }}
+        onPracticeAgain={() => startSession(paper?.difficulty || 'medium')}
+      />
     );
   }
 
