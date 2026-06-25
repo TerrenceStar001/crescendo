@@ -64,9 +64,9 @@ Plans:
 
 Plans:
 
-- [ ] 03-01-PLAN.md — Error pattern analysis utility + MarkedScriptView annotated passage component
-- [ ] 03-02-PLAN.md — ErrorPatternAnalysis display + DrillGenerator + drillGenerator.js utility
-- [ ] 03-03-PLAN.md — ReadingResults extraction + ReadingModule surgery + App.css styling + tablet responsive
+- [x] 03-01-PLAN.md — Error pattern analysis utility + MarkedScriptView annotated passage component
+- [x] 03-02-PLAN.md — ErrorPatternAnalysis display + DrillGenerator + drillGenerator.js utility
+- [x] 03-03-PLAN.md — ReadingResults extraction + ReadingModule surgery + App.css styling + tablet responsive
 
 ### Phase 4: Writing Module DSE Authenticity
 
@@ -88,7 +88,7 @@ Plans:
 
 Plans:
 
-- [ ] 04-01-PLAN.md — Foundation: prompt bank, generation pipeline, correction prompt design (Wave 1)
-- [ ] 04-02-PLAN.md — Core exam: state machine, timer, ruled editor, Part B selector, auto-save (Wave 2)
-- [ ] 04-03-PLAN.md — Correction: AI pipeline, rubric results, error list, vocab, save to history (Wave 2)
-- [ ] 04-04-PLAN.md — Advanced: inline annotations, error chart, resubmit, history, comparison (Wave 2)
+- [x] 04-01-PLAN.md — Foundation: prompt bank, generation pipeline, correction prompt design (Wave 1)
+- [x] 04-02-PLAN.md — Core exam: state machine, timer, ruled editor, Part B selector, auto-save (Wave 2)
+- [x] 04-03-PLAN.md — Correction: AI pipeline, rubric results, error list, vocab, save to history (Wave 2)
+- [x] 04-04-PLAN.md — Advanced: inline annotations, error chart, resubmit, history, comparison (Wave 2)
