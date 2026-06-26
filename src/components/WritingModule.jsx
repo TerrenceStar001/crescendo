@@ -172,15 +172,6 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     return () => clearInterval(timerRef.current);
   }, [phase, timeRemaining, soundAlerts, playAlert]);
 
-  // --- Distraction-free mode ---
-  useEffect(() => {
-    if (phase === 'writingPartA' || phase === 'writingPartB') {
-      setFocusMode(true);
-    } else {
-      setFocusMode(false);
-    }
-  }, [phase, setFocusMode]);
-
   // --- Start session ---
   const handleStartSession = useCallback(async () => {
     setGenerating(true);
@@ -1089,14 +1080,29 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           </div>
         </div>
 
-        {/* Editor area */}
-        <div className="writing__editor-area">
-          <div className="writing__exam-topbar">
-            {renderTimer()}
-            {renderSoundToggle()}
-          </div>
+          {/* Editor area */}
+          <div className="writing__editor-area">
+            <div className="writing__exam-topbar">
+              {renderTimer()}
+              {renderSoundToggle()}
+            </div>
 
-          <div
+            {isPartA && (
+              <div className="writing__task-banner">
+                <div className="writing__task-banner-scroll">
+                  {currentPrompt ? (
+                    <>
+                      {currentPrompt.context && <p className="writing__task-banner-context">{currentPrompt.context}</p>}
+                      {currentPrompt.task && <div className="writing__task-banner-task">{currentPrompt.task}</div>}
+                    </>
+                  ) : (
+                    <p className="writing__task-banner-context">Write a short text (~200 words) on the given topic.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div
             ref={editorRef}
             className="writing__editor--exam writing__editor-ruled"
             contentEditable

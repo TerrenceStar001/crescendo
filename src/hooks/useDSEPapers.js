@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
 import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart, GENRE_TEMPLATES, PROMPT_ENFORCEMENT_RULES } from '../utils/structuralConstraints';
-import { getAvailablePrompts, markPromptUsed } from '../utils/writingPrompts';
+import { getAvailablePrompts, markPromptUsed, clearUsedPrompts } from '../utils/writingPrompts';
 import { composeFullPrompt } from '../utils/questionGenerator';
 import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
 import { QUESTION_TYPE_DISTRIBUTIONS, getTypeDistributionForPart } from '../utils/questionTypes';
@@ -1585,7 +1585,11 @@ export default function useDSEPapers() {
 
       // Part A: try curated bank first
       if (!forceAI) {
-        const partAPrompts = getAvailablePrompts('A', 1);
+        let partAPrompts = getAvailablePrompts('A', 1);
+        if (partAPrompts.length === 0) {
+          clearUsedPrompts();
+          partAPrompts = getAvailablePrompts('A', 1);
+        }
         if (partAPrompts.length > 0) {
           partA = { prompt: partAPrompts[0], source: 'curated' };
           markPromptUsed(partAPrompts[0].id);
@@ -1629,9 +1633,30 @@ Return as JSON:
         }
       }
 
+      // Part A fallback: hardcoded prompt if everything failed
+      if (!partA) {
+        partA = {
+          prompt: {
+            id: 'fallback_partA',
+            type: 'article',
+            title: 'Social Media Impact',
+            context: 'Your school is organizing a debate on whether social media has a positive or negative impact on teenagers.',
+            task: 'Write a short article for your school magazine discussing both sides of the argument and giving your own opinion.',
+            wordLimit: { min: 180, max: 250 },
+            instructions: 'Write approximately 200 words.',
+            source: 'fallback',
+          },
+          source: 'fallback',
+        };
+      }
+
       // Part B: try curated bank first (get 3)
       if (!forceAI) {
-        const partBPrompts = getAvailablePrompts('B', 3);
+        let partBPrompts = getAvailablePrompts('B', 3);
+        if (partBPrompts.length < 3) {
+          clearUsedPrompts();
+          partBPrompts = getAvailablePrompts('B', 3);
+        }
         if (partBPrompts.length === 3) {
           partB = { options: partBPrompts, source: 'curated' };
           partBPrompts.forEach(markPromptUsed);
@@ -1662,6 +1687,45 @@ Return as JSON array of 3 objects:
             source: 'ai-generated',
           };
         }
+      }
+
+      // Part B fallback if everything failed
+      if (!partB) {
+        partB = {
+          options: [
+            {
+              id: 'fallback_partB_1',
+              type: 'article',
+              title: 'The Future of Online Learning',
+              context: 'More schools are adopting online learning platforms.',
+              task: 'Write an article discussing the advantages and disadvantages of online learning.',
+              wordLimit: { min: 380, max: 450 },
+              suggestedPoints: ['Flexibility of schedule', 'Lack of social interaction', 'Digital divide issues'],
+              source: 'fallback',
+            },
+            {
+              id: 'fallback_partB_2',
+              type: 'letter',
+              title: 'Letter to the Editor',
+              context: 'Your local community is considering banning single-use plastics.',
+              task: 'Write a letter to the editor expressing your views on banning single-use plastics.',
+              wordLimit: { min: 380, max: 450 },
+              suggestedPoints: ['Environmental impact', 'Economic considerations', 'Alternative solutions'],
+              source: 'fallback',
+            },
+            {
+              id: 'fallback_partB_3',
+              type: 'speech',
+              title: 'Speech on Youth Volunteering',
+              context: 'Your school is promoting a new community service programme.',
+              task: 'Write a speech to convince your fellow students to participate in community service.',
+              wordLimit: { min: 380, max: 450 },
+              suggestedPoints: ['Personal growth', 'Community benefits', 'Building your CV'],
+              source: 'fallback',
+            },
+          ],
+          source: 'fallback',
+        };
       }
 
       const session = {
