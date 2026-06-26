@@ -56,6 +56,7 @@ function CrescendoApp() {
   const dsePapers = useDSEPapers();
 
   const callAI = useCallback(async (prompt, opts = {}) => {
+    const isExternal = config.endpoint && !config.endpoint.startsWith('/');
     const ep = (() => {
       if (!config.endpoint) return '/api/ai/chat/completions';
       if (config.endpoint.startsWith('/api/ai')) return config.endpoint;
@@ -71,10 +72,11 @@ function CrescendoApp() {
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
-      const res = await fetch(ep, {
+      const body = JSON.stringify({ model, messages, max_tokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 });
+      const res = await fetch(isExternal ? '/api/ai/external-proxy' : ep, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ model, messages, max_tokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 }),
+        headers: isExternal ? { 'Content-Type': 'application/json' } : headers,
+        body: isExternal ? JSON.stringify({ endpoint: ep, apiKey: config.apiKey, model, messages, maxTokens: opts.maxTokens || 2000 }) : body,
         signal: controller.signal,
       });
       clearTimeout(timeout);
