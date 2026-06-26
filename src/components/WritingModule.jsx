@@ -112,10 +112,19 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       if (saved) {
         const data = JSON.parse(saved);
         if (data.partA?.essay) {
-          setPartA(prev => ({ ...prev, essay: data.partA.essay }));
+          setPartA(prev => ({ ...prev, essay: data.partA.essay, prompt: data.partA?.prompt || prev.prompt }));
         }
         if (data.partB?.essay) {
-          setPartB(prev => ({ ...prev, essay: data.partB.essay, chosenOption: data.partB.chosenOption }));
+          setPartB(prev => ({ ...prev, essay: data.partB.essay, chosenOption: data.partB.chosenOption, prompt: data.partB?.prompt || prev.prompt }));
+        }
+        if (data.sessionData) {
+          setSessionData(data.sessionData);
+        }
+        if (data.practiceMode) {
+          setPracticeMode(data.practiceMode);
+        }
+        if (data.activePart) {
+          setActivePart(data.activePart);
         }
         if (data.timeRemaining) {
           setTimeRemaining(data.timeRemaining);
@@ -139,10 +148,13 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     saveTimerRef.current = setTimeout(() => {
       try {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-          partA: { essay: partA.essay },
-          partB: { essay: partB.essay, chosenOption: partB.chosenOption },
+          partA: { essay: partA.essay, prompt: sessionData?.partA?.prompt || partA.prompt },
+          partB: { essay: partB.essay, chosenOption: partB.chosenOption, prompt: partB.prompt },
           phase,
           timeRemaining,
+          activePart,
+          practiceMode,
+          sessionData,
           savedAt: Date.now(),
         }));
         setSaveIndicator('Saved');
