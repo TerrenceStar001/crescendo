@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useView } from '../context/ViewContext';
+import { scoreToDseLevel } from '../utils/dseGrading';
 
 const SESSION_KEY = 'crescendo-writing-session';
 const TOTAL_DURATION = 7200; // 2 hours in seconds
@@ -278,14 +279,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
 
       const partTotal = (parsed.content?.score || 0) + (parsed.organization?.score || 0) + (parsed.language?.score || 0);
       const partPct = Math.round((partTotal / 21) * 100);
-      const dseLevel = skillAnalytics ? (() => {
-        // Inline scoreToDseLevel for writing
-        const boundaries = { '5**': 88, '5*': 83, '5': 76, '4': 67, '3': 50, '2': 38 };
-        for (const [level, min] of Object.entries(boundaries)) {
-          if (partPct >= min) return level;
-        }
-        return '1';
-      })() : '—';
+      const dseLevel = scoreToDseLevel(partPct, 'writing').level || '—';
 
       parsed.overall = { ...parsed.overall, total: partTotal, maxTotal: 21, percentage: partPct, dseLevel };
 
@@ -558,7 +552,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     if (!cr) return null;
     const total = (cr.content?.score || 0) + (cr.organization?.score || 0) + (cr.language?.score || 0);
     const pct = Math.round((total / 21) * 100);
-    const level = cr.overall?.dseLevel || '—';
+    const level = cr.overall?.dseLevel || scoreToDseLevel(pct, 'writing').level || '—';
 
     return (
       <div className="dse-module">
@@ -650,7 +644,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     const total = cr.overall?.total || 0;
     const maxTotal = cr.overall?.maxTotal || 42;
     const pct = cr.overall?.percentage || 0;
-    const level = cr.overall?.dseLevel || '\u2014';
+    const level = cr.overall?.dseLevel || scoreToDseLevel(pct, 'writing').level || '\u2014';
 
     // Compute error type counts for chart
     const errorTypeCounts = [];
