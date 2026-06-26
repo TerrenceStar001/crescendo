@@ -1747,44 +1747,78 @@ Return as JSON array of 3 objects:
   }, [getCachedPapers, cachePapers]);
 
   const buildCorrectionPrompt = useCallback((part, essay, promptInfo, selfAssessment) => {
-    return `You are an expert HKDSE English examiner (Paper 2 Writing). Assess the student's essay using official HKEAA criteria.
+    return `You are an expert HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **specific, diagnostic, and actionable** — the student must know exactly what to fix and how.
 
-TASK (Part ${part}):
+TASK TO EVALUATE (Part ${part}):
+---PROMPT---
 Context: ${promptInfo?.context || ''}
 Task: ${promptInfo?.task || ''}
 Text type: ${promptInfo?.type || 'essay'}
+---END PROMPT---
 
-STUDENT'S ESSAY:
+---STUDENT'S ESSAY---
 ${essay?.text || ''}
+---END ESSAY---
 
-${selfAssessment?.length > 0 ? `Student is unsure about: ${selfAssessment.join(', ')}.` : ''}
+${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas in your feedback.` : ''}
 
-MARKING RUBRIC (each 0-7):
-- Content: relevance, task fulfilment, idea development, audience awareness
-- Organization: structure, paragraphing, cohesion, genre conventions
-- Language: grammar accuracy, vocabulary range, sentence variety, register
+HKEAA MARKING CRITERIA (Paper 2):
+Content (7 marks): Relevance to prompt, task fulfilment, development of ideas, audience awareness, creativity.
+- 7: Fully relevant, extensive, insightful, sophisticated treatment, engages reader
+- 6: Relevant, well-developed, clear purpose, mostly engaging
+- 5: Mostly relevant, adequate development, some depth
+- 4: Generally relevant, some development, may lack focus in parts
+- 3: Partially relevant, limited development, some digression
+- 2: Limited relevance, little development, largely off-task
+- 1: Irrelevant or minimal content
 
-FEEDBACK RULES:
-1. For each rubric: cite exact phrases from the essay as strengths AND weaknesses
-2. Be specific — reference the essay content, not generic praise
-3. List ALL errors with exact original text, correction, and explanation
-4. Map vocabulary suggestions to sentence context
-5. Note 2-3 targeted improvements with concrete examples
-6. Note any common DSE pitfalls the student avoided
+Organization (7 marks): Structure, paragraphing, cohesion, genre conventions.
+- 7: Sophisticated structure, flawless paragraphing, seamless cohesion, perfectly matched to genre
+- 6: Coherent structure, effective paragraphing, good use of cohesive devices
+- 5: Clear structure, mostly appropriate paragraphing, adequate cohesion
+- 4: Generally organized, some paragraphing errors, cohesion inconsistent
+- 3: Some structure but lacks coherence, paragraphing weak in parts
+- 2: Poor structure, minimal paragraphing, confusing
+- 1: No discernible structure
 
-Return ONLY valid JSON with this schema:
+Language (7 marks): Grammar accuracy, vocabulary range, sentence structure variety, register, punctuation.
+- 7: Wide range of complex structures used accurately, sophisticated vocabulary, flawless grammar, consistent register
+- 6: Good range of structures, mostly accurate, wide vocabulary, register appropriate
+- 5: Adequate range, some errors but meaning clear, appropriate vocabulary
+- 4: Limited range, noticeable errors, basic vocabulary
+- 3: Narrow range, frequent errors, limited vocabulary
+- 2: Very limited range, pervasive errors, inadequate vocabulary
+- 1: Incomprehensible
+
+ASSESSMENT REQUIREMENTS:
+1. For EACH rubric (content, organization, language): state a STRENGTH (quote the exact phrase/sentence from the essay) and a SPECIFIC WEAKNESS (quote the exact problematic phrase) with a concrete suggestion.
+2. Overall narrativeSummary: Be specific — reference the essay content, don't give generic praise. Name the text type and judge how well it meets genre conventions.
+3. errors: Every error must include the EXACT original text, a correction, and a clear explanation of the grammar/usage rule violated. Be thorough — catch ALL errors.
+4. vocabularySuggestions: Map every suggestion to the specific sentence context. Suggest words at least one CEFR level above the student's current usage.
+5. Add a "targetedImprovements" array with 2-3 specific, actionable steps the student should take to reach the next DSE level (e.g., "Your topic sentences are weak. Try: 'Firstly, ...' / 'Another key factor is ...' / 'Having examined X, it is clear that ...'" — give full examples).
+
+Return ONLY valid JSON with this exact schema:
 {
-  "content": { "score": 0-7, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
-  "organization": { "score": 0-7, "feedback": "..." },
-  "language": { "score": 0-7, "feedback": "..." },
-  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Specific essay-referenced feedback" },
-  "sectionBreakdown": { "introduction": { "score": 0-7, "feedback": "..." }, "body1": { "score": 0-7, "feedback": "..." }, "body2": { "score": 0-7, "feedback": "..." }, "conclusion": { "score": 0-7, "feedback": "..." } },
-  "targetedImprovements": [ { "area": "...", "currentWeakness": "...", "concreteFix": "..." } ],
-  "errors": [ { "original": "...", "correction": "...", "explanation": "...", "type": "grammar|vocabulary|structure|style|punctuation|spelling|content", "severity": "Critical|Major|Minor", "location": { "paragraph": 1, "line": 1 } } ],
-  "goodLanguage": [ { "phrase": "...", "comment": "..." } ],
-  "vocabularySuggestions": [ { "original": "...", "suggestion": "...", "cefrLevel": "B2|C1|C2", "context": "..." } ],
-  "pitfallsAvoided": [ "..." ],
-  "inlineAnnotations": [ { "text": "...", "replacement": "...", "type": "grammar", "color": "#ef5350" } ]
+  "content": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
+  "organization": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
+  "language": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
+  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Specific, essay-referenced feedback (not generic). Name what was done well and precisely what needs work." },
+  "sectionBreakdown": {
+    "introduction": { "score": 0-7, "feedback": "Specific feedback about the intro paragraph" },
+    "body1": { "score": 0-7, "feedback": "..." },
+    "body2": { "score": 0-7, "feedback": "..." },
+    "conclusion": { "score": 0-7, "feedback": "..." }
+  },
+  "targetedImprovements": [
+    { "area": "topic sentences", "currentWeakness": "student's actual mistake", "concreteFix": "full example of how to write it correctly" }
+  ],
+  "errors": [
+    { "original": "exact text from essay", "correction": "corrected version", "explanation": "why this is wrong — name the grammar rule", "type": "grammar|vocabulary|structure|style|punctuation|spelling|content", "severity": "Critical|Major|Minor", "location": { "paragraph": 1, "line": 2 } }
+  ],
+  "goodLanguage": [ { "phrase": "exact quote from essay", "comment": "why this works well — specific to the context" } ],
+  "vocabularySuggestions": [ { "original": "word from essay", "suggestion": "upgraded word (at least 1 CEFR level higher)", "cefrLevel": "B2|C1|C2", "context": "the full sentence where this word appears" } ],
+  "pitfallsAvoided": [ "specific common DSE mistake this student successfully avoided" ],
+  "inlineAnnotations": [ { "text": "exact text to annotate", "replacement": "corrected version", "type": "grammar", "color": "#ef5350" } ]
 }`;
   }, []);
 
