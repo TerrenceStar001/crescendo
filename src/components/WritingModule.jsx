@@ -379,7 +379,14 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         overall: { total: 0, maxTotal: 21, percentage: 0, dseLevel: '—', narrativeSummary: 'Correction failed.' },
         errors: [], vocabularySuggestions: [], goodLanguage: [], sectionBreakdown: {}, pitfallsAvoided: [], targetedImprovements: [], inlineAnnotations: [],
       };
-      setCorrectionResult(errorResult);
+      if (part === 'B' && correctionPartAResult) {
+        // Part B failed but Part A succeeded — show combined with Part A data
+        setCorrectionPartBResult(errorResult);
+        const combined = dsePapers.combineCorrections(correctionPartAResult, errorResult);
+        setCorrectionResult(combined);
+      } else {
+        setCorrectionResult(errorResult);
+      }
       setPhase(part === 'A' ? 'correctionPartA' : 'correctionCombined');
       setSubmitting(false);
     }
@@ -476,13 +483,230 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     </button>
   );
 
+  // Reusable correction block for one part
+  const renderCorrectionBlock = (result, partLabel, essayHTML) => {
+    if (!result) return null;
+    const block = result;
+    const blockErrors = block.errors || [];
+    const errorTypes = ['grammar', 'vocabulary', 'structure', 'style', 'punctuation', 'spelling', 'content'];
+    const errorColors = {
+      grammar: '#ef5350', vocabulary: '#ff9800', structure: '#5b5bf0',
+      style: '#8a8aa0', punctuation: '#e8a87c', spelling: '#ef5350', content: '#ff9800',
+    };
+    const errorTypeCounts = errorTypes.map(type => ({
+      type, count: blockErrors.filter(e => e.type === type).length, color: errorColors[type]
+    }));
+    const maxErrorCount = Math.max(...errorTypeCounts.map(e => e.count), 1);
+
+    return (
+      <div className="writing__correction-block">{partLabel !== 'Combined' && (
+        <h3 className="writing__correction-block-title">{partLabel}</h3>
+      )}
+
+        {/* Section header for combined views */}
+        {partLabel === 'Combined' && <h3 className="writing__correction-block-title">Correction Summary</h3>}
+
+        {/* Rubric bars */}
+        <div className="writing__correction-rubric">
+          {['content', 'organization', 'language'].map(cat => (
+            <div key={cat} className="writing__correction-rubric-item">
+              <div className="writing__correction-rubric-header">
+                <span className="writing__correction-rubric-name">
+                  {cat === 'content' ? 'Content' : cat === 'organization' ? 'Organisation' : 'Language'} (7 marks)
+                </span>
+                <span className="writing__correction-rubric-score">{block[cat]?.score || 0}/7</span>
+              </div>
+              <div className="writing__correction-rubric-bar-bg">
+                <div className="writing__correction-rubric-fill"
+                  style={{
+                    width: `${((block[cat]?.score || 0) / 7) * 100}%`,
+                    background: (block[cat]?.score || 0) >= 5 ? 'var(--color-success)' : (block[cat]?.score || 0) >= 4 ? 'var(--color-warning)' : 'var(--color-error)',
+                  }}
+                />
+              </div>
+              {block[cat]?.feedback && <div className="writing__correction-rubric-feedback">{block[cat].feedback}</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Section breakdown */}
+        {block.sectionBreakdown && Object.keys(block.sectionBreakdown).length > 0 && (
+          <div className="writing__section-breakdown">
+            <h3 className="writing__section-breakdown-header">Section-by-Section Breakdown</h3>
+            <div className="writing__section-breakdown-sections">
+              {Object.entries(block.sectionBreakdown).map(([section, data]) => (
+                <div key={section} className="writing__section-breakdown-item">
+                  <div className="writing__section-breakdown-header-row">
+                    <span className="writing__section-breakdown-name">{section.charAt(0).toUpperCase() + section.slice(1)}</span>
+                    <span className="writing__section-breakdown-score">{data.score || 0}/7</span>
+                  </div>
+                  <div className="writing__section-breakdown-bar-bg">
+                    <div className="writing__section-breakdown-bar-fill" style={{ width: `${((data.score || 0) / 7) * 100}%` }} />
+                  </div>
+                  {data.feedback && <p className="writing__section-breakdown-feedback">{data.feedback}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error frequency chart */}
+        {blockErrors.length > 0 && (
+          <div className="writing__error-chart">
+            <h3 className="writing__error-chart-header">Error Frequency</h3>
+            <div className="writing__error-chart-bars">
+              {errorTypeCounts.filter(e => e.count > 0).map(({ type, count, color }) => (
+                <div key={type} className="writing__error-chart-row">
+                  <span className="writing__error-chart-label" style={{ color }}>{type} ({count})</span>
+                  <div className="writing__error-chart-bar-bg">
+                    <div className="writing__error-chart-bar-fill" style={{ width: `${(count / maxErrorCount) * 100}%`, background: color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Annotated essay */}
+        {(block.inlineAnnotations && block.inlineAnnotations.length > 0) && (
+          <div className="writing__annotated-essay">
+            <h3 className="writing__annotated-essay-header">Your Essay with Annotations</h3>
+            <div className="writing__annotated-essay-body">
+              {(() => {
+                const plainText = getEssayPlainText(essayHTML);
+                let result = plainText;
+                const annotations = [];
+                block.inlineAnnotations.forEach((ann, i) => {
+                  const escaped = ann.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  const regex = new RegExp(`(${escaped})`, 'g');
+                  result = result.replace(regex, (match) => {
+                    annotations.push({ ...ann, _index: i });
+                    return '\uFFFC';
+                  });
+                });
+                let idx = 0;
+                const parts = result.split('\uFFFC');
+                return parts.map((part, i) => (
+                  <React.Fragment key={i}>
+                    {part}
+                    {annotations[idx] && (
+                      <span className={`writing__annotation writing__annotation--${annotations[idx].type}`}
+                        title={`${annotations[idx].type}: '${annotations[idx].text}' \u2192 '${annotations[idx].replacement}'`}
+                      >
+                        {annotations[idx].text}
+                      </span>
+                    )}
+                    {idx++}
+                  </React.Fragment>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Error list */}
+        {blockErrors.length > 0 && (
+          <div className="writing__correction-errors">
+            <h3 className="writing__correction-errors-header">Detailed Error Analysis</h3>
+            {[...blockErrors].sort((a, b) => {
+              const sevOrder = { Critical: 0, Major: 1, Minor: 2 };
+              return (sevOrder[a.severity] || 3) - (sevOrder[b.severity] || 3);
+            }).map((err, i) => (
+              <div key={i} className="writing__correction-error">
+                <div className="writing__correction-error-header-row">
+                  <span className={`writing__correction-error-severity writing__correction-error-severity--${err.severity?.toLowerCase() || 'minor'}`}>
+                    {err.severity || 'Minor'}
+                  </span>
+                  <span className="writing__correction-error-type" style={{ color: errorColors[err.type] || '#8a8aa0' }}>
+                    {err.type}
+                  </span>
+                  {err.location && (
+                    <span className="writing__correction-error-location">
+                      Para {err.location.paragraph}, Line {err.location.line}
+                    </span>
+                  )}
+                </div>
+                <div className="writing__correction-error-original">
+                  <span className="writing__correction-error-label">Original:</span>
+                  <span className="writing__correction-error-text">{err.original}</span>
+                </div>
+                <div className="writing__correction-error-corrected">
+                  <span className="writing__correction-error-label">Correction:</span>
+                  <span className="writing__correction-error-text" style={{ color: 'var(--color-success)' }}>{err.correction}</span>
+                </div>
+                {err.explanation && <div className="writing__correction-error-explanation">{err.explanation}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Good language use */}
+        {block.goodLanguage && block.goodLanguage.length > 0 && (
+          <div className="writing__correction-good">
+            <h3 className="writing__correction-good-header">Good Language Use</h3>
+            {block.goodLanguage.map((item, i) => (
+              <div key={i} className="writing__correction-good-item">
+                <span className="writing__correction-good-phrase">"{item.phrase}"</span>
+                {item.comment && <span className="writing__correction-good-comment">{item.comment}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Vocabulary upgrades */}
+        {block.vocabularySuggestions && block.vocabularySuggestions.length > 0 && (
+          <div className="writing__correction-vocab">
+            <h3 className="writing__correction-vocab-header">Vocabulary Upgrades</h3>
+            <div className="writing__correction-vocab-table">
+              {block.vocabularySuggestions.map((v, i) => (
+                <div key={i} className="writing__correction-vocab-item">
+                  <span className="writing__correction-vocab-original">{v.original}</span>
+                  <span className="writing__correction-vocab-arrow">{v.original ? '\u2192' : ''}</span>
+                  <span className="writing__correction-vocab-suggestion">{v.suggestion}</span>
+                  {v.cefrLevel && <span className="writing__correction-vocab-cefr">({v.cefrLevel})</span>}
+                  {v.context && <span className="writing__correction-vocab-context">{v.context}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pitfalls avoided */}
+        {block.pitfallsAvoided && block.pitfallsAvoided.length > 0 && (
+          <div className="writing__correction-pitfalls">
+            <h3 className="writing__correction-pitfalls-header">Common DSE Pitfalls You Avoided</h3>
+            {block.pitfallsAvoided.map((p, i) => (
+              <div key={i} className="writing__correction-pitfalls-item">
+                {p}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Targeted improvements */}
+        {block.targetedImprovements && block.targetedImprovements.length > 0 && (
+          <div className="writing__correction-improvements">
+            <h3 className="writing__correction-improvements-header">Next Steps to Level Up</h3>
+            {block.targetedImprovements.map((item, i) => (
+              <div key={i} className="writing__correction-improvement-item">
+                <div className="writing__correction-improvement-area">{item.area}</div>
+                {item.currentWeakness && <div className="writing__correction-improvement-weakness">Issue: {item.currentWeakness}</div>}
+                {item.concreteFix && <div className="writing__correction-improvement-fix">Fix: {item.concreteFix}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Start screen
   if (phase === 'start') {
     return (
       <div className="dse-module">
         <div className="dse-module__header">
           <button className="dse-module__back" onClick={onBack}>← Dashboard</button>
-          <h1 className="dse-module__title">\u270D\ufe0F Writing Practice</h1>
+          <h1 className="dse-module__title">Writing Practice</h1>
           <p className="dse-module__subtitle">Practice DSE Paper 2 Writing with AI-powered correction</p>
         </div>
 
@@ -522,10 +746,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
 
           <div className="writing__start-actions">
             <button className="writing__start-btn--primary" onClick={handleStartSession} disabled={generating}>
-              {generating ? '\u231B Generating...' : 'Start Writing Practice'}
+              {generating ? 'Generating...' : 'Start Writing Practice'}
             </button>
             <button className="writing__start-btn--secondary" onClick={() => setPhase('history')}>
-              \uD83D\uDCCD View History
+              View History
             </button>
           </div>
         </div>
@@ -634,7 +858,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       <div className="dse-module">
         <div className="dse-module__header">
           <button className="dse-module__back" onClick={() => setPhase('writingPartA')}>← Back to Writing</button>
-          <h1 className="dse-module__title">\uD83D\uDCCA HKEAA Marking Scheme \u2014 Part A</h1>
+          <h1 className="dse-module__title">HKEAA Marking Scheme - Part A</h1>
         </div>
         <div className="writing__correction">
           {/* Summary ring */}
@@ -658,53 +882,26 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             )}
           </div>
 
-          {/* Rubric bars */}
-          <div className="writing__correction-rubric">
-            {['content', 'organization', 'language'].map(cat => (
-              <div key={cat} className="writing__correction-rubric-item">
-                <div className="writing__correction-rubric-header">
-                  <span className="writing__correction-rubric-name">
-                    {cat === 'content' ? 'Content' : cat === 'organization' ? 'Organisation' : 'Language'} (7 marks)
-                  </span>
-                  <span className="writing__correction-rubric-score">{cr[cat]?.score || 0}/7</span>
-                </div>
-                <div className="writing__correction-rubric-bar-bg">
-                  <div
-                    className="writing__correction-rubric-fill"
-                    style={{
-                      width: `${((cr[cat]?.score || 0) / 7) * 100}%`,
-                      background: (cr[cat]?.score || 0) >= 5 ? 'var(--color-success)' : (cr[cat]?.score || 0) >= 4 ? 'var(--color-warning)' : 'var(--color-error)',
-                    }}
-                  />
-                </div>
-                {cr[cat]?.feedback && <div className="writing__correction-rubric-feedback">{cr[cat].feedback}</div>}
-              </div>
-            ))}
-          </div>
-
-          {/* Targeted improvements (Part A) */}
-          {cr.targetedImprovements && cr.targetedImprovements.length > 0 && (
-            <div className="writing__correction-improvements">
-              <h3 className="writing__correction-improvements-header">Next Steps to Level Up</h3>
-              {cr.targetedImprovements.map((item, i) => (
-                <div key={i} className="writing__correction-improvement-item">
-                  <div className="writing__correction-improvement-area">{item.area}</div>
-                  {item.currentWeakness && <div className="writing__correction-improvement-weakness">Issue: {item.currentWeakness}</div>}
-                  {item.concreteFix && <div className="writing__correction-improvement-fix">Fix: {item.concreteFix}</div>}
-                </div>
-              ))}
-            </div>
-          )}
+          {renderCorrectionBlock(cr, 'Part A', partA.essay)}
 
           {/* Action buttons */}
-          <div className="writing__correction-actions">
-            <button className="writing__proceed-btn" onClick={handleProceedToPartB}>
-              Proceed to Part B \u2192
-            </button>
-            <button className="writing__start-btn--secondary" onClick={handleReset}>
-              Start New Practice
-            </button>
-          </div>
+          {practiceMode === 'both' && !sessionData?.partB?.options && (
+            <div className="writing__correction-actions">
+              <button className="writing__start-btn--secondary" onClick={handleReset}>
+                Start New Practice
+              </button>
+            </div>
+          )}
+          {practiceMode === 'both' && sessionData?.partB?.options && (
+            <div className="writing__correction-actions">
+              <button className="writing__proceed-btn" onClick={handleProceedToPartB}>
+                Proceed to Part B \u2192
+              </button>
+              <button className="writing__start-btn--secondary" onClick={handleReset}>
+                Start New Practice
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -725,7 +922,11 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           </div>
           <div className="writing__correction-error-state">
             <p>The AI examiner encountered an error. You can try submitting again, or save your essay and try later.</p>
-            <button className="writing__start-btn--primary" onClick={() => { setPhase('writingPartA'); setPartA(prev => ({ ...prev, essay: correctionPartAResult ? '' : prev.essay })); }}>Try Again</button>
+            <button className="writing__start-btn--primary" onClick={() => {
+              // Retry correction for the failed part
+              setPhase(activePart === 'B' || practiceMode === 'both' ? 'correctingPartB' : 'correctingPartA');
+              setTimeout(() => handleSubmit(), 50);
+            }}>Try Again</button>
           </div>
         </div>
       );
@@ -736,24 +937,12 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     const pct = cr.overall?.percentage || 0;
     const level = cr.overall?.dseLevel || scoreToDseLevel(pct, 'writing').level || '\u2014';
 
-    // Compute error type counts for chart
-    const errorTypeCounts = [];
-    const errorTypes = ['grammar', 'vocabulary', 'structure', 'style', 'punctuation', 'spelling', 'content'];
-    const errorColors = {
-      grammar: '#ef5350', vocabulary: '#ff9800', structure: '#5b5bf0',
-      style: '#8a8aa0', punctuation: '#e8a87c', spelling: '#ef5350', content: '#ff9800',
-    };
-    errorTypes.forEach(type => {
-      const count = (cr.errors || []).filter(e => e.type === type).length;
-      errorTypeCounts.push({ type, count, color: errorColors[type] });
-    });
-    const maxErrorCount = Math.max(...errorTypeCounts.map(e => e.count), 1);
-
     // Cross-session patterns
     const crossSessionPatterns = [];
     try {
       const sessions = dsePapers.writingSessionGet?.() || [];
       const recent = sessions.slice(0, 5);
+      const errorTypes = ['grammar', 'vocabulary', 'structure', 'style', 'punctuation', 'spelling', 'content'];
       errorTypes.forEach(type => {
         const count = recent.filter(s => (s.correction?.errors || []).some(e => e.type === type)).length;
         if (count > 0) {
@@ -766,7 +955,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       <div className="dse-module">
         <div className="dse-module__header">
           <button className="dse-module__back" onClick={handleReset}>← Back</button>
-          <h1 className="dse-module__title">\uD83D\uDCCA HKEAA Marking Scheme</h1>
+          <h1 className="dse-module__title">HKEAA Marking Scheme</h1>
         </div>
         <div className="writing__correction">
           {/* Summary */}
@@ -820,216 +1009,23 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             </div>
           )}
 
-          {/* Rubric */}
-          <div className="writing__correction-rubric">
-            {['content', 'organization', 'language'].map(cat => (
-              <div key={cat} className="writing__correction-rubric-item">
-                <div className="writing__correction-rubric-header">
-                  <span className="writing__correction-rubric-name">
-                    {cat === 'content' ? 'Content' : cat === 'organization' ? 'Organisation' : 'Language'} (7 marks)
-                  </span>
-                  <span className="writing__correction-rubric-score">{cr[cat]?.score || 0}/7</span>
-                </div>
-                <div className="writing__correction-rubric-bar-bg">
-                  <div
-                    className="writing__correction-rubric-fill"
-                    style={{
-                      width: `${((cr[cat]?.score || 0) / 7) * 100}%`,
-                      background: (cr[cat]?.score || 0) >= 5 ? 'var(--color-success)' : (cr[cat]?.score || 0) >= 4 ? 'var(--color-warning)' : 'var(--color-error)',
-                    }}
-                  />
-                </div>
-                {cr[cat]?.feedback && <div className="writing__correction-rubric-feedback">{cr[cat].feedback}</div>}
-              </div>
-            ))}
-          </div>
+          {/* Part A correction block */}
+          {renderCorrectionBlock(correctionPartAResult, 'Part A - Correction', partA.essay)}
 
-          {/* Section breakdown */}
-          {cr.sectionBreakdown && Object.keys(cr.sectionBreakdown).length > 0 && (
-            <div className="writing__section-breakdown">
-              <h3 className="writing__section-breakdown-header">\uD83D\uDCCB Section-by-Section Breakdown</h3>
-              <div className="writing__section-breakdown-sections">
-                {Object.entries(cr.sectionBreakdown).map(([section, data]) => (
-                  <div key={section} className="writing__section-breakdown-item">
-                    <div className="writing__section-breakdown-header-row">
-                      <span className="writing__section-breakdown-name">{section.charAt(0).toUpperCase() + section.slice(1)}</span>
-                      <span className="writing__section-breakdown-score">{data.score || 0}/7</span>
-                    </div>
-                    <div className="writing__section-breakdown-bar-bg">
-                      <div className="writing__section-breakdown-bar-fill" style={{ width: `${((data.score || 0) / 7) * 100}%` }} />
-                    </div>
-                    {data.feedback && <p className="writing__section-breakdown-feedback">{data.feedback}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Error frequency chart */}
-          {cr.errors && cr.errors.length > 0 && (
-            <div className="writing__error-chart">
-              <h3 className="writing__error-chart-header">\uD83D\uDCCA Error Frequency</h3>
-              <div className="writing__error-chart-bars">
-                {errorTypeCounts.map(({ type, count, color }) => (
-                  <div key={type} className="writing__error-chart-row">
-                    <span className="writing__error-chart-label" style={{ color }}>
-                      {type} ({count})
-                    </span>
-                    <div className="writing__error-chart-bar-bg">
-                      <div className="writing__error-chart-bar-fill" style={{ width: `${(count / maxErrorCount) * 100}%`, background: color }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Annotated essay */}
-          {(cr.inlineAnnotations && cr.inlineAnnotations.length > 0) && (
-            <div className="writing__annotated-essay">
-              <h3 className="writing__annotated-essay-header">\uD83D\uDCD0 Your Essay with Annotations</h3>
-              <div className="writing__annotated-essay-body">
-                {(() => {
-                  const essayText = activePart === 'A' ? partA.essay : partB.essay;
-                  const plainText = getEssayPlainText(essayText);
-                  let result = plainText;
-                  const annotations = [];
-                  cr.inlineAnnotations.forEach((ann, i) => {
-                    const escaped = ann.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const regex = new RegExp(`(${escaped})`, 'g');
-                    result = result.replace(regex, (match) => {
-                      annotations.push({ ...ann, _index: i });
-                      return `\uFFFC`; // placeholder
-                    });
-                  });
-                  // Re-insert annotations
-                  let idx = 0;
-                  const parts = result.split('\uFFFC');
-                  return parts.map((part, i) => (
-                    <React.Fragment key={i}>
-                      {part}
-                      {annotations[idx] && (
-                        <span
-                          className={`writing__annotation writing__annotation--${annotations[idx].type}`}
-                          title={`${annotations[idx].type}: '${annotations[idx].text}' \u2192 '${annotations[idx].replacement}'`}
-                          onMouseEnter={(e) => {}}
-                          onMouseLeave={() => {}}
-                        >
-                          {annotations[idx].text}
-                        </span>
-                      )}
-                      {idx++}
-                    </React.Fragment>
-                  ));
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Error list */}
-          {cr.errors && cr.errors.length > 0 && (
-            <div className="writing__correction-errors">
-              <h3 className="writing__correction-errors-header">\u270F\uFE0F Detailed Error Analysis</h3>
-              {[...cr.errors].sort((a, b) => {
-                const sevOrder = { Critical: 0, Major: 1, Minor: 2 };
-                return (sevOrder[a.severity] || 3) - (sevOrder[b.severity] || 3);
-              }).map((err, i) => (
-                <div key={i} className="writing__correction-error">
-                  <div className="writing__correction-error-header-row">
-                    <span className={`writing__correction-error-severity writing__correction-error-severity--${err.severity?.toLowerCase() || 'minor'}`}>
-                      {err.severity || 'Minor'}
-                    </span>
-                    <span className="writing__correction-error-type" style={{ color: errorColors[err.type] || '#8a8aa0' }}>
-                      \u25CF {err.type}
-                    </span>
-                    {err.location && (
-                      <span className="writing__correction-error-location">
-                        Para {err.location.paragraph}, Line {err.location.line}
-                      </span>
-                    )}
-                  </div>
-                  <div className="writing__correction-error-original">
-                    <span className="writing__correction-error-label">Original:</span>
-                    <span className="writing__correction-error-text">{err.original}</span>
-                  </div>
-                  <div className="writing__correction-error-corrected">
-                    <span className="writing__correction-error-label">Correction:</span>
-                    <span className="writing__correction-error-text" style={{ color: 'var(--color-success)' }}>{err.correction}</span>
-                  </div>
-                  {err.explanation && <div className="writing__correction-error-explanation">{err.explanation}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Good language use */}
-          {cr.goodLanguage && cr.goodLanguage.length > 0 && (
-            <div className="writing__correction-good">
-              <h3 className="writing__correction-good-header">\uD83C\uDF1F Good Language Use</h3>
-              {cr.goodLanguage.map((item, i) => (
-                <div key={i} className="writing__correction-good-item">
-                  <span className="writing__correction-good-phrase">"{item.phrase}"</span>
-                  {item.comment && <span className="writing__correction-good-comment">{item.comment}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Vocabulary upgrades */}
-          {cr.vocabularySuggestions && cr.vocabularySuggestions.length > 0 && (
-            <div className="writing__correction-vocab">
-              <h3 className="writing__correction-vocab-header">\uD83D\uDCC6 Vocabulary Upgrades</h3>
-              <div className="writing__correction-vocab-table">
-                {cr.vocabularySuggestions.map((v, i) => (
-                  <div key={i} className="writing__correction-vocab-item">
-                    <span className="writing__correction-vocab-original">{v.original}</span>
-                    <span className="writing__correction-vocab-arrow">\u2192</span>
-                    <span className="writing__correction-vocab-suggestion">{v.suggestion}</span>
-                    {v.cefrLevel && <span className="writing__correction-vocab-cefr">({v.cefrLevel})</span>}
-                    {v.context && <span className="writing__correction-vocab-context">{v.context}</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pitfalls avoided */}
-          {cr.pitfallsAvoided && cr.pitfallsAvoided.length > 0 && (
-            <div className="writing__correction-pitfalls">
-              <h3 className="writing__correction-pitfalls-header">\u2705 Common DSE Pitfalls You Avoided</h3>
-              {cr.pitfallsAvoided.map((p, i) => (
-                <div key={i} className="writing__correction-pitfalls-item">
-                  <span className="writing__correction-pitfalls-check">\u2714</span> {p}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Targeted improvements */}
-          {cr.targetedImprovements && cr.targetedImprovements.length > 0 && (
-            <div className="writing__correction-improvements">
-              <h3 className="writing__correction-improvements-header">Next Steps to Level Up</h3>
-              {cr.targetedImprovements.map((item, i) => (
-                <div key={i} className="writing__correction-improvement-item">
-                  <div className="writing__correction-improvement-area">{item.area}</div>
-                  {item.currentWeakness && <div className="writing__correction-improvement-weakness">Issue: {item.currentWeakness}</div>}
-                  {item.concreteFix && <div className="writing__correction-improvement-fix">Fix: {item.concreteFix}</div>}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Part B correction block */}
+          {renderCorrectionBlock(correctionPartBResult, 'Part B - Correction', partB.essay)}
 
           {/* Cross-session error patterns */}
           {crossSessionPatterns.length > 0 && (
             <div className="writing__correction-patterns">
-              <h3 className="writing__correction-patterns-header">\uD83D\uDD04 Error Pattern Across Sessions</h3>
+              <h3 className="writing__correction-patterns-header">Error Pattern Across Sessions</h3>
               <div className="writing__correction-patterns-list">
                 {crossSessionPatterns.map(pattern => (
                   <div key={pattern.type} className="writing__correction-patterns-item">
                     <span className="writing__correction-patterns-type">{pattern.type}</span>
                     <span className="writing__correction-patterns-count">
                       in {pattern.count} of last {pattern.total} sessions
-                      {pattern.count >= 3 ? ' \u26A0\uFE0F Recurring issue' : ''}
+                      {pattern.count >= 3 ? ' - Recurring issue' : ''}
                     </span>
                   </div>
                 ))}
@@ -1043,7 +1039,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
               Revise and Re-submit
             </button>
             <button className="writing__start-btn--secondary" onClick={() => setPhase('history')}>
-              \uD83D\uDCCD View History
+              View History
             </button>
             <button className="writing__start-btn--primary" onClick={handleReset}>
               Start New Practice
@@ -1060,7 +1056,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       <div className="dse-module">
         <div className="dse-module__header">
           <button className="dse-module__back" onClick={() => setPhase(resubmitMode ? 'correctionCombined' : 'start')}>← Back</button>
-          <h1 className="dse-module__title">\uD83D\uDCCD Writing History</h1>
+          <h1 className="dse-module__title">Writing History</h1>
         </div>
         <div className="writing__history">
           {pastWritingSessions.length === 0 ? (
@@ -1119,7 +1115,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         <div className="dse-module">
           <div className="dse-module__header">
             <button className="dse-module__back" onClick={() => setPhase('history')}>← Back</button>
-            <h1 className="dse-module__title">\uD83D\uDCCA Session Comparison</h1>
+            <h1 className="dse-module__title">Session Comparison</h1>
           </div>
           <div className="writing__comparison-error">Select 2 sessions from history to compare.</div>
         </div>
@@ -1135,7 +1131,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       <div className="dse-module">
         <div className="dse-module__header">
           <button className="dse-module__back" onClick={() => setPhase('history')}>← Back to History</button>
-          <h1 className="dse-module__title">\uD83D\uDCCA Session Comparison</h1>
+          <h1 className="dse-module__title">Session Comparison</h1>
         </div>
         <div className="writing__comparison">
           <div className="writing__comparison-panels">
