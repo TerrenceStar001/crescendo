@@ -68,7 +68,7 @@ function CrescendoApp() {
     const messages = [{ role: 'user', content: prompt }];
     if (opts.system) { messages.unshift({ role: 'system', content: opts.system }); }
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), opts.timeout || 30000);
+    const timeout = setTimeout(() => controller.abort(), opts.timeout || 120000);
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;

@@ -459,6 +459,36 @@ app.get('/api/rag/article/:id', (req, res) => {
   }
 });
 
+app.post('/api/ai/external-proxy', async (req, res) => {
+  try {
+    const { endpoint, apiKey, model, messages, maxTokens } = req.body;
+    if (!endpoint) return res.status(400).json({ error: 'endpoint required' });
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: maxTokens || 1024,
+        temperature: 0.3,
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+
+    const text = await response.text();
+    const ct = response.headers.get('content-type');
+    if (ct) res.setHeader('content-type', ct);
+    res.status(response.status).send(text);
+  } catch (e) {
+    console.error('External AI proxy error:', e.message);
+    res.status(502).json({ error: `External AI proxy failed: ${e.message}` });
+  }
+});
+
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: err.message || 'Internal server error' });
