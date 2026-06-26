@@ -1119,7 +1119,6 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             suppressContentEditableWarning
             onInput={(e) => handleEssayChange(e.currentTarget.innerHTML)}
             data-placeholder="Start writing your essay here..."
-            style={{ minHeight: '400px' }}
           />
 
           {/* Editor footer */}
