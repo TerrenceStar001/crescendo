@@ -541,7 +541,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           <h1 className="dse-module__title">AI Examiner is reviewing your essay...</h1>
         </div>
         <div className="writing__correcting">
-          <div className="writing__correcting-spinner">\u25CF\u25CF\u25CF</div>
+          <div className="writing__correcting-spinner"><div className="writing__spinner-ring"></div></div>
           <div className="writing__correcting-steps">
             <span>Analyzing content<span className="writing__correcting-dots">...</span></span>
             <span>Evaluating organization<span className="writing__correcting-dots">...</span></span>
