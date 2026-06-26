@@ -97,8 +97,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);
+      console.log('[mount] sessionStorage key:', SESSION_KEY, 'exists:', !!saved);
       if (saved) {
         const data = JSON.parse(saved);
+        console.log('[mount] parsed data:', data);
         if (data.partA && data.partA.essay && data.phase && !['correction', 'history', 'comparison'].includes(data.phase)) {
           setHasSavedSession(true);
         }
@@ -109,8 +111,15 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   const resumeSession = useCallback(() => {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);
+      console.log('[resume] sessionStorage key:', SESSION_KEY);
+      console.log('[resume] raw saved:', saved);
       if (saved) {
         const data = JSON.parse(saved);
+        console.log('[resume] parsed data keys:', Object.keys(data));
+        console.log('[resume] partA:', data.partA);
+        console.log('[resume] sessionData:', data.sessionData);
+        console.log('[resume] phase:', data.phase);
+        console.log('[resume] practiceMode:', data.practiceMode);
         if (data.partA?.essay) {
           setPartA(prev => ({ ...prev, essay: data.partA.essay, prompt: data.partA?.prompt || prev.prompt }));
         }
@@ -170,6 +179,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       try {
+        console.log('[autosave] saving phase:', phase, 'partA.prompt:', !!partA.prompt, 'sessionData:', !!sessionData);
         sessionStorage.setItem(SESSION_KEY, JSON.stringify({
           partA: { essay: partA.essay, prompt: partA.prompt },
           partB: { essay: partB.essay, chosenOption: partB.chosenOption, prompt: partB.prompt },
