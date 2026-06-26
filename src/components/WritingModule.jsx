@@ -334,15 +334,28 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         setCorrectionPartAResult(parsed);
         setPhase('correctionPartA');
       } else {
-        // If Part A analysis hasn't completed yet (both mode), wait for it
-        if (practiceMode === 'both' && !partAResultRef.current) {
+        // If Part A analysis hasn't completed yet (both mode), wait with timeout
+        if (practiceMode === 'both' && !partAResultRef.current && partAAnalysisStatus !== 'failed') {
           setPhase('correctingPartB');
-          await new Promise(resolve => {
+          await new Promise((resolve, reject) => {
+            let waited = 0;
             const check = () => {
               if (partAResultRef.current) { resolve(); return; }
+              if (partAAnalysisStatus === 'failed') { reject(new Error('Part A analysis failed')); return; }
+              waited += 300;
+              if (waited > 30000) { reject(new Error('Timed out waiting for Part A analysis')); return; }
               setTimeout(check, 300);
             };
             check();
+          }).catch(() => {
+            // Part A failed — create a stub so we can still show Part B results
+            partAResultRef.current = {
+              content: { score: 0, feedback: '' },
+              organization: { score: 0, feedback: '' },
+              language: { score: 0, feedback: '' },
+              overall: { total: 0, maxTotal: 21, percentage: 0, dseLevel: '—', narrativeSummary: 'Part A analysis was unavailable.' },
+              errors: [], vocabularySuggestions: [], goodLanguage: [], sectionBreakdown: {}, pitfallsAvoided: [], targetedImprovements: [], inlineAnnotations: [],
+            };
           });
         }
         const partAResult = partAResultRef.current || correctionPartAResult;
@@ -1242,6 +1255,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             )}
 
             <div
+            key={phase}
             ref={editorRef}
             className="writing__editor--exam writing__editor-ruled"
             contentEditable
