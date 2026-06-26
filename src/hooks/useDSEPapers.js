@@ -1599,26 +1599,36 @@ export default function useDSEPapers() {
 
       if (!partA) {
         const partAType = getRandomPartAType();
-        const aiPrompt = `Generate a short HKDSE English Paper 2 Part A writing prompt.
+        const aiPrompt = `You are an expert HKDSE English examiner. Generate a HKDSE Paper 2 Part A writing task.
+
+Task: A short writing task (~200 words) in the form of a ${partAType.genre}.
+
+Part A in HKDSE typically uses ONE of these formats:
+1. A form with 2-3 sections to fill in (e.g. application form, evaluation form, questionnaire)
+2. A structured task with 2-3 specific points to address (e.g. "explain why... and describe how...")
+3. A short email/letter with 2 specific things to cover
+4. A leaflet/poster with given headings to write under
+5. A review/response with guided questions
+
+Use format type ${Math.floor(Math.random() * 5) + 1} for this task.
 
 Requirements:
-- Text type: ${partAType.genre} (${partAType.label})
-- Context paragraph setting up a realistic situation relevant to Hong Kong students
-- Task instruction
-- 3-4 bullet-point guiding ideas
+- Realistic Hong Kong context
+- Clear role for the student (e.g., "You are a Form 6 student who...")
+- Specific task instruction
+- 2-3 things to cover (incorporated into the task, NOT as separate bullet hints)
+- Do NOT add "suggestedPoints" — real HKDSE Part A does not give bullet-point hints
 - Word limit: ~200 words
-- Difficulty: medium
 
 ${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
 
-Return as JSON:
+Return EXACTLY this JSON format (no extra fields):
 { "type": "${partAType.slug}",
-  "title": "Short title",
-  "context": "Context paragraph",
-  "task": "Task instruction",
+  "title": "Short descriptive title",
+  "context": "2-3 sentences setting up the realistic situation and the student's role",
+  "task": "Clear task instruction that incorporates what to cover",
   "wordLimit": { "min": 180, "max": 250 },
-  "suggestedPoints": ["point 1", "point 2", "point 3"],
-  "instructions": "Exam-style instructions" }`;
+  "instructions": "Exam-style instructions (e.g. 'Sign your name as Chris Wong. Do not write any addresses.')" }`;
 
         const raw = await callAI(aiPrompt, {
           system: 'You are an expert HKDSE English examiner. Generate a short Part A writing prompt in valid JSON. Return ONLY valid JSON.',
@@ -1642,11 +1652,11 @@ Return as JSON:
           prompt: {
             id: 'fallback_partA',
             type: fbType.slug,
-            title: 'Social Media Impact',
-            context: 'Your school is organizing a debate on whether social media has a positive or negative impact on teenagers.',
-            task: `Write a ${fbType.genre} for your school magazine discussing both sides of the argument and giving your own opinion.`,
+            title: 'Social Media Impact Survey',
+            context: 'Your school is conducting a survey on how social media affects students\' study habits and well-being. As the head prefect, you have been asked to complete a questionnaire about your observations.',
+            task: `Complete the questionnaire sections: (A) Describe three positive effects of social media on students. (B) Explain two negative impacts you have observed. (C) Suggest one way the school could help students use social media more responsibly.`,
             wordLimit: { min: 180, max: 250 },
-            instructions: 'Write approximately 200 words.',
+            instructions: `Write about 200 words. Address all three sections.`,
             source: 'fallback',
           },
           source: 'fallback',
@@ -1677,12 +1687,12 @@ Each prompt must use the specified text type:
 2. ${type2.label} (${type2.genre})
 3. ${type3.label} (${type3.genre})
 
-Each must have a different topic domain covering at least 3 different areas. Make topics relevant to Hong Kong students.
+Each must have a different topic domain. Make topics relevant to Hong Kong students. Format each as: a short context (1-2 sentences) setting the situation, then a clear task instruction. Do NOT include suggested points or bullet hints — real HKDSE Part B gives NO hints.
 
 ${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
 
 Return as JSON array of 3 objects:
-[{ "type": "${type1.slug}", "title": "...", "context": "...", "task": "...", "wordLimit": { "min": 380, "max": 450 }, "suggestedPoints": ["...", "..."], "instructions": "..." }]`;
+[{ "type": "${type1.slug}", "title": "...", "context": "1-2 sentence context", "task": "Clear task instruction", "wordLimit": { "min": 380, "max": 450 }, "instructions": "Exam-style instructions" }]`;
 
         const raw = await callAI(aiPrompt, {
           system: 'You are an expert HKDSE English examiner. Generate 3 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON.',
@@ -1703,9 +1713,9 @@ Return as JSON array of 3 objects:
       if (!partB) {
         const fbTypes = [getRandomPartBType(), getRandomPartBType(), getRandomPartBType()];
         const fbTasks = [
-          { title: 'The Future of Online Learning', context: 'More schools are adopting online learning platforms.', points: ['Flexibility of schedule', 'Lack of social interaction', 'Digital divide issues'] },
-          { title: 'Letter to the Editor', context: 'Your local community is considering banning single-use plastics.', points: ['Environmental impact', 'Economic considerations', 'Alternative solutions'] },
-          { title: 'Speech on Youth Volunteering', context: 'Your school is promoting a new community service programme.', points: ['Personal growth', 'Community benefits', 'Building your CV'] },
+          { title: 'Future of Online Learning', context: 'Your school is considering adopting a blended learning model with both online and in-person classes.', task: 'Write an article for your school magazine discussing the potential benefits and drawbacks.' },
+          { title: 'Banning Single-Use Plastics', context: 'Your local district council is considering a ban on single-use plastics in all food outlets. Residents have been invited to submit their views.', task: 'Write a letter to the district council expressing your opinion on the proposed ban.' },
+          { title: 'Youth Volunteering', context: 'Your school is launching a mandatory community service programme for all Form 5 and 6 students. Some students have expressed concerns.', task: 'Write a speech to be delivered at the next school assembly, addressing these concerns and encouraging participation.' },
         ];
         partB = {
           options: fbTypes.map((t, i) => ({
@@ -1713,9 +1723,8 @@ Return as JSON array of 3 objects:
             type: t.slug,
             title: fbTasks[i].title,
             context: fbTasks[i].context,
-            task: `Write a ${t.genre} on the given topic.`,
+            task: fbTasks[i].task,
             wordLimit: { min: 380, max: 450 },
-            suggestedPoints: fbTasks[i].points,
             source: 'fallback',
           })),
           source: 'fallback',

@@ -1205,12 +1205,6 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                     Word limit: {currentPrompt.wordLimit.min}\u2013{currentPrompt.wordLimit.max} words
                   </div>
                 )}
-                {!isPartA && currentPrompt.suggestedPoints && currentPrompt.suggestedPoints.length > 0 && (
-                  <div className="writing__prompt-card-points">
-                    <span className="writing__prompt-card-points-label">Consider these points:</span>
-                    <ul>{currentPrompt.suggestedPoints.map((p, i) => <li key={i}>{p}</li>)}</ul>
-                  </div>
-                )}
               </>
             )}
           </div>
