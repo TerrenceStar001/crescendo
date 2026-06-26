@@ -133,22 +133,45 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           setPhase(data.phase === 'writing' ? 'writingPartA' : data.phase);
         }
         setHasSavedSession(false);
+
+        // If prompts are missing (old session format), regenerate session
+        if ((!data.partA?.prompt && !sessionData?.partA?.prompt) || (!data.partB?.prompt && !sessionData?.partB?.options)) {
+          // Defer regeneration to next render cycle
+          setTimeout(async () => {
+            try {
+              const session = await dsePapers.generateWritingSession({ notes }, callAI);
+              if (session) {
+                setSessionData(session);
+                setPartA(prev => ({ ...prev, prompt: session.partA?.prompt || prev.prompt }));
+                if (session.partB?.options?.length > 0) {
+                  setPartB(prev => ({ ...prev, prompt: session.partB.options[0] }));
+                }
+              }
+            } catch (e) {
+              console.error('Failed to regenerate prompts for resume:', e);
+            }
+          }, 0);
+        }
+      } else {
+        setHasSavedSession(false);
       }
-    } catch {}
-  }, []);
+    } catch {
+      setHasSavedSession(false);
+    }
+  }, [dsePapers, callAI, notes]);
 
   const clearSessionStorage = useCallback(() => {
     try { sessionStorage.removeItem(SESSION_KEY); } catch {}
   }, []);
 
-  // --- Auto-save every 30s ---
+  // --- Auto-save on every state change ---
   useEffect(() => {
     if (phase === 'start' || phase === 'choosing' || phase === 'correction' || phase === 'history' || phase === 'comparison' || phase === 'correcting') return;
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       try {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-          partA: { essay: partA.essay, prompt: sessionData?.partA?.prompt || partA.prompt },
+          partA: { essay: partA.essay, prompt: partA.prompt },
           partB: { essay: partB.essay, chosenOption: partB.chosenOption, prompt: partB.prompt },
           phase,
           timeRemaining,
@@ -160,9 +183,9 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         setSaveIndicator('Saved');
         setTimeout(() => setSaveIndicator(''), 2000);
       } catch {}
-    }, 30000);
+    }, 10000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [partA.essay, partB.essay, phase, timeRemaining]);
+  }, [partA.essay, partA.prompt, partB.essay, partB.chosenOption, partB.prompt, phase, timeRemaining, activePart, practiceMode, sessionData]);
 
   // Cleanup timers on unmount
   useEffect(() => {
