@@ -1747,7 +1747,7 @@ Return as JSON array of 3 objects:
   }, [getCachedPapers, cachePapers]);
 
   const buildCorrectionPrompt = useCallback((part, essay, promptInfo, selfAssessment) => {
-    return `You are an expert HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **specific, diagnostic, and actionable** — the student must know exactly what to fix and how.
+    return `You are an expert HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **specific, diagnostic, and actionable**.
 
 TASK TO EVALUATE (Part ${part}):
 ---PROMPT---
@@ -1760,7 +1760,35 @@ Text type: ${promptInfo?.type || 'essay'}
 ${essay?.text || ''}
 ---END ESSAY---
 
-${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas in your feedback.` : ''}
+${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas.` : ''}
+
+CRITICAL SCORING RULES — READ THESE FIRST:
+1. TASK-FULFILMENT CHECK (MOST IMPORTANT): Compare the student's essay to the prompt BEFORE scoring.
+   - Did the student write the CORRECT text type? (e.g., if prompt asks for a letter, a story scores Content 0-1)
+   - Is the essay ON TOPIC? (e.g., if prompt asks about smartphones, a story about a mahjong shop is off-topic)
+   - If the response is off-topic or wrong text type: Content = 0-1. Do NOT reward language quality in an off-topic response.
+   - A partially relevant response scores Content 2-3, not 5-7.
+
+2. FORMAT CHECK (Part A only): Explicitly verify format elements:
+   - Letters: salutation (Dear X,), closing formula (Yours sincerely), signature
+   - Emails: subject line, appropriate sign-off
+   - Proposals: headed sections, formal structure
+   - Speeches: audience address (opening greeting), spoken register, concluding remarks
+   - Articles: headline, engaging opening, appropriate register
+   - Missing format elements reduce Organisation score by 1-2 bands.
+
+3. ORGANISATION includes genre conventions. A story written as a letter fails genre conventions entirely — Organisation should reflect this, not reward narrative structure when a letter was required.
+
+4. LANGUAGE includes register. A narrative voice in a formal complaint letter is a register mismatch. Flag this.
+
+5. ERROR LISTING: Only list ACTUAL errors. Never include "no error found" entries or placeholders.
+
+6. VOCABULARY UPGRADES:
+   - Never suggest C2 vocabulary that sounds unnatural in a DSE context (e.g., avoid "metamorphosis" for everyday writing).
+   - Avoid redundant collocations (e.g., "plummeting precipitously" — plummet already means sharp descent).
+   - Every suggestion must show the full sentence context.
+
+7. CONSISTENCY: Ensure pitfalls avoided doesn't contradict vocabulary suggestions.
 
 HKEAA MARKING CRITERIA (Paper 2):
 Content (7 marks): Relevance to prompt, task fulfilment, development of ideas, audience awareness, creativity.
@@ -1790,19 +1818,21 @@ Language (7 marks): Grammar accuracy, vocabulary range, sentence structure varie
 - 2: Very limited range, pervasive errors, inadequate vocabulary
 - 1: Incomprehensible
 
-ASSESSMENT REQUIREMENTS:
-1. For EACH rubric (content, organization, language): state a STRENGTH (quote the exact phrase/sentence from the essay) and a SPECIFIC WEAKNESS (quote the exact problematic phrase) with a concrete suggestion.
-2. Overall narrativeSummary: Be specific — reference the essay content, don't give generic praise. Name the text type and judge how well it meets genre conventions.
-3. errors: Every error must include the EXACT original text, a correction, and a clear explanation of the grammar/usage rule violated. Be thorough — catch ALL errors.
-4. vocabularySuggestions: Map every suggestion to the specific sentence context. Suggest words at least one CEFR level above the student's current usage.
-5. Add a "targetedImprovements" array with 2-3 specific, actionable steps the student should take to reach the next DSE level (e.g., "Your topic sentences are weak. Try: 'Firstly, ...' / 'Another key factor is ...' / 'Having examined X, it is clear that ...'" — give full examples).
+FEEDBACK RULES:
+1. For EACH rubric (content, organization, language): state a STRENGTH (quote exact phrase) and a SPECIFIC WEAKNESS (quote exact phrase) with a concrete suggestion.
+2. Overall narrativeSummary: Be specific — reference the essay content. Name the text type and judge how well it meets genre conventions. If off-topic, state this clearly.
+3. errors: Every error must include the EXACT original text, a correction, and a clear explanation. Only list ACTUAL errors — never include "no error found" entries or placeholders.
+4. vocabularySuggestions: Map every suggestion to the specific sentence context. Suggest words at least one CEFR level higher. Do NOT suggest C2 vocabulary that sounds unnatural in a DSE context. Avoid redundant collocations.
+5. targetedImprovements: Add 2-3 specific, actionable steps with full examples.
+6. pitfallsAvoided: Only list genuine pitfalls avoided. Ensure these don't contradict your vocabulary suggestions.
+7. goodLanguage: Highlight genuine strong phrases from the essay.
 
 Return ONLY valid JSON with this exact schema:
 {
-  "content": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
-  "organization": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
-  "language": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
-  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Specific, essay-referenced feedback (not generic). Name what was done well and precisely what needs work." },
+  "content": { "score": 0-7, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
+  "organization": { "score": 0-7, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
+  "language": { "score": 0-7, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
+  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Specific, essay-referenced feedback. State if off-topic/wrong text type." },
   "sectionBreakdown": {
     "introduction": { "score": 0-7, "feedback": "Specific feedback about the intro paragraph" },
     "body1": { "score": 0-7, "feedback": "..." },
@@ -1810,7 +1840,7 @@ Return ONLY valid JSON with this exact schema:
     "conclusion": { "score": 0-7, "feedback": "..." }
   },
   "targetedImprovements": [
-    { "area": "topic sentences", "currentWeakness": "student's actual mistake", "concreteFix": "full example of how to write it correctly" }
+    { "area": "issue area", "currentWeakness": "student's actual mistake", "concreteFix": "full example of how to fix it" }
   ],
   "errors": [
     { "original": "exact text from essay", "correction": "corrected version", "explanation": "why this is wrong — name the grammar rule", "type": "grammar|vocabulary|structure|style|punctuation|spelling|content", "severity": "Critical|Major|Minor", "location": { "paragraph": 1, "line": 2 } }
@@ -1845,6 +1875,125 @@ Return ONLY valid JSON with this exact schema:
     if (!parsed.pitfallsAvoided || !Array.isArray(parsed.pitfallsAvoided)) parsed.pitfallsAvoided = [];
     if (!parsed.inlineAnnotations || !Array.isArray(parsed.inlineAnnotations)) parsed.inlineAnnotations = [];
     return parsed;
+  }, []);
+
+  // --- Text-type verification (pre-scoring check) ---
+  const detectTextType = useCallback((text) => {
+    if (!text) return 'unknown';
+    const plain = getEssayPlainText(text).toLowerCase();
+    
+    // Story/narrative indicators
+    if (/once upon|he said|she said|narrat|story|fiction|plot|character|protagonist/i.test(plain) ||
+        plain.split(/\s+/).length > 50 && /\b(he|she|they|we)\s+(said|thought|walked|ran|went|looked)\b/i.test(plain)) {
+      return 'story';
+    }
+    // Letter indicators
+    if (/dear\s|yours\s+(sincerely|faithfully)|to\s+whom|signature/i.test(plain) ||
+        /^dear\s/i.test(plain.trim())) {
+      return 'letter';
+    }
+    // Email indicators
+    if (/subject:|best\s+(regards|regards)|kind\s+regards|cheers|sent\s+from/i.test(plain)) {
+      return 'email';
+    }
+    // Speech indicators
+    if (/ladies\s+and\s+gentlemen|honourable|distinguished|thank\s+you\s+for/i.test(plain) ||
+        /^good\s+(morning|afternoon|evening)/i.test(plain.trim())) {
+      return 'speech';
+    }
+    // Article indicators
+    if (/headline|by\s+\w|in\s+my\s+opinion|as\s+someone/i.test(plain) ||
+        plain.split(/\s+/).length > 100 && !/^dear\s/i.test(plain.trim()) && !/once\s+upon/i.test(plain)) {
+      return 'article';
+    }
+    // Proposal/report indicators
+    if (/propose|recommendation|objective|budget|resource|implementation/i.test(plain)) {
+      return 'proposal';
+    }
+    // Review indicators
+    if (/rate|recommend|worth|rating|review|critique|verdict/i.test(plain)) {
+      return 'review';
+    }
+    
+    return 'essay';
+  }, []);
+
+  const checkTextTypeMatch = useCallback((expectedType, essayText) => {
+    const detected = detectTextType(essayText);
+    const expectedLower = expectedType.toLowerCase();
+    const detectedLower = detected.toLowerCase();
+    
+    if (expectedLower === detectedLower) return { match: true, detected };
+    if ((expectedLower === 'letter' && detectedLower === 'email') ||
+        (expectedLower === 'email' && detectedLower === 'letter')) {
+      return { match: 'partial', detected, note: 'Similar format but different conventions' };
+    }
+    return { match: false, detected, note: `Expected: ${expectedType}, detected: ${detected}` };
+  }, [detectTextType]);
+
+  // --- Part A format checker ---
+  const checkPartAFormat = useCallback((essayHTML, textType) => {
+    const plainText = getEssayPlainText(essayHTML).trim();
+    const lower = plainText.toLowerCase();
+    const checks = {
+      hasSalutation: false,
+      hasClosingFormula: false,
+      hasSignature: false,
+      issues: [],
+    };
+
+    const salutations = ['dear', 'to whom it may concern', 'dear sir', 'dear madam', 'dear mr', 'dear mrs'];
+    checks.hasSalutation = salutations.some(s => lower.startsWith(s));
+    if (!checks.hasSalutation) {
+      checks.issues.push('Missing salutation (e.g., "Dear Mr. Smith,")');
+    }
+
+    const closings = ['yours sincerely', 'yours faithfully', 'regards', 'best regards', 'kind regards', 'sincerely', 'respectfully', 'yours truly'];
+    const lastLines = plainText.split(/\n/).slice(-3).join(' ').toLowerCase();
+    checks.hasClosingFormula = closings.some(c => lastLines.includes(c));
+    if (!checks.hasClosingFormula) {
+      checks.issues.push('Missing closing formula (e.g., "Yours sincerely,")');
+    }
+
+    checks.hasSignature = /[a-z]+\s+[a-z]+[,.]?\s*$/.test(plainText.trim());
+    if (!checks.hasSignature) {
+      checks.issues.push('Missing signature/name at end');
+    }
+
+    return checks;
+  }, [getEssayPlainText]);
+
+  // --- Output validation (post-AI correction) ---
+  const validateCorrectionOutput = useCallback((result) => {
+    const issues = [];
+    
+    if (result.errors && Array.isArray(result.errors)) {
+      result.errors.forEach((err, i) => {
+        if (err.explanation?.toLowerCase().includes('no error') || 
+            err.original === err.correction ||
+            !err.original || !err.correction) {
+          issues.push(`Error entry #${i+1} appears to be a placeholder or hallucination`);
+        }
+      });
+    }
+
+    if (result.pitfallsAvoided && result.vocabularySuggestions) {
+      const avoidsAdverbs = result.pitfallsAvoided.some(p => p.toLowerCase().includes('adverb'));
+      const hasAdverbUpgrades = result.vocabularySuggestions.some(v => 
+        v.suggestion && /\w+ly\b/.test(v.suggestion)
+      );
+      if (avoidsAdverbs && hasAdverbUpgrades) {
+        issues.push('Inconsistency: claims student avoided adverbs but suggests adverb-heavy upgrades');
+      }
+    }
+
+    ['content', 'organization', 'language'].forEach(cat => {
+      if (result[cat]?.score !== undefined && (result[cat].score < 0 || result[cat].score > 7)) {
+        issues.push(`${cat} score ${result[cat].score} is out of range 0-7`);
+      }
+    });
+
+    return { valid: issues.length === 0, issues };
   }, []);
 
   const combineCorrections = useCallback((partAResult, partBResult) => {
@@ -2014,6 +2163,10 @@ Give 2-3 concrete, specific recommendations for their next practice session base
     generateWritingSession,
     buildCorrectionPrompt,
     parseCorrectionResponse,
+    detectTextType,
+    checkTextTypeMatch,
+    checkPartAFormat,
+    validateCorrectionOutput,
     combineCorrections,
     getPapersBySource,
     getAvailableSources,
@@ -2024,5 +2177,5 @@ Give 2-3 concrete, specific recommendations for their next practice session base
     bundled,
     writingSessionGet,
     writingSessionSet,
-  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, clearCache, writingSessionGet, writingSessionSet]);
+  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, clearCache, writingSessionGet, writingSessionSet, buildCorrectionPrompt, parseCorrectionResponse, combineCorrections, detectTextType, checkTextTypeMatch, checkPartAFormat, validateCorrectionOutput]);
 }

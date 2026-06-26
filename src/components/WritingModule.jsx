@@ -352,6 +352,12 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         ? (sessionData?.partA?.prompt || partA.prompt)
         : (partB.prompt || sessionData?.partB?.options?.[partB.chosenOption]);
 
+      // Pre-scoring checks: text-type verification and format checker
+      const textTypeMatch = promptInfo?.type ? dsePapers.checkTextTypeMatch(promptInfo.type, essay) : null;
+      const formatCheck = part === 'A' && promptInfo?.type ? dsePapers.checkPartAFormat(essay, promptInfo.type) : null;
+      const isOffTopic = textTypeMatch && !textTypeMatch.match;
+      const hasFormatIssues = formatCheck && formatCheck.issues.length > 0;
+
       const prompt = dsePapers.buildCorrectionPrompt(part, { essay, text: plainText, prompt: promptInfo }, selfAssessment);
 
       const data = await callAI(prompt, {
@@ -362,6 +368,18 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
 
       const parsed = dsePapers.parseCorrectionResponse(data);
       if (!parsed) throw new Error('Failed to parse AI response. The AI may have returned invalid JSON. Try a different model or check your API endpoint.');
+
+      // Post-validation: check for hallucinated errors, inconsistencies
+      const validation = dsePapers.validateCorrectionOutput(parsed);
+      if (validation.issues.length > 0) {
+        console.warn('[correction] Validation issues:', validation.issues);
+        if (parsed.overall) {
+          parsed.overall.narrativeSummary = (parsed.overall.narrativeSummary || '') + ' [Note: AI feedback had minor inconsistencies that were flagged.]';
+        }
+      }
+
+      // Attach pre-scoring check results to the parsed result for UI display
+      parsed._preChecks = { isOffTopic, textTypeMatch, hasFormatIssues, formatIssues: formatCheck?.issues };
 
       const partTotal = (parsed.content?.score || 0) + (parsed.organization?.score || 0) + (parsed.language?.score || 0);
       const partPct = Math.round((partTotal / 21) * 100);
@@ -1045,6 +1063,27 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Pre-scoring warnings */}
+          {correctionPartAResult && correctionPartAResult._preChecks && (
+            <div className="writing__pre-check-warnings">
+              {correctionPartAResult._preChecks.isOffTopic && (
+                <div className="writing__warning writing__warning--critical">
+                  ⚠️ Text Type Mismatch: Expected "{correctionPartAResult._preChecks.textTypeMatch?.note?.split(',')[0] || 'letter'}" but detected "{correctionPartAResult._preChecks.textTypeMatch?.detected}". Content score may be artificially high.
+                </div>
+              )}
+              {correctionPartAResult._preChecks.hasFormatIssues && correctionPartAResult._preChecks.formatIssues?.length > 0 && (
+                <div className="writing__warning writing__warning--major">
+                  ⚠️ Format Issues (Part A):
+                  <ul>
+                    {correctionPartAResult._preChecks.formatIssues.map((issue, i) => (
+                      <li key={i}>{issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
