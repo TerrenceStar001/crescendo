@@ -172,6 +172,16 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     return () => clearInterval(timerRef.current);
   }, [phase, timeRemaining, soundAlerts, playAlert]);
 
+  // --- Load writing history ---
+  useEffect(() => {
+    if (phase === 'history' || phase === 'comparison') {
+      (async () => {
+        const sessions = await dsePapers.writingSessionGet?.() || [];
+        setPastWritingSessions(sessions);
+      })();
+    }
+  }, [phase, dsePapers]);
+
   // --- Start session ---
   const handleStartSession = useCallback(async () => {
     setGenerating(true);
@@ -1147,7 +1157,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
               <button
                 className="writing__submit-btn"
                 onClick={handleSubmit}
-                disabled={submitting || !essayContent}
+                disabled={submitting}
               >
                 {submitting ? 'Submitting...' : (isPartA ? 'Submit Part A' : 'Submit for Correction')}
               </button>
