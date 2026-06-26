@@ -1,4 +1,5 @@
-import { checkAnswer } from './answerChecking';
+import { checkAnswer, isQuestionCorrect } from './answerChecking';
+export { isQuestionCorrect };
 
 const DSE_LEVEL_ORDER = ['1', '2', '3', '4', '5', '5*', '5**'];
 
@@ -196,52 +197,6 @@ export function dseLevelColor(level) {
     '5**': '#1b5e20',
   };
   return colors[level] || '#9e9e9e';
-}
-
-export function isQuestionCorrect(q, answer) {
-  if (answer === null || answer === undefined || answer === '') return false;
-  switch (q.type) {
-    case 'mcq':
-    case 'tfng':
-      return answer === q.correctAnswer;
-    case 'gap-fill': {
-      if (q.answers && Array.isArray(q.answers)) {
-        if (!answer || typeof answer !== 'object') return false;
-        return q.answers.every((a, i) => String(answer[i] || '').toLowerCase().trim() === a.toLowerCase().trim());
-      }
-      return String(answer).toLowerCase().trim() === String(q.correctAnswer || '').toLowerCase().trim();
-    }
-    case 'matching': {
-      if (!answer || typeof answer !== 'object') return false;
-      return (q.pairs || []).every(p => answer[p.item] === p.match);
-    }
-    case 'short-answer': {
-      const userText = String(answer || '').trim();
-      if (!userText) return false;
-      const correct = String(q.correctAnswer || '').trim();
-      if (!correct) return userText.length > 0;
-      const keyTerms = correct
-        .toLowerCase()
-        .split(/[,;/\s]+/)
-        .filter(t => t.length > 3 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'some', 'than', 'that', 'they', 'this', 'very', 'what', 'when', 'where', 'which', 'who', 'will', 'with', 'from', 'their', 'there', 'would', 'about', 'into', 'over', 'such', 'your'].includes(t));
-      if (keyTerms.length === 0) return userText.length > 0;
-      return keyTerms.some(term => userText.toLowerCase().includes(term));
-    }
-    case 'open-ended': {
-      const userText = String(answer || '').trim();
-      if (!userText) return false;
-      const correct = String(q.correctAnswer || '').trim();
-      if (!correct) return userText.length > 0;
-      const keyTerms = correct
-        .toLowerCase()
-        .split(/[,;/\s]+/)
-        .filter(t => t.length > 3 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'some', 'than', 'that', 'they', 'this', 'very', 'what', 'when', 'where', 'which', 'who', 'will', 'with', 'from', 'their', 'there', 'would', 'about', 'into', 'over', 'such', 'your'].includes(t));
-      if (keyTerms.length === 0) return userText.length > 0;
-      return keyTerms.some(term => userText.toLowerCase().includes(term));
-    }
-    default:
-      return answer === q.correctAnswer;
-  }
 }
 
 export function computeSubScores(skill, questions, answers) {

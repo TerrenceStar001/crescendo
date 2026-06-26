@@ -37,6 +37,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [correctionResult, setCorrectionResult] = useState(null);
   const [correctionPartAResult, setCorrectionPartAResult] = useState(null);
+  const [correctionPartBResult, setCorrectionPartBResult] = useState(null);
   const [activePart, setActivePart] = useState('A');
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -285,9 +286,17 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
 
       if (part === 'A') {
         setCorrectionPartAResult(parsed);
-        setPhase('correctionPartA');
+        if (practiceMode === 'both') {
+          setActivePart('B');
+          setSelfAssessment([]);
+          soundPlayedRef.current = { thirty: false, fifteen: false, five: false };
+          setPhase('writingPartB');
+        } else {
+          setPhase('correctionPartA');
+        }
       } else {
         const combined = dsePapers.combineCorrections(correctionPartAResult, parsed);
+        setCorrectionPartBResult(parsed);
         setCorrectionResult(combined);
         setPhase('correctionCombined');
         saveSessionToHistory({
@@ -304,14 +313,20 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         organization: { score: 0, feedback: '' },
         language: { score: 0, feedback: '' },
         overall: { total: 0, maxTotal: 21, percentage: 0, dseLevel: '—', narrativeSummary: 'Correction failed.' },
-        errors: [], vocabularySuggestions: [], goodLanguage: [], sectionBreakdown: {}, pitfallsAvoided: [], inlineAnnotations: [],
+        errors: [], vocabularySuggestions: [], goodLanguage: [], sectionBreakdown: {}, pitfallsAvoided: [], targetedImprovements: [], inlineAnnotations: [],
       };
       setCorrectionResult(errorResult);
-      setPhase(part === 'A' ? 'correctionPartA' : 'correctionCombined');
+      if (part === 'A' && practiceMode === 'both') {
+        setActivePart('B');
+        setSelfAssessment([]);
+        setPhase('writingPartB');
+      } else {
+        setPhase(part === 'A' ? 'correctionPartA' : 'correctionCombined');
+      }
     } finally {
       setSubmitting(false);
     }
-  }, [activePart, getCurrentEssay, getEssayPlainText, partA, partB, sessionData, selfAssessment, correctionPartAResult, callAI, skillAnalytics, dsePapers, setFocusMode]);
+  }, [activePart, getCurrentEssay, getEssayPlainText, partA, partB, sessionData, selfAssessment, correctionPartAResult, callAI, skillAnalytics, dsePapers, setFocusMode, practiceMode]);
 
   // --- Proceed to Part B ---
   const handleProceedToPartB = useCallback(() => {
@@ -606,6 +621,20 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             ))}
           </div>
 
+          {/* Targeted improvements (Part A) */}
+          {cr.targetedImprovements && cr.targetedImprovements.length > 0 && (
+            <div className="writing__correction-improvements">
+              <h3 className="writing__correction-improvements-header">Next Steps to Level Up</h3>
+              {cr.targetedImprovements.map((item, i) => (
+                <div key={i} className="writing__correction-improvement-item">
+                  <div className="writing__correction-improvement-area">{item.area}</div>
+                  {item.currentWeakness && <div className="writing__correction-improvement-weakness">Issue: {item.currentWeakness}</div>}
+                  {item.concreteFix && <div className="writing__correction-improvement-fix">Fix: {item.concreteFix}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="writing__correction-actions">
             <button className="writing__proceed-btn" onClick={handleProceedToPartB}>
@@ -699,6 +728,36 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
               </div>
             )}
           </div>
+
+          {/* Part A / Part B breakdown */}
+          {correctionPartAResult && correctionPartBResult && (
+            <div className="writing__correction-part-breakdown">
+              <div className="writing__correction-part">
+                <h3 className="writing__correction-part-title">Part A</h3>
+                <div className="writing__correction-part-score">
+                  {(correctionPartAResult.content?.score || 0) + (correctionPartAResult.organization?.score || 0) + (correctionPartAResult.language?.score || 0)} / 21
+                </div>
+                {['content', 'organization', 'language'].map(cat => (
+                  <div key={cat} className="writing__correction-part-row">
+                    <span className="writing__correction-part-label">{cat === 'content' ? 'Content' : cat === 'organization' ? 'Organisation' : 'Language'}</span>
+                    <span className="writing__correction-part-score-val">{correctionPartAResult[cat]?.score || 0}/7</span>
+                  </div>
+                ))}
+              </div>
+              <div className="writing__correction-part">
+                <h3 className="writing__correction-part-title">Part B</h3>
+                <div className="writing__correction-part-score">
+                  {(correctionPartBResult.content?.score || 0) + (correctionPartBResult.organization?.score || 0) + (correctionPartBResult.language?.score || 0)} / 21
+                </div>
+                {['content', 'organization', 'language'].map(cat => (
+                  <div key={cat} className="writing__correction-part-row">
+                    <span className="writing__correction-part-label">{cat === 'content' ? 'Content' : cat === 'organization' ? 'Organisation' : 'Language'}</span>
+                    <span className="writing__correction-part-score-val">{correctionPartBResult[cat]?.score || 0}/7</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Rubric */}
           <div className="writing__correction-rubric">
@@ -885,6 +944,20 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             </div>
           )}
 
+          {/* Targeted improvements */}
+          {cr.targetedImprovements && cr.targetedImprovements.length > 0 && (
+            <div className="writing__correction-improvements">
+              <h3 className="writing__correction-improvements-header">Next Steps to Level Up</h3>
+              {cr.targetedImprovements.map((item, i) => (
+                <div key={i} className="writing__correction-improvement-item">
+                  <div className="writing__correction-improvement-area">{item.area}</div>
+                  {item.currentWeakness && <div className="writing__correction-improvement-weakness">Issue: {item.currentWeakness}</div>}
+                  {item.concreteFix && <div className="writing__correction-improvement-fix">Fix: {item.concreteFix}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Cross-session error patterns */}
           {crossSessionPatterns.length > 0 && (
             <div className="writing__correction-patterns">
@@ -956,6 +1029,17 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                       {ses.correction?.overall?.total || 0}/{ses.correction?.overall?.maxTotal || 42}
                     </span>
                   </div>
+                  {pastWritingSessions.length >= 2 && (
+                    <button
+                      className="writing__history-compare-btn"
+                      onClick={() => {
+                        setCompareSessionId(ses.id);
+                        setPhase('comparison');
+                      }}
+                    >
+                      Compare
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

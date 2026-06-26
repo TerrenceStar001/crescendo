@@ -3,6 +3,7 @@ import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
 import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart, GENRE_TEMPLATES, PROMPT_ENFORCEMENT_RULES } from '../utils/structuralConstraints';
 import { getAvailablePrompts, markPromptUsed, clearUsedPrompts } from '../utils/writingPrompts';
+import { scoreToDseLevel } from '../utils/dseGrading';
 import { composeFullPrompt } from '../utils/questionGenerator';
 import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
 import { QUESTION_TYPE_DISTRIBUTIONS, getTypeDistributionForPart } from '../utils/questionTypes';
@@ -175,7 +176,7 @@ function detectTruncatedStem(stem) {
   return false;
 }
 
-const VALID_TYPES = new Set(['mcq', 'tfng', 'gap-fill', 'short-answer', 'matching', 'open-ended']);
+const VALID_TYPES = new Set(['mcq', 'tfng', 'gap-fill', 'short-answer', 'matching', 'open-ended', 'summary-cloze', 'pronoun-ref', 'semantic-connect']);
 const SKILL_VALUES = new Set(['mainIdea', 'detail', 'inference', 'vocabInContext', 'tone', 'purpose']);
 
 function fixQuestionTypes(q) {
@@ -288,17 +289,15 @@ function ensureNGCount(questions) {
   const tfng = questions.filter(q => q.type === 'tfng');
   if (tfng.length < 4) return questions;
   const ngCount = tfng.filter(q => /^ng$/i.test((q.correctAnswer || '').trim())).length;
-  if (ngCount >= 2) return questions;
+  if (ngCount >= 2) return [...questions];
   const needed = 2 - ngCount;
   let flipped = 0;
   return questions.map(q => {
-    if (q.type !== 'tfng') return q;
-    if (flipped >= needed) return q;
-    if (/^ng$/i.test((q.correctAnswer || '').trim())) return q;
-    q.correctAnswer = 'NG';
-    q.explanation = (q.explanation || '') + ' [Not explicitly stated in the passage]';
+    if (q.type !== 'tfng') return { ...q };
+    if (flipped >= needed) return { ...q };
+    if (/^ng$/i.test((q.correctAnswer || '').trim())) return { ...q };
     flipped++;
-    return q;
+    return { ...q, correctAnswer: 'NG', explanation: (q.explanation || '') + ' [Not explicitly stated in the passage]' };
   });
 }
 
@@ -747,8 +746,9 @@ ${stripped.slice(0, 6000)}`;
   }
   if (wc > target.max) {
     console.warn(`[DSE] AI generated passage too long: ${wc}w — truncating to ${target.max}`);
-    const words = cleaned.split(/\s+/);
-    cleaned = words.slice(0, target.max - 20).join(' ') + '</p>';
+    const plainText = cleaned.replace(/<[^>]+>/g, '');
+    const words = plainText.split(/\s+/);
+    cleaned = words.slice(0, target.max - 20).join(' ');
   }
 
   if (!/^</.test(cleaned) && !/<[a-z]/.test(cleaned.slice(0, 100))) {
@@ -871,8 +871,9 @@ ${fragmentsSection}`;
   }
   if (wc > target.max) {
     console.warn(`[DSE] RAG passage too long: ${wc}w — truncating`);
-    const words = cleaned.split(/\s+/);
-    cleaned = words.slice(0, target.max - 20).join(' ') + '</p>';
+    const plainText = cleaned.replace(/<[^>]+>/g, '');
+    const words = plainText.split(/\s+/);
+    cleaned = words.slice(0, target.max - 20).join(' ');
   }
 
   if (!/^</.test(cleaned) && !/<[a-z]/.test(cleaned.slice(0, 100))) {
@@ -989,8 +990,9 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
   }
   if (wc > target.max) {
     console.warn(`[DSE] Pure AI passage too long: ${wc}w — truncating`);
-    const words = cleaned.split(/\s+/);
-    cleaned = words.slice(0, target.max - 20).join(' ') + '</p>';
+    const plainText = cleaned.replace(/<[^>]+>/g, '');
+    const words = plainText.split(/\s+/);
+    cleaned = words.slice(0, target.max - 20).join(' ');
   }
 
   if (!/^</.test(cleaned) && !/<[a-z]/.test(cleaned.slice(0, 100))) {
@@ -1185,10 +1187,9 @@ export default function useDSEPapers() {
                     const quality = validateQuestions(enriched, passagePreview);
                     // Also run new validator for enhanced type-specific checks
                     const newQuality = validateQuestionsNew(enriched, passagePreview);
-                    if (!newQuality.valid) {
-                      lastQualityWarnings.push(...newQuality.warnings);
-                    }
-                    lastQualityWarnings = quality.warnings;
+                    const combined = [...quality.warnings];
+                    if (!newQuality.valid) combined.push(...newQuality.warnings);
+                    lastQualityWarnings = combined;
                     if (quality.valid) {
                       console.log(`[DSE] RAG AI generated ${validated.length} clean questions (attempt ${attempt})`);
                       return validated;
@@ -1368,10 +1369,9 @@ export default function useDSEPapers() {
                               const quality = validateQuestions(enriched, passagePreview);
                               // Also run new validator for enhanced type-specific checks
                               const newQuality = validateQuestionsNew(enriched, passagePreview);
-                              if (!newQuality.valid) {
-                                lastQualityWarnings.push(...newQuality.warnings);
-                              }
-                              lastQualityWarnings = quality.warnings;
+                              const combined = [...quality.warnings];
+                              if (!newQuality.valid) combined.push(...newQuality.warnings);
+                              lastQualityWarnings = combined;
                               if (quality.valid) {
                                 console.log(`[DSE] AI generated ${validated.length} clean questions (attempt ${attempt})`);
                                 return validated;
@@ -1744,15 +1744,7 @@ Return as JSON array of 3 objects:
   }, [getCachedPapers, cachePapers]);
 
   const buildCorrectionPrompt = useCallback((part, essay, promptInfo, selfAssessment) => {
-    const level5Descriptors = `Content (7): "The content is relevant and extensive, shows awareness of purpose, engages the reader's interest."
-Organization (7): "The structure is coherent, appropriate to genre. Paragraphing effective. Cohesion successful."
-Language (7): "Range of sentence structures used accurately. Grammar sufficiently accurate. Vocabulary moderately wide, appropriate. Register appropriate."`;
-
-    const level3Descriptors = `Content: "Most content is relevant. Several examples of creativity evident."
-Organization: "Some sections are coherent. Paragraphing effective in parts."
-Language: "Simple and some complex sentences well formed. Basic punctuation and grammar accurate. Common vocabulary appropriate."`;
-
-    return `You are an expert HKDSE English examiner (Paper 2 Writing).
+    return `You are an expert HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **specific, diagnostic, and actionable** — the student must know exactly what to fix and how.
 
 TASK TO EVALUATE (Part ${part}):
 ---PROMPT---
@@ -1765,36 +1757,65 @@ Text type: ${promptInfo?.type || 'essay'}
 ${essay?.text || ''}
 ---END ESSAY---
 
-${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas.` : ''}
+${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas in your feedback.` : ''}
 
-HKEAA LEVEL DESCRIPTORS:
-Level 5 (highest):
-${level5Descriptors}
+HKEAA MARKING CRITERIA (Paper 2):
+Content (7 marks): Relevance to prompt, task fulfilment, development of ideas, audience awareness, creativity.
+- 7: Fully relevant, extensive, insightful, sophisticated treatment, engages reader
+- 6: Relevant, well-developed, clear purpose, mostly engaging
+- 5: Mostly relevant, adequate development, some depth
+- 4: Generally relevant, some development, may lack focus in parts
+- 3: Partially relevant, limited development, some digression
+- 2: Limited relevance, little development, largely off-task
+- 1: Irrelevant or minimal content
 
-Level 3 (mid):
-${level3Descriptors}
+Organization (7 marks): Structure, paragraphing, cohesion, genre conventions.
+- 7: Sophisticated structure, flawless paragraphing, seamless cohesion, perfectly matched to genre
+- 6: Coherent structure, effective paragraphing, good use of cohesive devices
+- 5: Clear structure, mostly appropriate paragraphing, adequate cohesion
+- 4: Generally organized, some paragraphing errors, cohesion inconsistent
+- 3: Some structure but lacks coherence, paragraphing weak in parts
+- 2: Poor structure, minimal paragraphing, confusing
+- 1: No discernible structure
 
-Assess the essay using HKEAA criteria. Content, Organization, Language each out of 7. ${promptInfo?.type ? `TEXT TYPE ADJUSTMENT: This is a ${promptInfo.type}. Adjust criteria to match conventions for this text type.` : ''}
+Language (7 marks): Grammar accuracy, vocabulary range, sentence structure variety, register, punctuation.
+- 7: Wide range of complex structures used accurately, sophisticated vocabulary, flawless grammar, consistent register
+- 6: Good range of structures, mostly accurate, wide vocabulary, register appropriate
+- 5: Adequate range, some errors but meaning clear, appropriate vocabulary
+- 4: Limited range, noticeable errors, basic vocabulary
+- 3: Narrow range, frequent errors, limited vocabulary
+- 2: Very limited range, pervasive errors, inadequate vocabulary
+- 1: Incomprehensible
+
+ASSESSMENT REQUIREMENTS:
+1. For EACH rubric (content, organization, language): state a STRENGTH (quote the exact phrase/sentence from the essay) and a SPECIFIC WEAKNESS (quote the exact problematic phrase) with a concrete suggestion.
+2. Overall narrativeSummary: Be specific — reference the essay content, don't give generic praise. Name the text type and judge how well it meets genre conventions.
+3. errors: Every error must include the EXACT original text, a correction, and a clear explanation of the grammar/usage rule violated. Be thorough — catch ALL errors.
+4. vocabularySuggestions: Map every suggestion to the specific sentence context. Suggest words at least one CEFR level above the student's current usage.
+5. Add a "targetedImprovements" array with 2-3 specific, actionable steps the student should take to reach the next DSE level (e.g., "Your topic sentences are weak. Try: 'Firstly, ...' / 'Another key factor is ...' / 'Having examined X, it is clear that ...'" — give full examples).
 
 Return ONLY valid JSON with this exact schema:
 {
-  "content": { "score": 0-7, "feedback": "..." },
-  "organization": { "score": 0-7, "feedback": "..." },
-  "language": { "score": 0-7, "feedback": "..." },
-  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Overall feedback..." },
+  "content": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
+  "organization": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
+  "language": { "score": 0-7, "feedback": "Strength: [quote from essay]. Weakness: [quote from essay]. Suggestion: [concrete advice]" },
+  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Specific, essay-referenced feedback (not generic). Name what was done well and precisely what needs work." },
   "sectionBreakdown": {
-    "introduction": { "score": 0-7, "feedback": "..." },
+    "introduction": { "score": 0-7, "feedback": "Specific feedback about the intro paragraph" },
     "body1": { "score": 0-7, "feedback": "..." },
     "body2": { "score": 0-7, "feedback": "..." },
     "conclusion": { "score": 0-7, "feedback": "..." }
   },
-  "errors": [
-    { "original": "original text", "correction": "corrected", "explanation": "why", "type": "grammar|vocabulary|structure|style|punctuation|spelling|content", "severity": "Critical|Major|Minor", "location": { "paragraph": 1, "line": 2 } }
+  "targetedImprovements": [
+    { "area": "topic sentences", "currentWeakness": "student's actual mistake", "concreteFix": "full example of how to write it correctly" }
   ],
-  "goodLanguage": [ { "phrase": "...", "comment": "..." } ],
-  "vocabularySuggestions": [ { "original": "word", "suggestion": "improved word", "cefrLevel": "B2|C1", "context": "sentence context" } ],
-  "pitfallsAvoided": [ "common DSE mistake avoided" ],
-  "inlineAnnotations": [ { "text": "original", "replacement": "corrected", "type": "grammar", "color": "#ef5350" } ]
+  "errors": [
+    { "original": "exact text from essay", "correction": "corrected version", "explanation": "why this is wrong — name the grammar rule", "type": "grammar|vocabulary|structure|style|punctuation|spelling|content", "severity": "Critical|Major|Minor", "location": { "paragraph": 1, "line": 2 } }
+  ],
+  "goodLanguage": [ { "phrase": "exact quote from essay", "comment": "why this works well — specific to the context" } ],
+  "vocabularySuggestions": [ { "original": "word from essay", "suggestion": "upgraded word (at least 1 CEFR level higher)", "cefrLevel": "B2|C1|C2", "context": "the full sentence where this word appears" } ],
+  "pitfallsAvoided": [ "specific common DSE mistake this student successfully avoided" ],
+  "inlineAnnotations": [ { "text": "exact text to annotate", "replacement": "corrected version", "type": "grammar", "color": "#ef5350" } ]
 }`;
   }, []);
 
@@ -1817,6 +1838,7 @@ Return ONLY valid JSON with this exact schema:
     if (!parsed.vocabularySuggestions || !Array.isArray(parsed.vocabularySuggestions)) parsed.vocabularySuggestions = [];
     if (!parsed.goodLanguage || !Array.isArray(parsed.goodLanguage)) parsed.goodLanguage = [];
     if (!parsed.sectionBreakdown) parsed.sectionBreakdown = {};
+    if (!parsed.targetedImprovements || !Array.isArray(parsed.targetedImprovements)) parsed.targetedImprovements = [];
     if (!parsed.pitfallsAvoided || !Array.isArray(parsed.pitfallsAvoided)) parsed.pitfallsAvoided = [];
     if (!parsed.inlineAnnotations || !Array.isArray(parsed.inlineAnnotations)) parsed.inlineAnnotations = [];
     return parsed;
@@ -1830,17 +1852,19 @@ Return ONLY valid JSON with this exact schema:
     const totalB = (partBResult?.content?.score || 0) + (partBResult?.organization?.score || 0) + (partBResult?.language?.score || 0);
     const combinedTotal = totalA + totalB;
     const combinedPct = Math.round((combinedTotal / 42) * 100);
+    const dseLevel = scoreToDseLevel(combinedPct, 'writing').level;
 
     return {
       content: { score: contentScore, feedback: [partAResult?.content?.feedback, partBResult?.content?.feedback].filter(Boolean).join(' ') },
       organization: { score: orgScore, feedback: [partAResult?.organization?.feedback, partBResult?.organization?.feedback].filter(Boolean).join(' ') },
       language: { score: langScore, feedback: [partAResult?.language?.feedback, partBResult?.language?.feedback].filter(Boolean).join(' ') },
-      overall: { total: combinedTotal, maxTotal: 42, percentage: combinedPct, narrativeSummary: [partAResult?.overall?.narrativeSummary, partBResult?.overall?.narrativeSummary].filter(Boolean).join(' ') },
+      overall: { total: combinedTotal, maxTotal: 42, percentage: combinedPct, dseLevel, narrativeSummary: [partAResult?.overall?.narrativeSummary, partBResult?.overall?.narrativeSummary].filter(Boolean).join(' ') },
       errors: [...(partAResult?.errors || []), ...(partBResult?.errors || [])],
       vocabularySuggestions: [...(partAResult?.vocabularySuggestions || []), ...(partBResult?.vocabularySuggestions || [])],
       goodLanguage: [...(partAResult?.goodLanguage || []), ...(partBResult?.goodLanguage || [])],
       sectionBreakdown: { ...(partAResult?.sectionBreakdown || {}), ...(partBResult?.sectionBreakdown || {}) },
       pitfallsAvoided: [...(partAResult?.pitfallsAvoided || []), ...(partBResult?.pitfallsAvoided || [])],
+      targetedImprovements: [...(partAResult?.targetedImprovements || []), ...(partBResult?.targetedImprovements || [])],
       inlineAnnotations: [...(partAResult?.inlineAnnotations || []), ...(partBResult?.inlineAnnotations || [])],
     };
   }, []);
@@ -1868,6 +1892,19 @@ Return ONLY valid JSON with this exact schema:
       await setItem('crescendo-reading-history', [session, ...existing].slice(0, 50));
     } catch { /* silent */ }
   }, [getItem, setItem, getReadingHistory]);
+
+  const writingSessionGet = useCallback(async () => {
+    try {
+      const all = await getItem('crescendo-writing-sessions');
+      return all || [];
+    } catch { return []; }
+  }, [getItem]);
+
+  const writingSessionSet = useCallback(async (sessions) => {
+    try {
+      await setItem('crescendo-writing-sessions', sessions);
+    } catch { /* silent */ }
+  }, [setItem]);
 
 function fixNotesHTML(content) {
   if (!content) return content;
@@ -1982,5 +2019,7 @@ Give 2-3 concrete, specific recommendations for their next practice session base
     generateReadingNotes,
     clearCache,
     bundled,
-  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, clearCache]);
+    writingSessionGet,
+    writingSessionSet,
+  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, clearCache, writingSessionGet, writingSessionSet]);
 }
