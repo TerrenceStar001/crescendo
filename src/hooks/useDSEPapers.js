@@ -3,6 +3,7 @@ import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
 import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart, GENRE_TEMPLATES, PROMPT_ENFORCEMENT_RULES } from '../utils/structuralConstraints';
 import { getAvailablePrompts, markPromptUsed, clearUsedPrompts } from '../utils/writingPrompts';
+import { getRandomPartAType, getRandomPartBType } from '../utils/textTypeDistribution';
 import { scoreToDseLevel } from '../utils/dseGrading';
 import { composeFullPrompt } from '../utils/questionGenerator';
 import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
@@ -1597,11 +1598,12 @@ export default function useDSEPapers() {
       }
 
       if (!partA) {
+        const partAType = getRandomPartAType();
         const aiPrompt = `Generate a short HKDSE English Paper 2 Part A writing prompt.
 
 Requirements:
-- Text type: one of: email, letter, blog comment, questionnaire response, short article, speech
-- Context paragraph setting up a realistic situation
+- Text type: ${partAType.genre} (${partAType.label})
+- Context paragraph setting up a realistic situation relevant to Hong Kong students
 - Task instruction
 - 3-4 bullet-point guiding ideas
 - Word limit: ~200 words
@@ -1610,7 +1612,7 @@ Requirements:
 ${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
 
 Return as JSON:
-{ "type": "letter|speech|blog|article",
+{ "type": "${partAType.slug}",
   "title": "Short title",
   "context": "Context paragraph",
   "task": "Task instruction",
@@ -1635,13 +1637,14 @@ Return as JSON:
 
       // Part A fallback: hardcoded prompt if everything failed
       if (!partA) {
+        const fbType = getRandomPartAType();
         partA = {
           prompt: {
             id: 'fallback_partA',
-            type: 'article',
+            type: fbType.slug,
             title: 'Social Media Impact',
             context: 'Your school is organizing a debate on whether social media has a positive or negative impact on teenagers.',
-            task: 'Write a short article for your school magazine discussing both sides of the argument and giving your own opinion.',
+            task: `Write a ${fbType.genre} for your school magazine discussing both sides of the argument and giving your own opinion.`,
             wordLimit: { min: 180, max: 250 },
             instructions: 'Write approximately 200 words.',
             source: 'fallback',
@@ -1664,15 +1667,22 @@ Return as JSON:
       }
 
       if (!partB) {
+        const type1 = getRandomPartBType();
+        const type2 = getRandomPartBType();
+        const type3 = getRandomPartBType();
         const aiPrompt = `Generate 3 distinct HKDSE English Paper 2 Part B writing prompts.
 
-Each prompt must have a DIFFERENT text type from: article, letter, speech, report, story, blog, review, proposal.
-Each must have a different topic domain covering at least 3 different areas.
+Each prompt must use the specified text type:
+1. ${type1.label} (${type1.genre})
+2. ${type2.label} (${type2.genre})
+3. ${type3.label} (${type3.genre})
+
+Each must have a different topic domain covering at least 3 different areas. Make topics relevant to Hong Kong students.
 
 ${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
 
 Return as JSON array of 3 objects:
-[{ "type": "article", "title": "...", "context": "...", "task": "...", "wordLimit": { "min": 380, "max": 450 }, "suggestedPoints": ["...", "..."], "instructions": "..." }]`;
+[{ "type": "${type1.slug}", "title": "...", "context": "...", "task": "...", "wordLimit": { "min": 380, "max": 450 }, "suggestedPoints": ["...", "..."], "instructions": "..." }]`;
 
         const raw = await callAI(aiPrompt, {
           system: 'You are an expert HKDSE English examiner. Generate 3 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON.',
@@ -1691,39 +1701,23 @@ Return as JSON array of 3 objects:
 
       // Part B fallback if everything failed
       if (!partB) {
+        const fbTypes = [getRandomPartBType(), getRandomPartBType(), getRandomPartBType()];
+        const fbTasks = [
+          { title: 'The Future of Online Learning', context: 'More schools are adopting online learning platforms.', points: ['Flexibility of schedule', 'Lack of social interaction', 'Digital divide issues'] },
+          { title: 'Letter to the Editor', context: 'Your local community is considering banning single-use plastics.', points: ['Environmental impact', 'Economic considerations', 'Alternative solutions'] },
+          { title: 'Speech on Youth Volunteering', context: 'Your school is promoting a new community service programme.', points: ['Personal growth', 'Community benefits', 'Building your CV'] },
+        ];
         partB = {
-          options: [
-            {
-              id: 'fallback_partB_1',
-              type: 'article',
-              title: 'The Future of Online Learning',
-              context: 'More schools are adopting online learning platforms.',
-              task: 'Write an article discussing the advantages and disadvantages of online learning.',
-              wordLimit: { min: 380, max: 450 },
-              suggestedPoints: ['Flexibility of schedule', 'Lack of social interaction', 'Digital divide issues'],
-              source: 'fallback',
-            },
-            {
-              id: 'fallback_partB_2',
-              type: 'letter',
-              title: 'Letter to the Editor',
-              context: 'Your local community is considering banning single-use plastics.',
-              task: 'Write a letter to the editor expressing your views on banning single-use plastics.',
-              wordLimit: { min: 380, max: 450 },
-              suggestedPoints: ['Environmental impact', 'Economic considerations', 'Alternative solutions'],
-              source: 'fallback',
-            },
-            {
-              id: 'fallback_partB_3',
-              type: 'speech',
-              title: 'Speech on Youth Volunteering',
-              context: 'Your school is promoting a new community service programme.',
-              task: 'Write a speech to convince your fellow students to participate in community service.',
-              wordLimit: { min: 380, max: 450 },
-              suggestedPoints: ['Personal growth', 'Community benefits', 'Building your CV'],
-              source: 'fallback',
-            },
-          ],
+          options: fbTypes.map((t, i) => ({
+            id: `fallback_partB_${i + 1}`,
+            type: t.slug,
+            title: fbTasks[i].title,
+            context: fbTasks[i].context,
+            task: `Write a ${t.genre} on the given topic.`,
+            wordLimit: { min: 380, max: 450 },
+            suggestedPoints: fbTasks[i].points,
+            source: 'fallback',
+          })),
           source: 'fallback',
         };
       }
