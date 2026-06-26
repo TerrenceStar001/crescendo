@@ -47,18 +47,28 @@ async function callAI(endpoint, apiKey, model, messages, maxTokens) {
   let res;
   try {
     const headers = { 'Content-Type': 'application/json' };
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-    res = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0.3,
-      }),
-      signal: controller.signal,
-    });
+    if (apiKey && endpoint.startsWith('/')) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    if (endpoint.startsWith('/')) {
+      res = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: maxTokens,
+          temperature: 0.3,
+        }),
+        signal: controller.signal,
+      });
+    } else {
+      res = await fetch('/api/ai/external-proxy', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ endpoint, apiKey, model, messages, maxTokens }),
+        signal: controller.signal,
+      });
+    }
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
@@ -95,7 +105,7 @@ export default function useAI() {
     setConfig(prev => ({ ...prev, ...partial }));
   }, [setConfig]);
 
-  const isConfigured = true;
+  const isConfigured = !config.provider || !!config.apiKey;
 
   const generateTitle = useCallback(async (content, signal) => {
     const cfg = configRef.current;

@@ -7040,6 +7040,34 @@ html[data-theme="dark"] {
   color: var(--color-success);
 }
 
+.writing__analysis-badge {
+  font-size: var(--font-xs);
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.writing__analysis-badge--analysing {
+  background: rgba(91, 91, 240, 0.12);
+  color: var(--color-accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.writing__analysis-badge--done {
+  background: rgba(76, 175, 80, 0.12);
+  color: var(--color-success);
+}
+
+.writing__analysis-badge--failed {
+  background: rgba(244, 67, 54, 0.12);
+  color: var(--color-error);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
 /* --- Comparison --- */
 .writing__comparison {
   padding: var(--space-5);

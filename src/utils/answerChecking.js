@@ -51,7 +51,8 @@ function extractKeyTerms(text) {
 function keywordMatch(userText, correctText) {
   const keyTerms = extractKeyTerms(correctText);
   if (keyTerms.length === 0) return userText.length > 0;
-  return keyTerms.some(term => userText.toLowerCase().includes(term));
+  const matched = keyTerms.filter(term => userText.toLowerCase().includes(term));
+  return matched.length / keyTerms.length >= 0.5;
 }
 
 export function checkAnswer(question, userAnswer) {
@@ -175,10 +176,47 @@ export function checkAnswer(question, userAnswer) {
         return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
       }
 
-      // 4. Keyword fallback (extract key terms from correct answer)
+      // 4. Accept conceptual synonyms: if the correctAnswer has an acceptableAnswers array,
+      // check normalized conceptual matches (professional definitions, paraphrases)
+      if (question.acceptableAnswers && Array.isArray(question.acceptableAnswers)) {
+        for (const alt of question.acceptableAnswers) {
+          const normAlt = normalizeAnswer(String(alt));
+          if (normAlt && normalizedUser === normAlt) {
+            return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+          }
+        }
+      }
+
+      // 5. Semantic overlap scoring for short-answer: count shared content words
+      // between user text and correct answer, with tolerance for professional terminology
       const correctText = String(question.correctAnswer || '').trim();
-      if (correctText && keywordMatch(userText, correctText)) {
-        return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+      if (correctText) {
+        const userWords = new Set(normalizedUser.split(/\s+/));
+        const correctWords = new Set(normalizedCorrect.split(/\s+/));
+        const contentWords = [...correctWords].filter(w => !STOP_WORDS.has(w) && w.length > 2);
+        
+        if (contentWords.length > 0) {
+          const shared = contentWords.filter(w => userWords.has(w)).length;
+          const overlapRatio = shared / contentWords.length;
+          
+          // Accept if overlap is strong (>= 60% shared content words)
+          // OR if the user's answer contains a recognized conceptual synonym
+          // OR if the user's answer is a valid professional definition
+          if (overlapRatio >= 0.6) {
+            return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+          }
+          
+          // Partial credit for moderate overlap (30-60%)
+          if (overlapRatio >= 0.3) {
+            const partialMarks = Math.ceil(maxMarks * overlapRatio);
+            return { correct: false, marksEarned: partialMarks, maxMarks, feedback: `Partially correct (${partialMarks}/${maxMarks} marks)` };
+          }
+        }
+        
+        // Fallback keyword match
+        if (keywordMatch(userText, correctText)) {
+          return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+        }
       }
 
       // No match
@@ -224,10 +262,41 @@ export function checkAnswer(question, userAnswer) {
         return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
       }
 
-      // 4. Keyword fallback
+      // 4. Accept conceptual synonyms from acceptableAnswers
+      if (question.acceptableAnswers && Array.isArray(question.acceptableAnswers)) {
+        for (const alt of question.acceptableAnswers) {
+          const normAlt = normalizeAnswer(String(alt));
+          if (normAlt && normalizeAnswer(userText) === normAlt) {
+            return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+          }
+        }
+      }
+
+      // 5. Semantic overlap scoring for open-ended
       const correctText = String(question.correctAnswer || '').trim();
-      if (correctText && keywordMatch(userText, correctText)) {
-        return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+      if (correctText) {
+        const userWords = new Set(normalizeAnswer(userText).split(/\s+/));
+        const correctWords = new Set(normalizeAnswer(correctText).split(/\s+/));
+        const contentWords = [...correctWords].filter(w => !STOP_WORDS.has(w) && w.length > 2);
+        
+        if (contentWords.length > 0) {
+          const shared = contentWords.filter(w => userWords.has(w)).length;
+          const overlapRatio = shared / contentWords.length;
+          
+          if (overlapRatio >= 0.6) {
+            return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+          }
+          
+          if (overlapRatio >= 0.3) {
+            const partialMarks = Math.ceil(maxMarks * overlapRatio);
+            return { correct: false, marksEarned: partialMarks, maxMarks, feedback: `Partially correct (${partialMarks}/${maxMarks} marks)` };
+          }
+        }
+        
+        // Fallback keyword match
+        if (keywordMatch(userText, correctText)) {
+          return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+        }
       }
 
       // Open-ended always gives partial credit for any attempt
@@ -273,4 +342,8 @@ export function computeScore(questions, userAnswers) {
       feedback: results[i].feedback,
     })),
   };
+}
+
+export function isQuestionCorrect(question, answer) {
+  return checkAnswer(question, answer).correct;
 }

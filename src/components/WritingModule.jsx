@@ -50,9 +50,12 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   const [compareSessionId, setCompareSessionId] = useState(null);
   const [pastWritingSessions, setPastWritingSessions] = useState([]);
   const [practiceMode, setPracticeMode] = useState('both'); // 'both' | 'partA' | 'partB'
+  const [partAAnalysisStatus, setPartAAnalysisStatus] = useState(null); // null | 'analysing' | 'done' | 'failed'
+  const partAResultRef = useRef(null);
   const editorRef = useRef(null);
   const timerRef = useRef(null);
   const saveTimerRef = useRef(null);
+  const partADoneTimerRef = useRef(null);
   const soundPlayedRef = useRef({ thirty: false, fifteen: false, five: false });
 
   // --- Sound alert helper ---
@@ -148,6 +151,13 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     }, 30000);
     return () => clearTimeout(saveTimerRef.current);
   }, [partA.essay, partB.essay, phase, timeRemaining]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(partADoneTimerRef.current);
+    };
+  }, []);
 
   // --- Timer countdown ---
   useEffect(() => {
@@ -260,6 +270,42 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     setSubmitting(true);
 
     const part = activePart;
+
+    // In 'both' mode, save Part A essay and go directly to Part B — run AI in background
+    if (part === 'A' && practiceMode === 'both') {
+      setPartAAnalysisStatus('analysing');
+      setActivePart('B');
+      setSelfAssessment([]);
+      soundPlayedRef.current = { thirty: false, fifteen: false, five: false };
+      setPhase('writingPartB');
+      // Fire-and-forget AI analysis for Part A
+      (async () => {
+        try {
+          const promptInfo = sessionData?.partA?.prompt || partA.prompt;
+          const prompt = dsePapers.buildCorrectionPrompt('A', { essay, text: plainText, prompt: promptInfo }, selfAssessment);
+          const data = await callAI(prompt, {
+            system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Assess using official HKEAA criteria: Content/7, Organization/7, Language/7. Return ONLY valid JSON.',
+            temperature: 0.3,
+            maxTokens: 3000,
+          });
+          const parsed = dsePapers.parseCorrectionResponse(data);
+          if (!parsed) throw new Error('Failed to parse AI response');
+          const partTotal = (parsed.content?.score || 0) + (parsed.organization?.score || 0) + (parsed.language?.score || 0);
+          const partPct = Math.round((partTotal / 21) * 100);
+          const dseLevel = scoreToDseLevel(partPct, 'writing').level;
+          parsed.overall = { ...parsed.overall, total: partTotal, maxTotal: 21, percentage: partPct, dseLevel };
+          setCorrectionPartAResult(parsed);
+          partAResultRef.current = parsed;
+          setPartAAnalysisStatus('done');
+        } catch (e) {
+          console.error('Background Part A analysis failed:', e);
+          setPartAAnalysisStatus('failed');
+        }
+      })();
+      setSubmitting(false);
+      return;
+    }
+
     setPhase(part === 'A' ? 'correctingPartA' : 'correctingPartB');
 
     try {
@@ -272,11 +318,11 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       const data = await callAI(prompt, {
         system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Assess using official HKEAA criteria: Content/7, Organization/7, Language/7. Return ONLY valid JSON.',
         temperature: 0.3,
-        maxTokens: 1500,
+        maxTokens: 3000,
       });
 
       const parsed = dsePapers.parseCorrectionResponse(data);
-      if (!parsed) throw new Error('Failed to parse AI response');
+      if (!parsed) throw new Error('Failed to parse AI response. The AI may have returned invalid JSON. Try a different model or check your API endpoint.');
 
       const partTotal = (parsed.content?.score || 0) + (parsed.organization?.score || 0) + (parsed.language?.score || 0);
       const partPct = Math.round((partTotal / 21) * 100);
@@ -286,16 +332,21 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
 
       if (part === 'A') {
         setCorrectionPartAResult(parsed);
-        if (practiceMode === 'both') {
-          setActivePart('B');
-          setSelfAssessment([]);
-          soundPlayedRef.current = { thirty: false, fifteen: false, five: false };
-          setPhase('writingPartB');
-        } else {
-          setPhase('correctionPartA');
-        }
+        setPhase('correctionPartA');
       } else {
-        const combined = dsePapers.combineCorrections(correctionPartAResult, parsed);
+        // If Part A analysis hasn't completed yet (both mode), wait for it
+        if (practiceMode === 'both' && !partAResultRef.current) {
+          setPhase('correctingPartB');
+          await new Promise(resolve => {
+            const check = () => {
+              if (partAResultRef.current) { resolve(); return; }
+              setTimeout(check, 300);
+            };
+            check();
+          });
+        }
+        const partAResult = partAResultRef.current || correctionPartAResult;
+        const combined = dsePapers.combineCorrections(partAResult, parsed);
         setCorrectionPartBResult(parsed);
         setCorrectionResult(combined);
         setPhase('correctionCombined');
@@ -316,14 +367,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         errors: [], vocabularySuggestions: [], goodLanguage: [], sectionBreakdown: {}, pitfallsAvoided: [], targetedImprovements: [], inlineAnnotations: [],
       };
       setCorrectionResult(errorResult);
-      if (part === 'A' && practiceMode === 'both') {
-        setActivePart('B');
-        setSelfAssessment([]);
-        setPhase('writingPartB');
-      } else {
-        setPhase(part === 'A' ? 'correctionPartA' : 'correctionCombined');
-      }
-    } finally {
+      setPhase(part === 'A' ? 'correctionPartA' : 'correctionCombined');
       setSubmitting(false);
     }
   }, [activePart, getCurrentEssay, getEssayPlainText, partA, partB, sessionData, selfAssessment, correctionPartAResult, callAI, skillAnalytics, dsePapers, setFocusMode, practiceMode]);
@@ -380,6 +424,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     setTimeRemaining(null);
     setCorrectionResult(null);
     setCorrectionPartAResult(null);
+    setCorrectionPartBResult(null);
+    setCorrectionResult(null);
+    setPartAAnalysisStatus(null);
+    partAResultRef.current = null;
     setActivePart('A');
     setSelfAssessment([]);
     setResubmitMode(false);
@@ -1172,6 +1220,15 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           <div className="writing__editor-area">
             <div className="writing__exam-topbar">
               {renderTimer()}
+              {isPartB && practiceMode === 'both' && partAAnalysisStatus === 'analysing' && (
+                <div className="writing__analysis-badge writing__analysis-badge--analysing">Analysing Part A...</div>
+              )}
+              {isPartB && practiceMode === 'both' && partAAnalysisStatus === 'done' && (
+                <div className="writing__analysis-badge writing__analysis-badge--done">\u2713 Part A analysed</div>
+              )}
+              {isPartB && practiceMode === 'both' && partAAnalysisStatus === 'failed' && (
+                <div className="writing__analysis-badge writing__analysis-badge--failed">Part A analysis failed</div>
+              )}
               {renderSoundToggle()}
             </div>
 

@@ -54,19 +54,19 @@ Return ONLY a valid JSON array. No other text. No comments, no trailing commas, 
 `;
 
 const SHARED_RULES = `
-DISTRIBUTION RULES: Distribute questions evenly across the entire passage — use the paragraphRef field to indicate which paragraph each question targets. At least 30% of questions must target the second half of the passage.
+DISTRIBUTION RULES: Distribute questions evenly across the entire passage -- use the paragraphRef field to indicate which paragraph each question targets. At least 30% of questions must target the second half of the passage.
 
-PARAPHRASE RULES: Do NOT copy exact sentences from the passage into question stems, TFNG statements, or gap-fill context. Paraphrase and rephrase to test comprehension, not visual pattern-matching. For gap-fill, the blank word must NOT appear verbatim in the immediately adjacent text — the student must understand meaning, not spot the word.
+PARAPHRASE RULES: Do NOT copy exact sentences from the passage into question stems, TFNG statements, or gap-fill context. Paraphrase and rephrase to test comprehension, not visual pattern-matching. For gap-fill, the blank word must NOT appear verbatim in the immediately adjacent text -- the student must understand meaning, not spot the word.
 
-TRUNCATION RULES: The words "truncated", "cut off", "incomplete", "missing", "not shown", "not included", "before the passage", "after the passage" are BANNED in stems and explanations. If any of these words appear, the question is automatically rejected. The passage is COMPLETE and fully visible — every question must be answerable from the provided text.
+TRUNCATION RULES: The words "truncated", "cut off", "incomplete", "missing", "not shown", "not included", "before the passage", "after the passage" are BANNED in stems and explanations. If any of these words appear, the question is automatically rejected. The passage is COMPLETE and fully visible -- every question must be answerable from the provided text.
 
-For questions with marks ≥2, include a "rubric" field:
-"rubric": {
-  "requiredPoints": ["answer point 1", "answer point 2"],
-  "unacceptableAnswers": ["wrong answer", "common mistake"]
-}
+SUMMARY CONTRAST RULE (2-Mark Questions):
+- When generating a 2-mark contrast question, the rubric.requiredPoints must be binary-mapped: exactly TWO distinct elements, each worth 1 mark.
+- Each requiredPoint must describe ONE side of the contrast independently. E.g., for "contrast the interior and exterior", requiredPoints = ["interior characteristic", "exterior characteristic"].
+- The grading engine evaluates each requiredPoint independently. A student who identifies only one side of the contrast gets 1/2 marks.
+- Do NOT collapse both sides of a contrast into a single requiredPoint. This is the most common grading failure -- always split contrasts into separate requiredPoints.
 
-CONCISENESS RULE (CRITICAL): Keep each question extremely short. Each question object must average ≤500 characters total. Explanations: max 1 sentence. Option texts: max 8 words each. Marks: omit rubric for 1-mark questions. Tight stems only — no fluff.
+CONCISENESS RULE (CRITICAL): Keep each question extremely short. Each question object must average <=500 characters total. Explanations: max 1 sentence. Option texts: max 8 words each. Marks: omit rubric for 1-mark questions. Tight stems only -- no fluff.
 `;
 
 // ---------------------------------------------------------------------------
@@ -110,11 +110,11 @@ export function buildTFNGPrompt(numQuestions) {
 TFNG RULES (Binary Overhaul):
 - The stem MUST be a declarative STATEMENT ending with a period (.) — NOT a question.
 - The correctAnswer must be exactly "T", "F", or "NG" (single letter).
+- TRUE: A statement is TRUE if the passage directly supports it through explicit wording OR through clear inferential logic (e.g., binary contrast, direct synonym substitution, or logical entailment). If the passage says "X is not A but B", then "X is B" is True — do NOT mark as NG.
 - FALSE requires explicit, verifiable contradiction in the text. The statement must directly conflict with a specific sentence, not merely differ from the overall implication.
-- NOT GIVEN applies when a statement is highly plausible and aligns with common sense, but simply cannot be verified from the text. Create NG items by:
-  * Inserting an unmentioned comparison (e.g., stating X is "more effective" than Y when the text only says both are effective).
-  * Inserting an unverified motive (e.g., stating a character did X "because of" Y when the text mentions the action but not the rationale).
-- CRITICAL: Do NOT treat "False" and "Not Given" interchangeably. An NG answer must be a statement the passage neither confirms nor contradicts — not one it contradicts.
+- NOT GIVEN: Apply NG ONLY when a modifier (such as 'publicly', 'historically', 'globally', 'always', 'never') is introduced in the question but is entirely missing or unverified in the passage text. Do NOT mark as NG when the answer can be inferred through clear logical reasoning from the passage.
+- CRITICAL NG PROTOCOL: Do NOT treat "False" and "Not Given" interchangeably. An NG answer must be a statement the passage neither confirms nor contradicts. Never infer False from absence of evidence — if the text is silent on a claim, it is Not Given, not False.
+- SECRET ACTION PROTOCOL: If the text describes a secret or private action, do NOT infer the opposite of a public action. E.g., if the text says "they secretly did X," this does NOT prove "they publicly condemned Y" is False — it is Not Given. The passage simply doesn't address the public action.
 - ${ngConstraint}
 `;
 }
@@ -142,15 +142,17 @@ export function buildShortAnswerPrompt() {
   return `
 SHORT-ANSWER & OPEN-ENDED DESIGN:
 - Short-answer: answer with a word/phrase from the passage (or own words if specified).
-- Include acceptableAnswers array for multiple correct alternatives.
+- Include acceptableAnswers array with at least 2-3 valid alternative phrasings, including conceptual synonyms and professional terminology equivalents.
 - Add wordLimit field when applicable (e.g., "in no more than 15 words").
-- For questions with marks ≥2, include rubric with requiredPoints.
+- For questions with marks >=2, include rubric with requiredPoints.
 - These must NOT be answerable by copying a single line. Target synthesis across structural gaps.
 - Force candidates to locate two competing forces within the text, bridge them, and articulate the tension.
 - Focus stems on paradox, irony, and divergence:
   * Instead of asking what a character's plan is, ask why their plan contradicts their stated values.
   * Instead of asking for a definition, ask how different stakeholders interpret the same term differently.
-- For these questions, the rubric field is REQUIRED for marks ≥2 — list evidence demands in requiredPoints and shallow responses in unacceptableAnswers.
+- For these questions, the rubric field is REQUIRED for marks >=2 -- list evidence demands in requiredPoints and shallow responses in unacceptableAnswers.
+- IMPORTANT: When generating acceptableAnswers, include both literal text extractions AND conceptual equivalents. E.g., for an answer about "the taste of dirt/earth", also accept "terroir", "soil profile characteristics", "grounded flavor profile" — real DSE markers reward precise professional terminology.
+- For 2-mark contrast questions, the rubric.requiredPoints must list EACH distinct contrast element as a separate point. E.g., for an interior/exterior contrast, requiredPoints should be ["interior description/characteristic", "exterior description/characteristic"] so partial credit can be awarded.
 `;
 }
 

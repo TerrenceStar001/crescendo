@@ -117,10 +117,6 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
 
   useEffect(() => {
     if (timeRemaining === null || phase === 'results') return;
-    if (timeRemaining <= 0) {
-      finishSession();
-      return;
-    }
     timerRef.current = setInterval(() => {
       setTimeRemaining(t => {
         if (!Number.isFinite(t)) { clearInterval(timerRef.current); return 0; }
@@ -132,7 +128,12 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [phase, timeRemaining]);
+  }, [phase]);
+
+  useEffect(() => {
+    if (timeRemaining !== 0 || phase !== 'active') return;
+    finishSession();
+  }, [timeRemaining, phase]);
 
   const handleAnswer = useCallback((questionId, answer) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
