@@ -1878,9 +1878,15 @@ Return ONLY valid JSON with this exact schema:
   }, []);
 
   // --- Text-type verification (pre-scoring check) ---
+  // Local helper: strip HTML to plain text
+  const stripHtml = (html) => {
+    if (!html) return '';
+    return html.replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ').trim();
+  };
+
   const detectTextType = useCallback((text) => {
     if (!text) return 'unknown';
-    const plain = getEssayPlainText(text).toLowerCase();
+    const plain = stripHtml(text).toLowerCase();
     
     // Story/narrative indicators
     if (/once upon|he said|she said|narrat|story|fiction|plot|character|protagonist/i.test(plain) ||
@@ -1933,7 +1939,7 @@ Return ONLY valid JSON with this exact schema:
 
   // --- Part A format checker ---
   const checkPartAFormat = useCallback((essayHTML, textType) => {
-    const plainText = getEssayPlainText(essayHTML).trim();
+    const plainText = stripHtml(essayHTML).trim();
     const lower = plainText.toLowerCase();
     const checks = {
       hasSalutation: false,
@@ -1961,7 +1967,7 @@ Return ONLY valid JSON with this exact schema:
     }
 
     return checks;
-  }, [getEssayPlainText]);
+  }, []);
 
   // --- Output validation (post-AI correction) ---
   const validateCorrectionOutput = useCallback((result) => {
