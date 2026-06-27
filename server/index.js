@@ -461,7 +461,7 @@ app.get('/api/rag/article/:id', (req, res) => {
 
 app.post('/api/ai/external-proxy', async (req, res) => {
   try {
-    const { endpoint, apiKey, model, messages, maxTokens } = req.body;
+    const { endpoint, apiKey, model, messages, maxTokens, temperature } = req.body;
     if (!endpoint) return res.status(400).json({ error: 'endpoint required' });
 
     const headers = { 'Content-Type': 'application/json' };
@@ -474,7 +474,7 @@ app.post('/api/ai/external-proxy', async (req, res) => {
         model,
         messages,
         max_tokens: maxTokens || 1024,
-        temperature: 0.3,
+        temperature: temperature ?? 0.3,
       }),
       signal: AbortSignal.timeout(120000),
     });

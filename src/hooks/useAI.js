@@ -65,7 +65,7 @@ async function callAI(endpoint, apiKey, model, messages, maxTokens) {
       res = await fetch('/api/ai/external-proxy', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ endpoint, apiKey, model, messages, maxTokens }),
+        body: JSON.stringify({ endpoint, apiKey, model, messages, maxTokens, temperature: 0.3 }),
         signal: controller.signal,
       });
     }

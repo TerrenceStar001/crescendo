@@ -76,7 +76,7 @@ function CrescendoApp() {
       const res = await fetch(isExternal ? '/api/ai/external-proxy' : ep, {
         method: 'POST',
         headers: isExternal ? { 'Content-Type': 'application/json' } : headers,
-        body: isExternal ? JSON.stringify({ endpoint: ep, apiKey: config.apiKey, model, messages, maxTokens: opts.maxTokens || 2000 }) : body,
+        body: isExternal ? JSON.stringify({ endpoint: ep, apiKey: config.apiKey, model, messages, maxTokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 }) : body,
         signal: controller.signal,
       });
       clearTimeout(timeout);
