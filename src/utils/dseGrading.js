@@ -1,4 +1,5 @@
 import { checkAnswer, isQuestionCorrect } from './answerChecking';
+import { getIeltsToDseMap, storeIeltsToDseMap, convertToHkeaa } from './ieltsToDseMap.js';
 export { isQuestionCorrect };
 
 const DSE_LEVEL_ORDER = ['1', '2', '3', '4', '5', '5*', '5**'];
@@ -357,4 +358,5 @@ export function computeStreak(sessions) {
   return { streak, todayActive };
 }
 
+export { getIeltsToDseMap, storeIeltsToDseMap, convertToHkeaa };
 export { DSE_SKILL_WEIGHTS, PER_SKILL_DEFAULTS, SKILLS };
