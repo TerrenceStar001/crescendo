@@ -1747,13 +1747,34 @@ Return as JSON array of 3 objects:
   }, [getCachedPapers, cachePapers]);
 
   const buildCorrectionPrompt = useCallback((part, essay, promptInfo, selfAssessment) => {
-    return `You are an expert HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **specific, diagnostic, and actionable**.
+    const essayWords = (essay?.text || '').split(/\s+/).length;
+    const expectedWords = part === 'A' ? 200 : 400;
+    const wordCountNote = essayWords < expectedWords * 0.7
+      ? `⚠️ UNDER-LENGTH: ~${essayWords} words (expected ~${expectedWords}). This likely harms content development and task fulfilment.`
+      : essayWords > expectedWords * 1.5
+        ? `⚠️ OVER-LENGTH: ~${essayWords} words (expected ~${expectedWords}). Quality may suffer from lack of proofreading.`
+        : `Word count: ~${essayWords} words (appropriate for expected ~${expectedWords}).`;
+
+    const noPromptWarning = !promptInfo?.task
+      ? '⚠️ NO PROMPT PROVIDED — The original exam question was NOT available. You CANNOT verify task-fulfilment. Treat this as a general English proficiency assessment without task verification. CAP Content at 5/7 (you cannot confirm relevance to an unknown task). Mention this limitation clearly in your feedback.'
+      : '';
+
+    return `You are a strict HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **honest, critical, and diagnostic**.
+
+GRADING CALIBRATION — READ THIS FIRST:
+- 7/7 should be EXTREMELY RARE — virtually flawless, sophisticated, insightful.
+- 6/7 means excellent but with a specific identifiable weakness.
+- 5/7 means good — competent, meets requirements, but has clear room for improvement.
+- 4/7 means adequate — basic requirements met, notable weaknesses.
+- Real HKEAA examiners DO NOT inflate scores. Be honest and critical. A script that is "pretty good" should get 5/7, not 6/7.
 
 TASK TO EVALUATE (Part ${part}):
 ---PROMPT---
 Context: ${promptInfo?.context || ''}
 Task: ${promptInfo?.task || ''}
 Text type: ${promptInfo?.type || 'essay'}
+${wordCountNote}
+${noPromptWarning}
 ---END PROMPT---
 
 ---STUDENT'S ESSAY---
@@ -1762,61 +1783,78 @@ ${essay?.text || ''}
 
 ${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas.` : ''}
 
-CRITICAL SCORING RULES — READ THESE FIRST:
+CRITICAL SCORING RULES:
 1. TASK-FULFILMENT CHECK (MOST IMPORTANT): Compare the student's essay to the prompt BEFORE scoring.
    - Did the student write the CORRECT text type? (e.g., if prompt asks for a letter, a story scores Content 0-1)
    - Is the essay ON TOPIC? (e.g., if prompt asks about smartphones, a story about a mahjong shop is off-topic)
    - If the response is off-topic or wrong text type: Content = 0-1. Do NOT reward language quality in an off-topic response.
    - A partially relevant response scores Content 2-3, not 5-7.
+   - For argumentative/persuasive tasks: assess argument quality — are claims supported by specific evidence, examples, or reasoning? Are counter-arguments considered? Mere assertion without evidence caps Content at 5/7.
 
 2. FORMAT CHECK (Part A only): Explicitly verify format elements:
-   - Letters: salutation (Dear X,), closing formula (Yours sincerely), signature
-   - Emails: subject line, appropriate sign-off
-   - Proposals: headed sections, formal structure
-   - Speeches: audience address (opening greeting), spoken register, concluding remarks
-   - Articles: headline, engaging opening, appropriate register
+   - Letters: salutation + subject line must be on SEPARATE lines, closing formula (Yours sincerely/faithfully), signature
+   - Emails: subject line, appropriate sign-off, professional tone
+   - Proposals: headed sections, formal structure, clear recommendations
+   - Speeches: audience greeting, spoken register (rhetorical questions, direct address, varied sentence length for oral impact), concluding remarks with call to action
+   - Articles: headline/title, engaging opening hook, appropriate register
    - Missing format elements reduce Organisation score by 1-2 bands.
 
-3. ORGANISATION includes genre conventions. A story written as a letter fails genre conventions entirely — Organisation should reflect this, not reward narrative structure when a letter was required.
+3. ORGANISATION includes genre conventions. A story written as a letter fails genre conventions entirely.
+   - Speeches MUST show speech-specific features (audience address, rhetorical devices, oral rhythm), not just essay structure with a greeting tacked on.
+   - Mechanical signposting ("First of all... Secondly... Finally") is NOT sophisticated cohesion. It is adequate (5/7) at best.
 
-4. LANGUAGE includes register. A narrative voice in a formal complaint letter is a register mismatch. Flag this.
+4. LANGUAGE includes register, sentence variety, and vocabulary precision.
+   - Count sentence structure types: simple, compound, complex, compound-complex, inversion, fronting, participle clauses, conditionals.
+   - If fewer than 4 distinct structure types are used, Language should be at most 5/7.
+   - "Adequate range" (5/7) does NOT mean "some errors but okay" — it means limited structural variety AND some errors.
+   - "Wide range" (6/7) requires at least 4-5 distinct structure types used naturally.
 
-5. ERROR LISTING: Only list ACTUAL errors. Never include "no error found" entries or placeholders.
+5. CONSISTENCY RULES:
+   - If errors array is empty, Language score must be 7/7. If Language ≤ 6, there MUST be at least 1 genuine error listed.
+   - Content score and errors: if Content is 6-7, errors should be minor. If Content is 3-4, errors can be major.
+   - Ensure pitfallsAvoided does not contradict vocabularySuggestions.
 
-6. VOCABULARY UPGRADES:
-   - Never suggest C2 vocabulary that sounds unnatural in a DSE context (e.g., avoid "metamorphosis" for everyday writing).
-   - Avoid redundant collocations (e.g., "plummeting precipitously" — plummet already means sharp descent).
+6. ERROR LISTING: Only list ACTUAL errors. Never include "no error found" entries or placeholders.
+   - Identify error PATTERNS, not just individual mistakes. If the same error type (e.g., article usage) appears multiple times, flag it as a pattern.
+
+7. VOCABULARY UPGRADES:
+   - Never suggest C2 vocabulary that sounds unnatural in a DSE context.
+   - Avoid redundant collocations.
    - Every suggestion must show the full sentence context.
+   - Ensure upgrades match the register of the task (e.g., formal letter upgrades should maintain formality).
 
-7. CONSISTENCY: Ensure pitfalls avoided doesn't contradict vocabulary suggestions.
+8. SECTION BREAKDOWN: Do NOT assign identical scores across sections. If all sections score the same, the breakdown provides no diagnostic value. Vary scores to reflect real paragraph-level quality differences.
 
 HKEAA MARKING CRITERIA (Paper 2):
-Content (7 marks): Relevance to prompt, task fulfilment, development of ideas, audience awareness, creativity.
-- 7: Fully relevant, extensive, insightful, sophisticated treatment, engages reader
-- 6: Relevant, well-developed, clear purpose, mostly engaging
-- 5: Mostly relevant, adequate development, some depth
-- 4: Generally relevant, some development, may lack focus in parts
-- 3: Partially relevant, limited development, some digression
+Content (7 marks): Relevance to prompt, task fulfilment, development of ideas (evidence, examples, reasoning), audience awareness, creativity, argument quality.
+- 7: Fully relevant, extensive, insightful, sophisticated treatment, engages reader, strong evidence/reasoning
+- 6: Relevant, well-developed, clear purpose, mostly engaging, some specific evidence
+- 5: Mostly relevant, adequate development, some depth, claims stated but may lack specific evidence
+- 4: Generally relevant, some development, may lack focus in parts, ideas generic
+- 3: Partially relevant, limited development, some digression, unsupported claims
 - 2: Limited relevance, little development, largely off-task
 - 1: Irrelevant or minimal content
+Note: For argumentative/persuasive tasks, Content 6-7 requires specific evidence, examples, or reasoning — not just assertion. Consideration of counter-arguments strengthens Content at 6+.
 
-Organization (7 marks): Structure, paragraphing, cohesion, genre conventions.
-- 7: Sophisticated structure, flawless paragraphing, seamless cohesion, perfectly matched to genre
-- 6: Coherent structure, effective paragraphing, good use of cohesive devices
-- 5: Clear structure, mostly appropriate paragraphing, adequate cohesion
+Organization (7 marks): Structure, paragraphing, cohesion, genre conventions, speech-specific features (where applicable).
+- 7: Sophisticated structure, flawless paragraphing, seamless cohesion, perfectly matched to genre. Speeches show rhetorical devices, varied sentence length for oral impact, audience engagement.
+- 6: Coherent structure, effective paragraphing, good use of cohesive devices. Speeches use direct address and varied openings.
+- 5: Clear structure, mostly appropriate paragraphing, adequate cohesion. May rely on mechanical signposting ("First... Second... Finally").
 - 4: Generally organized, some paragraphing errors, cohesion inconsistent
 - 3: Some structure but lacks coherence, paragraphing weak in parts
 - 2: Poor structure, minimal paragraphing, confusing
 - 1: No discernible structure
+Note: Mechanical "First of all... Secondly... Finally" is NOT sophisticated cohesion — it caps Organization at 5/7. Speeches without rhetorical questions or audience engagement also cap at 5/7.
 
-Language (7 marks): Grammar accuracy, vocabulary range, sentence structure variety, register, punctuation.
+Language (7 marks): Grammar accuracy, vocabulary range, sentence structure variety (count distinct types), register, punctuation.
 - 7: Wide range of complex structures used accurately, sophisticated vocabulary, flawless grammar, consistent register
-- 6: Good range of structures, mostly accurate, wide vocabulary, register appropriate
-- 5: Adequate range, some errors but meaning clear, appropriate vocabulary
-- 4: Limited range, noticeable errors, basic vocabulary
-- 3: Narrow range, frequent errors, limited vocabulary
+- 6: Good range of structures (4+ distinct types), mostly accurate, wide vocabulary, register appropriate
+- 5: Adequate range (3-4 types), some errors but meaning clear, appropriate vocabulary
+- 4: Limited range (2-3 types), noticeable errors, basic vocabulary
+- 3: Narrow range (1-2 types), frequent errors, limited vocabulary
 - 2: Very limited range, pervasive errors, inadequate vocabulary
 - 1: Incomprehensible
+Note: Language score MUST be justified by errors listed. If errors array is empty, Language must be 7/7.
 
 FEEDBACK RULES:
 1. For EACH rubric (content, organization, language): state a STRENGTH (quote exact phrase) and a SPECIFIC WEAKNESS (quote exact phrase) with a concrete suggestion.
@@ -1983,6 +2021,22 @@ Return ONLY valid JSON with this exact schema:
       });
     }
 
+    // Score-vs-errors consistency: if errors array is empty, Language must be 7
+    const langScore = result.language?.score;
+    const errorCount = result.errors?.length || 0;
+    if (errorCount === 0 && langScore !== undefined && langScore < 7) {
+      issues.push(`Inconsistency: Language score ${langScore}/7 but zero errors listed — if no errors, Language should be 7/7`);
+    }
+    if (errorCount > 0 && langScore === 7) {
+      issues.push(`Inconsistency: Language score 7/7 but ${errorCount} error(s) listed — score should be 6/7 max with errors present`);
+    }
+
+    // Score-vs-severity check: if any Critical errors exist, Content/Language should be ≤5
+    const hasCritical = result.errors?.some(e => e.severity === 'Critical');
+    if (hasCritical && (result.content?.score || 0) > 5) {
+      issues.push(`Inconsistency: Content score ${result.content.score}/7 but Critical errors present — Content should be ≤5`);
+    }
+
     if (result.pitfallsAvoided && result.vocabularySuggestions) {
       const avoidsAdverbs = result.pitfallsAvoided.some(p => p.toLowerCase().includes('adverb'));
       const hasAdverbUpgrades = result.vocabularySuggestions.some(v => 
@@ -1990,6 +2044,14 @@ Return ONLY valid JSON with this exact schema:
       );
       if (avoidsAdverbs && hasAdverbUpgrades) {
         issues.push('Inconsistency: claims student avoided adverbs but suggests adverb-heavy upgrades');
+      }
+    }
+
+    // Check for suspicious uniform section scores
+    if (result.sectionBreakdown) {
+      const scores = Object.values(result.sectionBreakdown).map(s => s.score).filter(s => s !== undefined);
+      if (scores.length >= 3 && new Set(scores).size === 1) {
+        issues.push('Suspicious: all section scores are identical — AI may not have genuinely evaluated each paragraph');
       }
     }
 
@@ -2003,20 +2065,33 @@ Return ONLY valid JSON with this exact schema:
   }, []);
 
   const combineCorrections = useCallback((partAResult, partBResult) => {
-    const contentScore = Math.round(((partAResult?.content?.score || 0) + (partBResult?.content?.score || 0)) / 2);
-    const orgScore = Math.round(((partAResult?.organization?.score || 0) + (partBResult?.organization?.score || 0)) / 2);
-    const langScore = Math.round(((partAResult?.language?.score || 0) + (partBResult?.language?.score || 0)) / 2);
+    // Real DSE weighting: Part A is 10% of subject, Part B is 15%. So Part B = 1.5x Part A.
+    const WEIGHT_A = 2;
+    const WEIGHT_B = 3;
+    const TOTAL_WEIGHT = WEIGHT_A + WEIGHT_B;
+
+    const weightedAvg = (a, b) => Math.round(((a || 0) * WEIGHT_A + (b || 0) * WEIGHT_B) / TOTAL_WEIGHT);
+
+    const contentScore = weightedAvg(partAResult?.content?.score, partBResult?.content?.score);
+    const orgScore = weightedAvg(partAResult?.organization?.score, partBResult?.organization?.score);
+    const langScore = weightedAvg(partAResult?.language?.score, partBResult?.language?.score);
     const totalA = (partAResult?.content?.score || 0) + (partAResult?.organization?.score || 0) + (partAResult?.language?.score || 0);
     const totalB = (partBResult?.content?.score || 0) + (partBResult?.organization?.score || 0) + (partBResult?.language?.score || 0);
-    const combinedTotal = totalA + totalB;
-    const combinedPct = Math.round((combinedTotal / 42) * 100);
-    const dseLevel = scoreToDseLevel(combinedPct, 'writing').level;
+    // Weighted total out of 42: (A*2 + B*3) / 5 * 42 / 21... simpler: weighted pct
+    const weightedPct = Math.round(((totalA * WEIGHT_A + totalB * WEIGHT_B) / (21 * TOTAL_WEIGHT)) * 100);
+    const dseLevel = scoreToDseLevel(weightedPct, 'writing').level;
 
     return {
       content: { score: contentScore, feedback: [partAResult?.content?.feedback, partBResult?.content?.feedback].filter(Boolean).join(' ') },
       organization: { score: orgScore, feedback: [partAResult?.organization?.feedback, partBResult?.organization?.feedback].filter(Boolean).join(' ') },
       language: { score: langScore, feedback: [partAResult?.language?.feedback, partBResult?.language?.feedback].filter(Boolean).join(' ') },
-      overall: { total: combinedTotal, maxTotal: 42, percentage: combinedPct, dseLevel, narrativeSummary: [partAResult?.overall?.narrativeSummary, partBResult?.overall?.narrativeSummary].filter(Boolean).join(' ') },
+      overall: {
+        total: totalA + totalB,
+        maxTotal: 42,
+        percentage: weightedPct,
+        dseLevel,
+        narrativeSummary: [partAResult?.overall?.narrativeSummary, partBResult?.overall?.narrativeSummary].filter(Boolean).join(' '),
+      },
       errors: [...(partAResult?.errors || []), ...(partBResult?.errors || [])],
       vocabularySuggestions: [...(partAResult?.vocabularySuggestions || []), ...(partBResult?.vocabularySuggestions || [])],
       goodLanguage: [...(partAResult?.goodLanguage || []), ...(partBResult?.goodLanguage || [])],

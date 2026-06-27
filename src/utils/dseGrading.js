@@ -186,6 +186,29 @@ export function formatDseLevel(level) {
   return level;
 }
 
+// HKEAA benchmarking study: DSE writing percentage → approximate IELTS Writing band
+const IELTS_WRITING_MAP = [
+  { minPct: 95, band: '7.5' },
+  { minPct: 88, band: '7.0' },
+  { minPct: 83, band: '6.5' },
+  { minPct: 76, band: '6.5' },
+  { minPct: 67, band: '6.0' },
+  { minPct: 50, band: '5.5' },
+  { minPct: 0, band: '5.0' },
+];
+
+export function pctToIeltsWriting(pct) {
+  for (const m of IELTS_WRITING_MAP) {
+    if (pct >= m.minPct) return m.band;
+  }
+  return '5.0';
+}
+
+export function dseLevelToIelts(level) {
+  const map = { '5**': '7.5', '5*': '7.0', '5': '6.5', '4': '6.0', '3': '5.5', '2': '5.0', '1': '4.5' };
+  return map[level] || '—';
+}
+
 export function dseLevelColor(level) {
   const colors = {
     '1': '#ef5350',

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useView } from '../context/ViewContext';
-import { scoreToDseLevel } from '../utils/dseGrading';
+import { scoreToDseLevel, dseLevelToIelts, pctToIeltsWriting } from '../utils/dseGrading';
 
 const SESSION_KEY = 'crescendo-writing-session';
 const TOTAL_DURATION = 7200; // 2 hours in seconds
@@ -357,6 +357,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       const formatCheck = part === 'A' && promptInfo?.type ? dsePapers.checkPartAFormat(essay, promptInfo.type) : null;
       const isOffTopic = textTypeMatch && !textTypeMatch.match;
       const hasFormatIssues = formatCheck && formatCheck.issues.length > 0;
+      const hasNoPrompt = !promptInfo?.task;
 
       const prompt = dsePapers.buildCorrectionPrompt(part, { essay, text: plainText, prompt: promptInfo }, selfAssessment);
 
@@ -379,7 +380,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       }
 
       // Attach pre-scoring check results to the parsed result for UI display
-      parsed._preChecks = { isOffTopic, textTypeMatch, hasFormatIssues, formatIssues: formatCheck?.issues };
+      parsed._preChecks = { isOffTopic, textTypeMatch, hasFormatIssues, formatIssues: formatCheck?.issues, hasNoPrompt };
 
       const partTotal = (parsed.content?.score || 0) + (parsed.organization?.score || 0) + (parsed.language?.score || 0);
       const partPct = Math.round((partTotal / 21) * 100);
@@ -545,6 +546,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     if (!result) return null;
     const block = result;
     const blockErrors = block.errors || [];
+
+    // Detect uniform section scores (non-diagnostic)
+    const sectionScores = block.sectionBreakdown ? Object.values(block.sectionBreakdown).map(s => s.score).filter(s => s !== undefined) : [];
+    const hasUniformSections = sectionScores.length >= 3 && new Set(sectionScores).size === 1;
     const errorTypes = ['grammar', 'vocabulary', 'structure', 'style', 'punctuation', 'spelling', 'content'];
     const errorColors = {
       grammar: '#ef5350', vocabulary: '#ff9800', structure: '#5b5bf0',
@@ -590,6 +595,11 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         {block.sectionBreakdown && Object.keys(block.sectionBreakdown).length > 0 && (
           <div className="writing__section-breakdown">
             <h3 className="writing__section-breakdown-header">Section-by-Section Breakdown</h3>
+            {hasUniformSections && (
+              <div className="writing__precheck-warning writing__precheck-warning--warning">
+                All sections scored identically — the AI may not have genuinely differentiated paragraph quality. Focus on the qualitative feedback.
+              </div>
+            )}
             <div className="writing__section-breakdown-sections">
               {Object.entries(block.sectionBreakdown).map(([section, data]) => (
                 <div key={section} className="writing__section-breakdown-item">
@@ -928,7 +938,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
               </svg>
             </div>
             <div className={`writing__correction-level writing__correction-level--${pct >= 80 ? 'high' : pct >= 60 ? 'mid' : 'low'}`}>
-              DSE Level: {level}
+              DSE Level: {level}  <span className="writing__correction-ielts">IELTS Writing ~{dseLevelToIelts(level)}</span>
             </div>
             <div className="writing__correction-total">{total} / 21</div>
             {cr.overall?.narrativeSummary && (
@@ -938,6 +948,26 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
               </div>
             )}
           </div>
+
+          {/* Pre-scoring warnings for Part A correction phase */}
+            <div className="writing__warning writing__warning--warning">
+              ⚠️ No prompt provided — task-fulfilment could not be verified. Content score may not reflect exam conditions.
+            </div>
+          )}
+          {cr._preChecks?.isOffTopic && (
+            <div className="writing__warning writing__warning--critical">
+              ⚠️ Text Type Mismatch: Expected "{cr._preChecks.textTypeMatch?.note?.split(',')[0] || 'letter'}" but detected "{cr._preChecks.textTypeMatch?.detected}". Content score may be artificially high.
+            </div>
+          )}
+          {cr._preChecks?.hasFormatIssues && cr._preChecks.formatIssues?.length > 0 && (
+            <div className="writing__warning writing__warning--major">
+              <ul>
+                {cr._preChecks.formatIssues.map((issue, i) => (
+                  <li key={i}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {renderCorrectionBlock(cr, 'Part A', partA.essay)}
 
@@ -1025,7 +1055,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
               </svg>
             </div>
             <div className={`writing__correction-level writing__correction-level--${pct >= 80 ? 'high' : pct >= 60 ? 'mid' : 'low'}`}>
-              DSE Level: {level}
+              DSE Level: {level}  <span className="writing__correction-ielts">IELTS Writing ~{dseLevelToIelts(level)}</span>
             </div>
             <div className="writing__correction-total">{total} / {maxTotal}</div>
             {cr.overall?.narrativeSummary && (
@@ -1069,6 +1099,11 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           {/* Pre-scoring warnings */}
           {correctionPartAResult && correctionPartAResult._preChecks && (
             <div className="writing__pre-check-warnings">
+              {correctionPartAResult._preChecks.hasNoPrompt && (
+                <div className="writing__warning writing__warning--warning">
+                  ⚠️ No prompt provided — task-fulfilment could not be verified. Content score may not reflect exam conditions.
+                </div>
+              )}
               {correctionPartAResult._preChecks.isOffTopic && (
                 <div className="writing__warning writing__warning--critical">
                   ⚠️ Text Type Mismatch: Expected "{correctionPartAResult._preChecks.textTypeMatch?.note?.split(',')[0] || 'letter'}" but detected "{correctionPartAResult._preChecks.textTypeMatch?.detected}". Content score may be artificially high.
