@@ -2,23 +2,23 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 3
+current_phase: 5
 status: executing
-last_updated: "2026-06-25T09:28:35.965Z"
+last_updated: "2026-06-27T15:00:00.000Z"
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 4
   total_plans: 21
   completed_plans: 21
-  percent: 100
+  percent: 80
 ---
 
 # Project State
 
-## Session: Phase 3 Complete — All Milestone Goals Achieved
+## Session: Phase 5 — IELTS-First Grading Pipeline & DSE Conversion
 
-**Current phase:** 3
-**Last action:** Phase 3 executed — all 3 plans across 2 waves complete.
+**Current phase:** 5
+**Last action:** Phase 4 complete. Phase 5 repurposed — goal changed from "Writing Examiner Insights" to "IELTS-First Grading Pipeline & DSE Conversion".
 
 ## Project Reference
 
@@ -36,6 +36,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 | 2     | ✓      | 3/3   | 100%     |
 | 3     | ✓      | 3/3   | 100%     |
 | 4     | ✓      | 4/4   | 100%     |
+| 5     | ○      | 0/3   | 0% (planned) |
 
 ## Phase 1 Completion Report
 
@@ -139,7 +140,17 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 
 ## Next Step
 
-Phase 4 Complete — All 4 plans across 2 waves executed.
+Execute Phase 5: `/gsd-execute-phase 05-writing-examiner-insights` (`/clear` first)
+
+Phase 5 addresses a fundamental accuracy issue: LLMs don't understand HKDSE standards deeply enough to grade authentically. The fix is to grade in IELTS bands (which LLMs handle well), then convert to DSE levels via a calibrated mapping table.
+
+3 plans in 3 waves:
+
+| Wave | Plan | Description | Autonomous |
+|------|------|-------------|------------|
+| 1 | 05-01 | IELTS-first correction prompt redesign + band descriptor rubrics | ✓ |
+| 2 | 05-02 | IELTS→DSE conversion mapping table with HKEAA calibration | ✓ |
+| 3 | 05-03 | UI: IELTS badge, conversion settings, validation tool | ✗ (1 checkpoint) |
 
 ### Phase 4 Completion Report
 

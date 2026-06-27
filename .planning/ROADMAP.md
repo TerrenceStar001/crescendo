@@ -2,7 +2,7 @@
 
 **Created:** 2026-06-23
 **Mode:** mvp
-**Phases:** 4 | **Requirements:** 7 | **Coverage:** 100% ✓
+**Phases:** 5 | **Requirements:** 7 | **Coverage:** 100% ✓
 
 ### Phase 1: Passage Quality & DSE Authenticity
 
@@ -92,3 +92,28 @@ Plans:
 - [x] 04-02-PLAN.md — Core exam: state machine, timer, ruled editor, Part B selector, auto-save (Wave 2)
 - [x] 04-03-PLAN.md — Correction: AI pipeline, rubric results, error list, vocab, save to history (Wave 2)
 - [x] 04-04-PLAN.md — Advanced: inline annotations, error chart, resubmit, history, comparison (Wave 2)
+
+### Phase 5: IELTS-First Grading Pipeline & DSE Conversion
+
+**Goal:** AI correction grades in IELTS bands first (which LLMs handle accurately), then converts to DSE levels via a calibrated mapping table — eliminating inflated grades from naive direct-HKDSE scoring that LLMs do poorly.
+
+**Mode:** mvp
+
+**Success Criteria:**
+
+1. Correction prompt uses IELTS Writing band descriptors (Task Achievement, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy) as primary scoring rubrics
+2. IELTS band → DSE level conversion uses a calibrated mapping table derived from HKEAA level descriptors and examiner report data
+3. Conversion table is configurable in Settings → DSE tab (same pattern as existing DSE boundaries)
+4. Both per-part and combined scores display IELTS band equivalent alongside DSE level
+5. Spot-check against 5 real HKDSE candidate scripts: converted scores match official HKEAA grades within ±1 DSE sub-grade
+6. dseGrading.js exports IELTS↔DSE conversion utilities in addition to existing scoring functions
+
+**Requirements:** WRITE-02
+**Depends on:** Phase 4
+**Plans:** 3 plans in 3 waves
+
+Plans:
+
+- [ ] 05-01-PLAN.md — IELTS-first correction prompt redesign (Wave 1)
+- [ ] 05-02-PLAN.md — IELTS→DSE conversion mapping table + combineCorrections wiring (Wave 2)
+- [ ] 05-03-PLAN.md — UI: IELTS badge, conversion settings in DSE tab (Wave 3)
