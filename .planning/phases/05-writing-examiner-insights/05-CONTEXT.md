@@ -6,54 +6,59 @@
 <domain>
 ## Phase Boundary
 
-Inject HKEAA examiner insights into the existing AI correction pipeline (built in Phase 4) to produce more authentic, rubric-grounded feedback. This phase encodes HKEAA level descriptors as structured code, adds per-text-type format convention checking, extracts modular correction sub-components, and enhances the AI prompt with memorised phrase detection.
+Overhaul the AI correction pipeline to use an **IELTS-first scoring approach** (LLMs are more accurate at IELTS band scoring) with automatic conversion to HKEAA Content/Organisation/Language scores and DSE levels. Also encode HKEAA level descriptors as structured code, add per-text-type format convention checking, extract modular correction sub-components, and add memorised phrase detection.
 
-**Scope:** Correction pipeline improvements only (prompt engineering, utility modules, sub-component extraction, prompt refinements). No new features or modules beyond what Phase 4 established.
+**Scope:** Correction prompt redesign, IELTS→HKEAA conversion table, format convention utilities, sub-component extraction, prompt refinements for memorised phrases. No new features or modules beyond what Phase 4 established.
 
-**Not in scope:** Adding new exam types (IELTS, TOEFL), overhauling the WritingModule state machine, changing the Part A/B submission workflow.
+**Not in scope:** Displaying IELTS scores to the user, overhauling the WritingModule state machine, changing the Part A/B submission workflow.
 
 </domain>
 
 <decisions>
 ## Implementation Decisions
 
+### Scoring Pipeline (IELTS-First Approach)
+
+- **D-01:** The AI correction prompt uses IELTS Writing band descriptors as the primary scoring rubric: Task Achievement (TA), Coherence & Cohesion (CC), Lexical Resource (LR), Grammatical Range & Accuracy (GRA) — each scored 0-9 with 0.5 increments. LLMs produce more accurate scores in IELTS format than in direct HKEAA scoring.
+- **D-02:** After `parseCorrectionResponse` extracts IELTS band scores, a calibration function converts IELTS TA → HKEAA Content (0-7), CC → HKEAA Organisation (0-7), and (LR + GRA avg) → HKEAA Language (0-7) via a mapping table.
+- **D-03:** Create `src/utils/ieltsToDseMap.js` — calibrated IELTS→HKEAA conversion mapping table derived from HKEAA level descriptors and examiner report data. Configurable via Settings → DSE tab (same pattern as existing DSE boundaries).
+- **D-04:** Only HKEAA Content/Organisation/Language scores and overall DSE level are displayed to the user. IELTS scores are internal only — never shown in the UI.
+- **D-05:** `combineCorrections` computes overall DSE level from the converted HKEAA scores using the existing `dseGrading.js` path, but is informed by the IELTS→HKEAA mapping.
+
 ### HKEAA Level Descriptor Encoding
 
-- **D-01:** Create `src/utils/hkeaaWritingRubrics.js` — structured JS constants encoding all 7 bands for Content, Organisation, and Language per HKEAA Level Descriptors for Writing (LevelDescriptors-ENG-Writing.pdf). Each band gets exact descriptor text as a string constant.
-- **D-02:** The AI correction prompt (`buildCorrectionPrompt` in `useDSEPapers.js`) dynamically injects the full descriptor text for all 7 bands of each dimension. No summarising or band-selection logic — the model sees the complete HKEAA rubric for its scoring decision.
-- **D-03:** The JS constants serve as the single source of truth. Prompt text is generated programmatically from the constants, not maintained separately. Any future descriptor updates happen in the JS file only.
+- **D-06:** Create `src/utils/hkeaaWritingRubrics.js` — structured JS constants encoding all 7 bands for Content, Organisation, and Language per HKEAA Level Descriptors for Writing (LevelDescriptors-ENG-Writing.pdf). Each band gets exact descriptor text as a string constant.
+- **D-07:** The JS constants serve as source data for designing the IELTS→HKEAA conversion table, NOT for direct prompt injection. The prompt uses IELTS descriptors (D-01), not HKEAA descriptors.
+- **D-08:** hkeaaWritingRubrics.js also serves as structured reference for potential future UI (e.g., "What does a Content score of 5 mean?" tooltips).
 
 ### Part A Format Conventions
 
-- **D-04:** Create `src/utils/formatConventions.js` — structured per-text-type format rules (letter, email, proposal, speech as primary Part A types; article, report, blog as secondary). Each entry defines required structural elements, expected register, and common errors.
-- **D-05:** Code-based validation checks structural elements only: presence of salutation, closing, signature, subject line, headings, etc. (Deterministic checks.)
-- **D-06:** AI evaluation handles register, tone, and appropriateness of format elements. The code results and AI evaluation are combined in the correction output.
-- **D-07:** The existing `checkPartAFormat` in `useDSEPapers.js` is replaced/consolidated with the new utility.
+- **D-09:** Create `src/utils/formatConventions.js` — structured per-text-type format rules (letter, email, proposal, speech as primary Part A types; article, report, blog as secondary). Each entry defines required structural elements, expected register, and common errors.
+- **D-10:** Code-based validation checks structural elements only: presence of salutation, closing, signature, subject line, headings, etc. (Deterministic checks.)
+- **D-11:** AI evaluation handles register, tone, and appropriateness of format elements. The code results and AI evaluation are combined in the correction output.
+- **D-12:** The existing `checkPartAFormat` in `useDSEPapers.js` is replaced/consolidated with the new utility.
 
 ### Component Extraction
 
-- **D-08:** Extract three new sub-components from the inline `WritingModule.jsx` correction display:
+- **D-13:** Extract three new sub-components from the inline `WritingModule.jsx` correction display:
   - `src/components/RubricDisplay.jsx` — Content/Organisation/Language score cards with descriptor-level breakdown
   - `src/components/ErrorAnnotation.jsx` — Inline error annotations (extracted from existing inline annotation logic)
   - `src/components/FormatChecker.jsx` — Format validation results display (new, for the format conventions module)
-- **D-09:** All components live flat in `src/components/` (no subdirectory), consistent with existing codebase convention.
-- **D-10:** This reduces `WritingModule.jsx` by approximately 400 lines. The module imports these components rather than rendering everything inline.
+- **D-14:** All components live flat in `src/components/` (no subdirectory), consistent with existing codebase convention.
+- **D-15:** This reduces `WritingModule.jsx` by approximately 400 lines. The module imports these components rather than rendering everything inline.
 
 ### Memorised Phrase Detection
 
-- **D-11:** Add a new scoring dimension to the AI correction prompt instructing the model to detect and penalise over-reliance on memorised/template phrases. No code-based pattern matching.
-- **D-12:** Implementation: add to the prompt a directive like "If the essay reads like a standardised template with generic fill-in-the-blank content, cap Content at 5/7. Flag specific memorised phrases in errors/warnings." Exact wording refined during planning.
-
-### Planning Resolved Decisions
-
-- **D-13:** Existing plans (05-01-PLAN.md, 05-02-PLAN.md, 05-03-PLAN.md) propose IELTS band integration — this conflicts with the HKEAA-examiner-insight direction confirmed by this discussion. These plans MUST be rewritten during `/gsd-plan-phase` to align with the decisions above.
+- **D-16:** Add a detection directive to the IELTS-based correction prompt instructing the model to flag over-reliance on memorised/template phrases. No code-based pattern matching.
+- **D-17:** Implementation: add to the prompt a directive like "If the essay reads like a standardised template with generic fill-in-the-blank content, cap Task Achievement at 5/9. Flag specific memorised phrases in errors/warnings." Exact wording refined during planning.
 
 ### the agent's Discretion
 
-- Exact file structure and exports for `hkeaaWritingRubrics.js` and `formatConventions.js` — follow existing utility patterns (named exports, pure functions/constants)
+- Exact IELTS→HKEAA conversion mapping values (to be derived from research data)
+- File structure and exports for `hkeaaWritingRubrics.js`, `formatConventions.js`, `ieltsToDseMap.js` — follow existing utility patterns
 - CSS naming for new components — follow existing `.writing__*` BEM pattern in App.css
-- Prompt wording for memorised phrase detection — to be refined during planning based on what produces reliable results
-- Threshold for "over-reliance on memorised phrases" — agent to determine appropriate Content score cap (discussed: 5/7 max but can adjust)
+- Prompt wording for memorised phrase detection
+- Whether `parseCorrectionResponse` also extracts format check results from the AI's output
 
 </decisions>
 
@@ -78,14 +83,15 @@ Inject HKEAA examiner insights into the existing AI correction pipeline (built i
 - `src/components/ReadingResults.jsx` — Results composition pattern (reference for new sub-components)
 - `src/assets/bundled-content.json` — JSON data pattern (reference for format conventions data structure)
 
-### HKEAA Source Documents (cited in research)
+### HKEAA & IELTS Source Documents (cited in research)
 - HKEAA Level Descriptors for Writing (LevelDescriptors-ENG-Writing.pdf, 25/11/2014) — Official marking criteria for Content/Organisation/Language 0-7
 - HKEAA Briefing Session PowerPoint Presentations (2021-2025) — Examiner commentary on common weaknesses
+- IELTS Writing Task 2 band descriptors (public) — Task Achievement, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy, each 0-9
 
-### Existing Plans (to rewrite)
-- `.planning/phases/05-writing-examiner-insights/05-01-PLAN.md` — Existing plan (IELTS focus) — will be replaced
-- `.planning/phases/05-writing-examiner-insights/05-02-PLAN.md` — Existing plan (IELTS→DSE conversion) — will be replaced
-- `.planning/phases/05-writing-examiner-insights/05-03-PLAN.md` — Existing plan (IELTS display) — will be replaced
+### Upstream Phase References
+- `.planning/phases/05-writing-examiner-insights/05-RESEARCH.md` — HKEAA format conventions, pitfalls, architecture recommendations
+- `.planning/ROADMAP.md` §Phase 5 — Original IELTS-first phase goal, success criteria, existing plan structure
+- `.planning/REQUIREMENTS.md` — WRITE-02 (AI correction quality)
 
 </canonical_refs>
 
@@ -93,26 +99,29 @@ Inject HKEAA examiner insights into the existing AI correction pipeline (built i
 ## Existing Code Insights
 
 ### Reusable Assets
-- `src/hooks/useDSEPapers.js` — `buildCorrectionPrompt` is the primary integration point. Already has HKEAA-style scoring in the prompt text. Phase 5 refines this prompt and extracts structured descriptors into a standalone utility.
+- `src/hooks/useDSEPapers.js` — `buildCorrectionPrompt` is the primary integration point. Currently has HKEAA-style scoring in the prompt text. Phase 5 replaces this with IELTS-band prompt + conversion back to HKEAA scores. Also contains `parseCorrectionResponse` and `combineCorrections`.
 - `src/components/WritingModule.jsx` — Existing inline correction display includes: rubric scores, error list, good language, vocab suggestions, pitfalls, inline annotations, section breakdown, error frequency chart. These are the extraction targets.
-- `src/utils/structuralConstraints.js` — Existing DSE structural rules file. `formatConventions.js` follows the same pattern.
-- `src/utils/dseGrading.js` — `scoreToDseLevel()` used for writing score→level mapping. No changes needed unless scoring logic changes.
+- `src/utils/structuralConstraints.js` — Existing DSE structural rules file. `formatConventions.js` and `ieltsToDseMap.js` follow the same pattern.
+- `src/utils/dseGrading.js` — Existing `scoreToDseLevel()`, `getStoredBoundaries()`, `storeBoundaries()`. The IELTS→DSE conversion uses the same configurable-boundaries pattern.
 
 ### Established Patterns
-- **Utility-as-constants**: Project already uses this pattern (e.g., `structuralConstraints.js` with `WORD_COUNT_TARGETS`, `GENRE_TEMPLATES`). `hkeaaWritingRubrics.js` and `formatConventions.js` follow the same approach.
-- **Prompt-as-function**: `buildCorrectionPrompt` is a `useCallback` that returns a template string. Phase 5 will make this dynamically inject descriptor constants.
-- **Silent parsing**: `parseCorrectionResponse` uses try/catch with regex fallback for malformed JSON. New format validation output should follow the same robustness pattern.
+- **Utility-as-constants**: Project uses this pattern (e.g., `structuralConstraints.js` with `WORD_COUNT_TARGETS`, `GENRE_TEMPLATES`). `hkeaaWritingRubrics.js`, `formatConventions.js`, `ieltsToDseMap.js` follow the same approach.
+- **Prompt-as-function**: `buildCorrectionPrompt` is a `useCallback` returning a template string. Phase 5 rewrites this with IELTS band descriptors and conversion logic.
+- **Silent parsing**: `parseCorrectionResponse` uses try/catch with regex fallback for malformed JSON. New IELTS band fields must follow the same robustness pattern.
+- **Configurable mapping**: `dseGrading.js` already has `getStoredBoundaries()`/`storeBoundaries()` for DSE grade thresholds. The IELTS→HKEAA conversion table follows the same `getIeltsToDseMap()`/`storeIeltsToDseMap()` pattern.
 - **Component extraction pattern**: Prior phases extracted `ReadingResults.jsx` from `ReadingModule.jsx` (Phase 3). Same pattern for WritingModule → RubricDisplay/ErrorAnnotation/FormatChecker.
 
 ### Integration Points
-- `useDSEPapers.js:buildCorrectionPrompt` — Import `hkeaaWritingRubrics.js` constants, inject into prompt text
-- `useDSEPapers.js:parseCorrectionResponse` — May need to parse additional output fields (format validation results, memorised phrase flags)
+- `useDSEPapers.js:buildCorrectionPrompt` — Rewrite to use IELTS band descriptors (TA/CC/LR/GRA 0-9) as the primary prompt
+- `useDSEPapers.js:parseCorrectionResponse` — Extract IELTS band scores alongside existing error/annotation fields; convert to HKEAA scores
+- `useDSEPapers.js:combineCorrections` — Use converted HKEAA scores for combined scoring and DSE level
+- `src/utils/dseGrading.js` — Add `getIeltsToDseMap()`/`storeIeltsToDseMap()` for the conversion table
 - `WritingModule.jsx` — Import and render RubricDisplay, ErrorAnnotation, FormatChecker components
 - `WritingModule.jsx` — Submit/correction state machine unchanged (D-38 from Phase 4: separate correction per part)
 
 ### Risks
-- Existing 05-*.PLAN.md files propose IELTS band integration, which conflicts with the HKEAA examiner insight direction. Plans must be rewritten.
-- The free AI model (opencode/deepseek-v4-flash-free) may not reliably follow nuanced descriptor-level scoring. Consider whether prompt refinements will actually produce better results within model constraints.
+- IELTS→HKEAA conversion accuracy depends on the calibration data. Conversion must be validated against real DSE candidate scripts (success criterion 5 from ROADMAP).
+- The free AI model (opencode/deepseek-v4-flash-free) may produce less accurate IELTS band scores than premium models. Consider if conversion-based approach actually improves scoring over direct HKEAA prompting.
 
 </code_context>
 
