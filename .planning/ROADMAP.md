@@ -114,6 +114,6 @@ Plans:
 
 Plans:
 
-- [ ] 05-01-PLAN.md — IELTS-first correction prompt redesign (Wave 1)
-- [ ] 05-02-PLAN.md — IELTS→DSE conversion mapping table + combineCorrections wiring (Wave 2)
-- [ ] 05-03-PLAN.md — UI: IELTS badge, conversion settings in DSE tab (Wave 3)
+- [ ] 05-01-PLAN.md — Core IELTS pipeline: rewrite correction prompt with IELTS band descriptors, create ieltsToDseMap.js + hkeaaWritingRubrics.js, update parseCorrectionResponse/combineCorrections (Wave 1)
+- [ ] 05-02-PLAN.md — Format conventions: create formatConventions.js, update correction pipeline with text-type format rules + memorised phrase detection (Wave 2)
+- [ ] 05-03-PLAN.md — Component extraction: extract RubricDisplay, ErrorAnnotation, FormatChecker from WritingModule.jsx; add conversion settings UI to Settings → DSE tab (Wave 3)
