@@ -5,6 +5,7 @@ import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TY
 import { getAvailablePrompts, markPromptUsed, clearUsedPrompts } from '../utils/writingPrompts';
 import { getRandomPartAType, getRandomPartBType } from '../utils/textTypeDistribution';
 import { scoreToDseLevel } from '../utils/dseGrading';
+import { convertToHkeaa } from '../utils/ieltsToDseMap';
 import { composeFullPrompt } from '../utils/questionGenerator';
 import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
 import { QUESTION_TYPE_DISTRIBUTIONS, getTypeDistributionForPart } from '../utils/questionTypes';
@@ -1762,11 +1763,11 @@ Return as JSON array of 3 objects:
     return `You are a strict HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **honest, critical, and diagnostic**.
 
 GRADING CALIBRATION — READ THIS FIRST:
-- 7/7 should be EXTREMELY RARE — virtually flawless, sophisticated, insightful.
-- 6/7 means excellent but with a specific identifiable weakness.
-- 5/7 means good — competent, meets requirements, but has clear room for improvement.
-- 4/7 means adequate — basic requirements met, notable weaknesses.
-- Real HKEAA examiners DO NOT inflate scores. Be honest and critical. A script that is "pretty good" should get 5/7, not 6/7.
+- 9/9 should be EXTREMELY RARE — virtually flawless, sophisticated, insightful.
+- 8/9 means excellent but with a specific identifiable weakness.
+- 7/9 means good — competent, meets requirements, but has clear room for improvement.
+- 5/9 means adequate — basic requirements met, notable weaknesses.
+- Real IELTS examiners DO NOT inflate scores. Be honest and critical. A script that is "pretty good" should get 5/9, not 7/9.
 
 TASK TO EVALUATE (Part ${part}):
 ---PROMPT---
@@ -1785,11 +1786,11 @@ ${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.jo
 
 CRITICAL SCORING RULES:
 1. TASK-FULFILMENT CHECK (MOST IMPORTANT): Compare the student's essay to the prompt BEFORE scoring.
-   - Did the student write the CORRECT text type? (e.g., if prompt asks for a letter, a story scores Content 0-1)
+   - Did the student write the CORRECT text type? (e.g., if prompt asks for a letter, a story scores TA 0-1)
    - Is the essay ON TOPIC? (e.g., if prompt asks about smartphones, a story about a mahjong shop is off-topic)
-   - If the response is off-topic or wrong text type: Content = 0-1. Do NOT reward language quality in an off-topic response.
-   - A partially relevant response scores Content 2-3, not 5-7.
-   - For argumentative/persuasive tasks: assess argument quality — are claims supported by specific evidence, examples, or reasoning? Are counter-arguments considered? Mere assertion without evidence caps Content at 5/7.
+   - If the response is off-topic or wrong text type: Task Achievement = 0-1. Do NOT reward language quality in an off-topic response.
+   - A partially relevant response scores TA 2-3, not 5-7.
+   - For argumentative/persuasive tasks: assess argument quality — are claims supported by specific evidence, examples, or reasoning? Are counter-arguments considered? Mere assertion without evidence caps TA at 5/9.
 
 2. FORMAT CHECK (Part A only): Explicitly verify format elements:
    - Letters: salutation + subject line must be on SEPARATE lines, closing formula (Yours sincerely/faithfully), signature
@@ -1797,21 +1798,21 @@ CRITICAL SCORING RULES:
    - Proposals: headed sections, formal structure, clear recommendations
    - Speeches: audience greeting, spoken register (rhetorical questions, direct address, varied sentence length for oral impact), concluding remarks with call to action
    - Articles: headline/title, engaging opening hook, appropriate register
-   - Missing format elements reduce Organisation score by 1-2 bands.
+   - Missing format elements reduce Coherence & Cohesion score by 1-2 bands.
 
-3. ORGANISATION includes genre conventions. A story written as a letter fails genre conventions entirely.
+3. COHERENCE & COHESION includes genre conventions. A story written as a letter fails genre conventions entirely.
    - Speeches MUST show speech-specific features (audience address, rhetorical devices, oral rhythm), not just essay structure with a greeting tacked on.
-   - Mechanical signposting ("First of all... Secondly... Finally") is NOT sophisticated cohesion. It is adequate (5/7) at best.
+   - Mechanical signposting ("First of all... Secondly... Finally") is NOT sophisticated cohesion. It is adequate (5/9) at best.
 
-4. LANGUAGE includes register, sentence variety, and vocabulary precision.
+4. LEXICAL RESOURCE & GRAMMATICAL RANGE include register, sentence variety, and vocabulary precision.
    - Count sentence structure types: simple, compound, complex, compound-complex, inversion, fronting, participle clauses, conditionals.
-   - If fewer than 4 distinct structure types are used, Language should be at most 5/7.
-   - "Adequate range" (5/7) does NOT mean "some errors but okay" — it means limited structural variety AND some errors.
-   - "Wide range" (6/7) requires at least 4-5 distinct structure types used naturally.
+   - If fewer than 4 distinct structure types are used, GRA should be at most 5/9.
+   - "Adequate range" (5/9) does NOT mean "some errors but okay" — it means limited structural variety AND some errors.
+   - "Good range" (6-7/9) requires at least 4-5 distinct structure types used naturally.
 
 5. CONSISTENCY RULES:
-   - If errors array is empty, Language score must be 7/7. If Language ≤ 6, there MUST be at least 1 genuine error listed.
-   - Content score and errors: if Content is 6-7, errors should be minor. If Content is 3-4, errors can be major.
+   - If errors array is empty, GRA must be 9/9. If GRA ≤ 8, there MUST be at least 1 genuine error listed.
+   - Task Achievement score and errors: if TA is 7-9, errors should be minor. If TA is 3-4, errors can be major.
    - Ensure pitfallsAvoided does not contradict vocabularySuggestions.
 
 6. ERROR LISTING: Only list ACTUAL errors. Never include "no error found" entries or placeholders.
@@ -1825,39 +1826,59 @@ CRITICAL SCORING RULES:
 
 8. SECTION BREAKDOWN: Do NOT assign identical scores across sections. If all sections score the same, the breakdown provides no diagnostic value. Vary scores to reflect real paragraph-level quality differences.
 
-HKEAA MARKING CRITERIA (Paper 2):
-Content (7 marks): Relevance to prompt, task fulfilment, development of ideas (evidence, examples, reasoning), audience awareness, creativity, argument quality.
-- 7: Fully relevant, extensive, insightful, sophisticated treatment, engages reader, strong evidence/reasoning
-- 6: Relevant, well-developed, clear purpose, mostly engaging, some specific evidence
-- 5: Mostly relevant, adequate development, some depth, claims stated but may lack specific evidence
-- 4: Generally relevant, some development, may lack focus in parts, ideas generic
-- 3: Partially relevant, limited development, some digression, unsupported claims
-- 2: Limited relevance, little development, largely off-task
-- 1: Irrelevant or minimal content
-Note: For argumentative/persuasive tasks, Content 6-7 requires specific evidence, examples, or reasoning — not just assertion. Consideration of counter-arguments strengthens Content at 6+.
+9. MEMORISED PHRASE DETECTION: Identify over-reliance on memorised/template phrases.
+   - If the essay reads like a standardised template with generic fill-in-the-blank content (e.g., "In this modern world...", "It goes without saying that...", "Last but not least...", "To conclude, it is imperative that...", "With the development of society..."), cap Task Achievement at 5/9.
+   - Flag specific memorised phrases in errors/warnings section with type="style" and severity="Major".
+   - Label each flagged phrase as "[MEMORISED PHRASE]" in the explanation.
 
-Organization (7 marks): Structure, paragraphing, cohesion, genre conventions, speech-specific features (where applicable).
-- 7: Sophisticated structure, flawless paragraphing, seamless cohesion, perfectly matched to genre. Speeches show rhetorical devices, varied sentence length for oral impact, audience engagement.
-- 6: Coherent structure, effective paragraphing, good use of cohesive devices. Speeches use direct address and varied openings.
-- 5: Clear structure, mostly appropriate paragraphing, adequate cohesion. May rely on mechanical signposting ("First... Second... Finally").
-- 4: Generally organized, some paragraphing errors, cohesion inconsistent
-- 3: Some structure but lacks coherence, paragraphing weak in parts
-- 2: Poor structure, minimal paragraphing, confusing
-- 1: No discernible structure
-Note: Mechanical "First of all... Secondly... Finally" is NOT sophisticated cohesion — it caps Organization at 5/7. Speeches without rhetorical questions or audience engagement also cap at 5/7.
+IELTS WRITING BAND DESCRIPTORS (TA/CC/LR/GRA 0-9):
 
-Language (7 marks): Grammar accuracy, vocabulary range, sentence structure variety (count distinct types), register, punctuation.
-- 7: Wide range of complex structures used accurately, sophisticated vocabulary, flawless grammar, consistent register
-- 6: Good range of structures (4+ distinct types), mostly accurate, wide vocabulary, register appropriate
-- 5: Adequate range (3-4 types), some errors but meaning clear, appropriate vocabulary
-- 4: Limited range (2-3 types), noticeable errors, basic vocabulary
-- 3: Narrow range (1-2 types), frequent errors, limited vocabulary
-- 2: Very limited range, pervasive errors, inadequate vocabulary
-- 1: Incomprehensible
-Note: Language score MUST be justified by errors listed. If errors array is empty, Language must be 7/7.
+Task Achievement (TA):
+- 9: Fully satisfies all criteria; well-developed, fully relevant, clearly positioned position, sustained argument
+- 8: Addresses all requirements; well-developed, relevant, clear position throughout, few minor gaps
+- 7: Addresses requirements; relevant main ideas extended, clear position, some minor irrelevancies
+- 6: Addresses requirements; main ideas present but may be inadequately developed/unclear position
+- 5: Addresses requirements only partially; some main ideas but insufficient development
+- 4: Responds only in part; ideas relevant but poorly developed or repetitive
+- 3: Does not adequately respond; barely addresses task, ideas largely irrelevant
+- 2: Responds to nothing; completely off-topic or only lists points
+- 1: Does not address the task at all
+
+Coherence & Cohesion (CC):
+- 9: Sequencing and cohesion are fully flexible and skillfully managed; paragraphing is skillful
+- 8: Organises information and ideas logically; manages paragraphing skillfully; good range of cohesive devices
+- 7: Organises ideas logically; uses paragraphing; uses a range of cohesive devices effectively
+- 6: Arranges information coherently; uses cohesive devices effectively but may be mechanical; adequate paragraphing
+- 5: Presents information with some organisation; basic cohesive devices used repetitively; limited paragraphing
+- 4: Presents information with little organisation; limited range of cohesive devices; poor paragraphing
+- 3: Makes little or no logical organisation of information; few cohesive devices; no paragraphing
+- 2: Cannot organise ideas logically; minimal cohesive devices
+- 1: No organisation whatsoever
+
+Lexical Resource (LR):
+- 9: Full flexibility; precise; rare incidental errors; wide range natural and sophisticated
+- 8: Wide range; frequent precise vocabulary; rare minor errors; good range of less common lexical items
+- 7: Sufficient range for clarity; some less common words; occasional errors; good flexibility
+- 6: Adequate range; some errors in word choice; mixes simple and complex vocabulary
+- 5: Limited range; frequent errors in word choice; basic vocabulary adequate for familiar situations
+- 4: Minimal range; errors impede meaning; very limited range of simple words
+- 3: Very limited vocabulary; severe errors; communication breaks down frequently
+- 2: Barely intelligible; extremely limited range
+- 1: Cannot convey even basic meaning
+
+Grammatical Range & Accuracy (GRA):
+- 9: Wide range; full flexibility; rare errors; predominantly error-free sentences
+- 8: Wide range of structures; frequent error-free sentences; good control of grammar and punctuation
+- 7: Variety of complex structures; frequent error-free sentences; good grammar control
+- 6: Mix of simple and complex forms; some errors but they rarely impede communication
+- 5: Limited range of structures; frequent errors; errors may cause some difficulty for reader
+- 4: Limited range; frequent grammatical errors; errors may cause comprehension difficulties
+- 3: Very limited range; errors predominate; communication difficult
+- 2: Very few basic structures attempted; severe errors
+- 1: No more than a few isolated errors; cannot convey meaning
 
 FEEDBACK RULES:
-1. For EACH rubric (content, organization, language): state a STRENGTH (quote exact phrase) and a SPECIFIC WEAKNESS (quote exact phrase) with a concrete suggestion.
+1. For EACH rubric (TA, CC, LR, GRA): state a STRENGTH (quote exact phrase) and a SPECIFIC WEAKNESS (quote exact phrase) with a concrete suggestion.
 2. Overall narrativeSummary: Be specific — reference the essay content. Name the text type and judge how well it meets genre conventions. If off-topic, state this clearly.
 3. errors: Every error must include the EXACT original text, a correction, and a clear explanation. Only list ACTUAL errors — never include "no error found" entries or placeholders.
 4. vocabularySuggestions: Map every suggestion to the specific sentence context. Suggest words at least one CEFR level higher. Do NOT suggest C2 vocabulary that sounds unnatural in a DSE context. Avoid redundant collocations.
@@ -1867,10 +1888,13 @@ FEEDBACK RULES:
 
 Return ONLY valid JSON with this exact schema:
 {
-  "content": { "score": 0-7, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
-  "organization": { "score": 0-7, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
-  "language": { "score": 0-7, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
-  "overall": { "total": 0, "maxTotal": 21, "percentage": 0, "narrativeSummary": "Specific, essay-referenced feedback. State if off-topic/wrong text type." },
+  "ielts": {
+    "taskAchievement": { "score": 0-9, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
+    "coherenceCohesion": { "score": 0-9, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
+    "lexicalResource": { "score": 0-9, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" },
+    "grammaticalRangeAccuracy": { "score": 0-9, "feedback": "Strength: [quote]. Weakness: [quote]. Suggestion: [advice]" }
+  },
+  "overall": { "total": 0, "maxTotal": 36, "percentage": 0, "narrativeSummary": "Specific, essay-referenced feedback. State if off-topic/wrong text type." },
   "sectionBreakdown": {
     "introduction": { "score": 0-7, "feedback": "Specific feedback about the intro paragraph" },
     "body1": { "score": 0-7, "feedback": "..." },
@@ -1899,6 +1923,38 @@ Return ONLY valid JSON with this exact schema:
       if (m) { try { parsed = JSON.parse(m[0]); } catch {} }
     }
     if (!parsed) return null;
+
+    // Schema guard: ensure ielts field exists
+    if (!parsed.ielts) parsed.ielts = {};
+
+    // Default missing IELTS sub-scores to 0 and normalize to 0.5 increments
+    ['taskAchievement', 'coherenceCohesion', 'lexicalResource', 'grammaticalRangeAccuracy'].forEach(key => {
+      if (!parsed.ielts[key] || typeof parsed.ielts[key].score !== 'number') {
+        parsed.ielts[key] = { score: 0, feedback: '' };
+      } else {
+        parsed.ielts[key].score = Math.max(0, Math.min(9, Math.round(parsed.ielts[key].score * 2) / 2));
+      }
+    });
+
+    // Convert IELTS scores to HKEAA Content/Organisation/Language via mapping
+    try {
+      const hkeaaScores = convertToHkeaa({
+        ta: parsed.ielts.taskAchievement.score,
+        cc: parsed.ielts.coherenceCohesion.score,
+        lr: parsed.ielts.lexicalResource.score,
+        gra: parsed.ielts.grammaticalRangeAccuracy.score,
+      });
+      parsed.content = { score: hkeaaScores.content, feedback: parsed.ielts.taskAchievement.feedback };
+      parsed.organization = { score: hkeaaScores.organization, feedback: parsed.ielts.coherenceCohesion.feedback };
+      parsed.language = { score: hkeaaScores.language, feedback: (parsed.ielts.lexicalResource.feedback || '') + (parsed.ielts.grammaticalRangeAccuracy.feedback ? '; ' + parsed.ielts.grammaticalRangeAccuracy.feedback : '') };
+    } catch {
+      // Fallback: default HKEAA scores to 0 if conversion fails
+      parsed.content = { score: 0, feedback: '' };
+      parsed.organization = { score: 0, feedback: '' };
+      parsed.language = { score: 0, feedback: '' };
+    }
+
+    // Score clamping for backward compatibility
     ['content', 'organization', 'language'].forEach(cat => {
       if (parsed[cat]) {
         parsed[cat].score = typeof parsed[cat].score === 'number' ? Math.max(0, Math.min(7, Math.round(parsed[cat].score))) : 0;
@@ -2081,10 +2137,22 @@ Return ONLY valid JSON with this exact schema:
     const weightedPct = Math.round(((totalA * WEIGHT_A + totalB * WEIGHT_B) / (21 * TOTAL_WEIGHT)) * 100);
     const dseLevel = scoreToDseLevel(weightedPct, 'writing').level;
 
+    // Average IELTS scores across parts
+    const avgIelts = (a, b) => Math.round(((a || 0) * WEIGHT_A + (b || 0) * WEIGHT_B) / TOTAL_WEIGHT * 2) / 2;
+    const combinedIelts = {};
+    ['taskAchievement', 'coherenceCohesion', 'lexicalResource', 'grammaticalRangeAccuracy'].forEach(key => {
+      const aVal = partAResult?.ielts?.[key]?.score;
+      const bVal = partBResult?.ielts?.[key]?.score;
+      if (aVal !== undefined || bVal !== undefined) {
+        combinedIelts[key] = { score: avgIelts(aVal, bVal), feedback: 'Combined feedback' };
+      }
+    });
+
     return {
       content: { score: contentScore, feedback: [partAResult?.content?.feedback, partBResult?.content?.feedback].filter(Boolean).join(' ') },
       organization: { score: orgScore, feedback: [partAResult?.organization?.feedback, partBResult?.organization?.feedback].filter(Boolean).join(' ') },
       language: { score: langScore, feedback: [partAResult?.language?.feedback, partBResult?.language?.feedback].filter(Boolean).join(' ') },
+      ielts: combinedIelts,
       overall: {
         total: totalA + totalB,
         maxTotal: 42,
@@ -2229,6 +2297,94 @@ Give 2-3 concrete, specific recommendations for their next practice session base
     }
   }, []);
 
+const generateWritingNotes = useCallback(async (correctionResult, partA, partB, partACorrection, partBCorrection, callAI) => {
+    const buildSection = (corr, label) => {
+      if (!corr) return '';
+      const content = corr.content ? `${corr.content.score}/7` : '—';
+      const org = corr.organization ? `${corr.organization.score}/7` : '—';
+      const lang = corr.language ? `${corr.language.score}/7` : '—';
+      const total = (corr.content?.score || 0) + (corr.organization?.score || 0) + (corr.language?.score || 0);
+      const pct = Math.round((total / 21) * 100);
+      let section = `<h2>${label}</h2>
+<p><strong>Score:</strong> ${total}/21 (${pct}%)</p>
+<p><strong>Content:</strong> ${content} | <strong>Organisation:</strong> ${org} | <strong>Language:</strong> ${lang}</p>`;
+      if (corr.overall?.narrativeSummary) {
+        section += `<p><em>${corr.overall.narrativeSummary.replace(/</g,'&lt;')}</em></p>`;
+      }
+      return section;
+    };
+
+    let prompt = `You are a DSE English tutor analyzing a student's writing performance. Generate comprehensive study notes using HTML tags (<h2>, <strong>, <em>, <ul>, <li>, <table>). No markdown. No JSON.
+
+WRITING PERFORMANCE ANALYSIS`;
+
+    // Add per-part sections when both available
+    const hasBoth = partACorrection && partBCorrection;
+    if (hasBoth) {
+      prompt += `\n\n${buildSection(partACorrection, 'Part A Performance')}`;
+      prompt += `\n\n${buildSection(partBCorrection, 'Part B Performance')}`;
+
+      const totalA = (partACorrection.content?.score || 0) + (partACorrection.organization?.score || 0) + (partACorrection.language?.score || 0);
+      const totalB = (partBCorrection.content?.score || 0) + (partBCorrection.organization?.score || 0) + (partBCorrection.language?.score || 0);
+      const combinedPct = correctionResult?.overall?.percentage || Math.round(((totalA * 2 + totalB * 3) / (21 * 5)) * 100);
+      prompt += `\n\n<h2>Combined Score</h2>
+<p><strong>Weighted Total:</strong> ${correctionResult?.overall?.total || totalA + totalB}/42 (${combinedPct}%)</p>
+<p><em>DSE weighting: Part A 40% + Part B 60%</em></p>`;
+    } else {
+      const corr = partACorrection || correctionResult;
+      if (corr && (corr.content || corr.overall)) {
+        prompt += `\n\n${buildSection(corr, 'Performance Summary')}`;
+      }
+    }
+
+    // Determine which correction to pull structured data from (prefer combined when both, else single part)
+    const dataSource = correctionResult?.errors?.length || correctionResult?.vocabularySuggestions?.length
+      ? correctionResult
+      : (partACorrection || correctionResult);
+
+    const errorList = dataSource?.errors || [];
+    const vocabList = dataSource?.vocabularySuggestions || [];
+    const sectionBreakdown = dataSource?.sectionBreakdown || {};
+    const pitfalls = dataSource?.pitfallsAvoided || [];
+    const improvements = dataSource?.targetedImprovements || [];
+    const goodLanguage = dataSource?.goodLanguage || [];
+    const hasPrompt = partA?.prompt || partB?.prompt;
+
+    prompt += `\n\n<h2>Error Analysis</h2>
+${errorList.length > 0 ? '<table><tr><th>Type</th><th>Error</th><th>Correction</th></tr>' + errorList.slice(0, 15).map(e => `<tr><td>${e.type || 'general'}</td><td>${(e.error || '').replace(/</g,'&lt;')}</td><td>${(e.correction || '').replace(/</g,'&lt;')}</td></tr>`).join('') + '</table>' : '<p>No significant errors detected.</p>'}
+
+<h2>Section-by-Section Breakdown</h2>
+${Object.keys(sectionBreakdown).length > 0 ? Object.entries(sectionBreakdown).map(([key, val]) => `<p><strong>${key}:</strong> ${val.score || '—'}/7 ${val.feedback ? '- ' + val.feedback.replace(/</g,'&lt;') : ''}</p>`).join('') : '<p>Detailed section breakdown not available.</p>'}
+
+<h2>Strong Language Use</h2>
+${goodLanguage.length > 0 ? '<ul>' + goodLanguage.slice(0, 5).map(g => `<li>${g.replace(/</g,'&lt;')}</li>`).join('') + '</ul>' : '<p>Review the feedback above for strong language examples.</p>'}
+
+<h2>Vocabulary Upgrades</h2>
+${vocabList.length > 0 ? '<ul>' + vocabList.slice(0, 8).map(v => `<li><strong>${(v.original || '').replace(/</g,'&lt;')}</strong> → <em>${(v.suggestion || '').replace(/</g,'&lt;')}</em>${v.context ? '<br><small>Context: ' + v.context.replace(/</g,'&lt;') + '</small>' : ''}</li>`).join('') + '</ul>' : '<p>No vocabulary suggestions in this session.</p>'}
+
+<h2>DSE Pitfalls</h2>
+${pitfalls.length > 0 ? '<ul>' + pitfalls.map(p => `<li>${p.replace(/</g,'&lt;')}</li>`).join('') + '</ul>' : '<p>No specific pitfalls noted. Review the feedback for areas to watch.</p>'}
+
+<h2>Targeted Improvements</h2>
+${improvements.length > 0 ? '<ul>' + improvements.map(i => `<li>${i.replace(/</g,'&lt;')}</li>`).join('') + '</ul>' : '<p>Review the Next Steps section in your feedback for improvement suggestions.</p>'}
+
+${!hasPrompt ? '\n<p><em>Note: This practice was completed without a prompt. Scores reflect general writing ability but may not fully represent exam performance.</em></p>' : ''}
+
+Format the above data into well-structured study notes. Group related information. Use <h2> for main sections, <h3> for subsections.`;
+
+    const systemMsg = 'You are a DSE English tutor. Output detailed study notes using HTML tags (<h2>, <h3>, <strong>, <em>, <ul>, <li>, <table>). Do NOT use markdown syntax. No JSON. Focus on actionable feedback the student can use to improve.';
+    try {
+      const raw = await callAI(prompt, { system: systemMsg, temperature: 0.4, maxTokens: 2500, timeout: 45000 });
+      return fixNotesHTML(raw) || '<p>Study notes could not be generated — the AI returned no output.</p>';
+    } catch (e) {
+      console.warn('[DSE] Writing notes AI call failed:', e?.message || e);
+      const errCount = dataSource?.errors?.length || 0;
+      const totalScore = (correctionResult?.content?.score || 0) + (correctionResult?.organization?.score || 0) + (correctionResult?.language?.score || 0);
+      const pct = correctionResult?.overall?.percentage || Math.round((totalScore / 21) * 100);
+      return `<h2>Writing Analysis</h2><p>AI-powered study notes could not be generated.</p><p><strong>Score:</strong> ${totalScore}/21 (${pct}%) | <strong>Errors identified:</strong> ${errCount}</p>`;
+    }
+  }, []);
+
   const clearCache = useCallback(async () => {
     try {
       await setItem('crescendo-dse-papers', []);
@@ -2254,9 +2410,10 @@ Give 2-3 concrete, specific recommendations for their next practice session base
     getReadingHistory,
     saveReadingSession,
     generateReadingNotes,
+    generateWritingNotes,
     clearCache,
     bundled,
     writingSessionGet,
     writingSessionSet,
-  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, clearCache, writingSessionGet, writingSessionSet, buildCorrectionPrompt, parseCorrectionResponse, combineCorrections, detectTextType, checkTextTypeMatch, checkPartAFormat, validateCorrectionOutput]);
+  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, generateWritingNotes, clearCache, writingSessionGet, writingSessionSet, buildCorrectionPrompt, parseCorrectionResponse, combineCorrections, detectTextType, checkTextTypeMatch, checkPartAFormat, validateCorrectionOutput]);
 }

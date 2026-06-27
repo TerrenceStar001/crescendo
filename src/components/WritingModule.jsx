@@ -28,7 +28,7 @@ function getBadgeInfo(type) {
   return TEXT_TYPE_BADGES[lower] || { label: type, color: '#8a8aa0' };
 }
 
-export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes, onBack }) {
+export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack }) {
   const { focusMode, setFocusMode } = useView();
   const [phase, setPhase] = useState('start');
   const [sessionData, setSessionData] = useState(null);
@@ -51,6 +51,8 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   const [pastWritingSessions, setPastWritingSessions] = useState([]);
   const [practiceMode, setPracticeMode] = useState('both'); // 'both' | 'partA' | 'partB'
   const [partAAnalysisStatus, setPartAAnalysisStatus] = useState(null); // null | 'analysing' | 'done' | 'failed'
+  const [notesGenerated, setNotesGenerated] = useState(null); // null=generating, true=done, false=failed
+  const notesGenDataRef = useRef(null);
   const partAResultRef = useRef(null);
   const editorRef = useRef(null);
   const timerRef = useRef(null);
@@ -323,7 +325,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           const promptInfo = sessionData?.partA?.prompt || partA.prompt;
           const prompt = dsePapers.buildCorrectionPrompt('A', { essay, text: plainText, prompt: promptInfo }, selfAssessment);
           const data = await callAI(prompt, {
-            system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Assess using official HKEAA criteria: Content/7, Organization/7, Language/7. Return ONLY valid JSON.',
+            system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Assess using IELTS Writing band descriptors: Task Achievement/9, Coherence & Cohesion/9, Lexical Resource/9, Grammatical Range & Accuracy/9. Return ONLY valid JSON.',
             temperature: 0.3,
             maxTokens: 3000,
           });
@@ -391,6 +393,18 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       if (part === 'A') {
         setCorrectionPartAResult(parsed);
         setPhase('correctionPartA');
+        // Schedule note generation for Part A only mode
+        if (practiceMode !== 'both' && dsePapers?.generateWritingNotes && createNote) {
+          notesGenDataRef.current = {
+            correctionResult: parsed,
+            partACorrection: parsed,
+            partA: { essay: partA.essay, prompt: sessionData?.partA?.prompt },
+            practiceMode,
+            generateWritingNotes: dsePapers.generateWritingNotes,
+            createNote,
+            callAI,
+          };
+        }
       } else {
         // If Part A analysis hasn't completed yet (both mode), wait with timeout
         if (practiceMode === 'both' && !partAResultRef.current && partAAnalysisStatus !== 'failed') {
@@ -427,6 +441,20 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           combined,
         });
         clearSessionStorage();
+        // Schedule note generation for combined results
+        if (dsePapers?.generateWritingNotes && createNote) {
+          notesGenDataRef.current = {
+            correctionResult: combined,
+            partACorrection: partAResult,
+            partBCorrection: parsed,
+            partA: { essay: partA.essay, prompt: sessionData?.partA?.prompt },
+            partB: { essay: partB.essay, prompt: partB.prompt },
+            practiceMode,
+            generateWritingNotes: dsePapers.generateWritingNotes,
+            createNote,
+            callAI,
+          };
+        }
       }
     } catch (e) {
       console.error('Failed to correct essay:', e);
@@ -493,6 +521,45 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     }
   }, [partA.essay, partB.essay, partB.chosenOption, selfAssessment, timeRemaining, getEssayPlainText, dsePapers]);
 
+  // --- Auto-generate study notes from correction analysis ---
+  useEffect(() => {
+    const data = notesGenDataRef.current;
+    if (!data) return;
+    notesGenDataRef.current = null;
+    setNotesGenerated(null);
+    let cancelled = false;
+    const fallbackTimer = setTimeout(() => {
+      if (!cancelled) { setNotesGenerated(false); cancelled = true; }
+    }, 50000);
+
+    const label = data.partA?.prompt?.title || 'Writing Practice';
+    const title = `Writing Analysis \u2014 ${label}`;
+
+    data.generateWritingNotes(data.correctionResult, data.partA, data.partB, data.partACorrection, data.partBCorrection, data.callAI)
+      .then(noteContent => {
+        if (cancelled) return;
+        clearTimeout(fallbackTimer);
+        if (noteContent && data.createNote) {
+          data.createNote({
+            kind: 'exercise',
+            kindOverridden: true,
+            title,
+            content: noteContent,
+            tags: ['writing', 'exercise'],
+          });
+        }
+        setNotesGenerated(true);
+      })
+      .catch(e => {
+        if (cancelled) return;
+        clearTimeout(fallbackTimer);
+        console.warn('[Writing] Notes generation error:', e?.message || e);
+        setNotesGenerated(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [phase]);
+
   // --- Reset ---
   const handleReset = useCallback(() => {
     setPhase('start');
@@ -509,6 +576,8 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     setActivePart('A');
     setSelfAssessment([]);
     setResubmitMode(false);
+    setNotesGenerated(null);
+    notesGenDataRef.current = null;
     clearSessionStorage();
   }, [clearSessionStorage]);
 
@@ -949,27 +1018,44 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             )}
           </div>
 
-          {/* Pre-scoring warnings for Part A correction phase */}
-            <div className="writing__warning writing__warning--warning">
-              ⚠️ No prompt provided — task-fulfilment could not be verified. Content score may not reflect exam conditions.
-            </div>
-          )}
-          {cr._preChecks?.isOffTopic && (
-            <div className="writing__warning writing__warning--critical">
-              ⚠️ Text Type Mismatch: Expected "{cr._preChecks.textTypeMatch?.note?.split(',')[0] || 'letter'}" but detected "{cr._preChecks.textTypeMatch?.detected}". Content score may be artificially high.
-            </div>
-          )}
-          {cr._preChecks?.hasFormatIssues && cr._preChecks.formatIssues?.length > 0 && (
-            <div className="writing__warning writing__warning--major">
-              <ul>
-                {cr._preChecks.formatIssues.map((issue, i) => (
-                  <li key={i}>{issue}</li>
-                ))}
-              </ul>
+          {/* Pre-scoring warnings */}
+          {cr._preChecks && (
+            <div className="writing__pre-check-warnings">
+              {cr._preChecks.hasNoPrompt && (
+                <div className="writing__warning writing__warning--warning">
+                  ⚠️ No prompt provided — task-fulfilment could not be verified. Content score may not reflect exam conditions.
+                </div>
+              )}
+              {cr._preChecks.isOffTopic && (
+                <div className="writing__warning writing__warning--critical">
+                  ⚠️ Text Type Mismatch: Expected "{cr._preChecks.textTypeMatch?.note?.split(',')[0] || 'letter'}" but detected "{cr._preChecks.textTypeMatch?.detected}". Content score may be artificially high.
+                </div>
+              )}
+              {cr._preChecks.hasFormatIssues && cr._preChecks.formatIssues?.length > 0 && (
+                <div className="writing__warning writing__warning--major">
+                  ⚠️ Format Issues (Part A):
+                  <ul>
+                    {cr._preChecks.formatIssues.map((issue, i) => (
+                      <li key={i}>{issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
           {renderCorrectionBlock(cr, 'Part A', partA.essay)}
+
+          {/* Notes status */}
+          {notesGenerated === null && (
+            <div className="writing__notes-status">Generating study notes...</div>
+          )}
+          {notesGenerated === true && (
+            <div className="writing__notes-status writing__notes-status--success">Study notes saved to your notes</div>
+          )}
+          {notesGenerated === false && (
+            <div className="writing__notes-status writing__notes-status--error">Study notes could not be generated</div>
+          )}
 
           {/* Action buttons */}
           {practiceMode === 'both' && !sessionData?.partB?.options && (
@@ -985,6 +1071,13 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                 Proceed to Part B \u2192
               </button>
               <button className="writing__start-btn--secondary" onClick={handleReset}>
+                Start New Practice
+              </button>
+            </div>
+          )}
+          {practiceMode === 'partA' && (
+            <div className="writing__correction-actions">
+              <button className="writing__start-btn--primary" onClick={handleReset}>
                 Start New Practice
               </button>
             </div>
@@ -1144,6 +1237,17 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Notes status */}
+          {notesGenerated === null && (
+            <div className="writing__notes-status">Generating study notes...</div>
+          )}
+          {notesGenerated === true && (
+            <div className="writing__notes-status writing__notes-status--success">Study notes saved to your notes</div>
+          )}
+          {notesGenerated === false && (
+            <div className="writing__notes-status writing__notes-status--error">Study notes could not be generated</div>
           )}
 
           {/* Action buttons */}
