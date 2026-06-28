@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useView } from '../context/ViewContext';
 import { scoreToDseLevel, dseLevelToIelts, pctToIeltsWriting } from '../utils/dseGrading';
+import RubricDisplay from './RubricDisplay';
+import ErrorAnnotation from './ErrorAnnotation';
 
 const SESSION_KEY = 'crescendo-writing-session';
 const TOTAL_DURATION = 7200; // 2 hours in seconds
@@ -638,27 +640,18 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         {partLabel === 'Combined' && <h3 className="writing__correction-block-title">Correction Summary</h3>}
 
         {/* Rubric bars */}
-        <div className="writing__correction-rubric">
-          {['content', 'organization', 'language'].map(cat => (
-            <div key={cat} className="writing__correction-rubric-item">
-              <div className="writing__correction-rubric-header">
-                <span className="writing__correction-rubric-name">
-                  {cat === 'content' ? 'Content' : cat === 'organization' ? 'Organisation' : 'Language'} (7 marks)
-                </span>
-                <span className="writing__correction-rubric-score">{block[cat]?.score || 0}/7</span>
-              </div>
-              <div className="writing__correction-rubric-bar-bg">
-                <div className="writing__correction-rubric-fill"
-                  style={{
-                    width: `${((block[cat]?.score || 0) / 7) * 100}%`,
-                    background: (block[cat]?.score || 0) >= 5 ? 'var(--color-success)' : (block[cat]?.score || 0) >= 4 ? 'var(--color-warning)' : 'var(--color-error)',
-                  }}
-                />
-              </div>
-              {block[cat]?.feedback && <div className="writing__correction-rubric-feedback">{block[cat].feedback}</div>}
-            </div>
-          ))}
-        </div>
+        <RubricDisplay
+          scores={{
+            content: block.content?.score || 0,
+            organization: block.organization?.score || 0,
+            language: block.language?.score || 0,
+          }}
+          feedbacks={{
+            content: block.content?.feedback,
+            organization: block.organization?.feedback,
+            language: block.language?.feedback,
+          }}
+        />
 
         {/* Section breakdown */}
         {block.sectionBreakdown && Object.keys(block.sectionBreakdown).length > 0 && (
@@ -704,41 +697,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         )}
 
         {/* Annotated essay */}
-        {(block.inlineAnnotations && block.inlineAnnotations.length > 0) && (
-          <div className="writing__annotated-essay">
-            <h3 className="writing__annotated-essay-header">Your Essay with Annotations</h3>
-            <div className="writing__annotated-essay-body">
-              {(() => {
-                const plainText = getEssayPlainText(essayHTML);
-                let result = plainText;
-                const annotations = [];
-                block.inlineAnnotations.forEach((ann, i) => {
-                  const escaped = ann.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                  const regex = new RegExp(`(${escaped})`, 'g');
-                  result = result.replace(regex, (match) => {
-                    annotations.push({ ...ann, _index: i });
-                    return '\uFFFC';
-                  });
-                });
-                let idx = 0;
-                const parts = result.split('\uFFFC');
-                return parts.map((part, i) => (
-                  <React.Fragment key={i}>
-                    {part}
-                    {annotations[idx] && (
-                      <span className={`writing__annotation writing__annotation--${annotations[idx].type}`}
-                        title={`${annotations[idx].type}: '${annotations[idx].text}' \u2192 '${annotations[idx].replacement}'`}
-                      >
-                        {annotations[idx].text}
-                      </span>
-                    )}
-                    {idx++}
-                  </React.Fragment>
-                ));
-              })()}
-            </div>
-          </div>
-        )}
+        <ErrorAnnotation
+          essayHTML={essayHTML}
+          inlineAnnotations={block.inlineAnnotations}
+        />
 
         {/* Error list */}
         {blockErrors.length > 0 && (
