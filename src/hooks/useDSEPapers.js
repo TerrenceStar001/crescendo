@@ -9,6 +9,7 @@ import { convertToHkeaa } from '../utils/ieltsToDseMap';
 import { composeFullPrompt } from '../utils/questionGenerator';
 import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
 import { QUESTION_TYPE_DISTRIBUTIONS, getTypeDistributionForPart } from '../utils/questionTypes';
+import { checkRequiredElements, buildFormatPromptSection } from '../utils/formatConventions';
 
 function parseJSONArray(raw) {
   if (!raw) return null;
@@ -1760,6 +1761,11 @@ Return as JSON array of 3 objects:
       ? '⚠️ NO PROMPT PROVIDED — The original exam question was NOT available. You CANNOT verify task-fulfilment. Treat this as a general English proficiency assessment without task verification. CAP Content at 5/7 (you cannot confirm relevance to an unknown task). Mention this limitation clearly in your feedback.'
       : '';
 
+    // Build dynamic format prompt section for Part A text types
+    const formatPromptSection = part === 'A' && promptInfo?.type
+      ? buildFormatPromptSection(promptInfo.type)
+      : '';
+
     return `You are a strict HKDSE English examiner (Paper 2 Writing). You have marked thousands of real HKDSE scripts. Your feedback must be **honest, critical, and diagnostic**.
 
 GRADING CALIBRATION — READ THIS FIRST:
@@ -1792,13 +1798,15 @@ CRITICAL SCORING RULES:
    - A partially relevant response scores TA 2-3, not 5-7.
    - For argumentative/persuasive tasks: assess argument quality — are claims supported by specific evidence, examples, or reasoning? Are counter-arguments considered? Mere assertion without evidence caps TA at 5/9.
 
-2. FORMAT CHECK (Part A only): Explicitly verify format elements:
+2. FORMAT CHECK (Part A only):
+${formatPromptSection || `Explicitly verify format elements:
    - Letters: salutation + subject line must be on SEPARATE lines, closing formula (Yours sincerely/faithfully), signature
    - Emails: subject line, appropriate sign-off, professional tone
    - Proposals: headed sections, formal structure, clear recommendations
    - Speeches: audience greeting, spoken register (rhetorical questions, direct address, varied sentence length for oral impact), concluding remarks with call to action
-   - Articles: headline/title, engaging opening hook, appropriate register
+   - Articles: headline/title, engaging opening hook, appropriate register`}
    - Missing format elements reduce Coherence & Cohesion score by 1-2 bands.
+   Note: Structural format elements (salutation, closing, signature) are checked by code separately. Your task is to evaluate how APPROPRIATELY these elements are USED — register, tone, and genre fit — not just whether they exist.
 
 3. COHERENCE & COHESION includes genre conventions. A story written as a letter fails genre conventions entirely.
    - Speeches MUST show speech-specific features (audience address, rhetorical devices, oral rhythm), not just essay structure with a greeting tacked on.
@@ -2033,34 +2041,15 @@ Return ONLY valid JSON with this exact schema:
 
   // --- Part A format checker ---
   const checkPartAFormat = useCallback((essayHTML, textType) => {
-    const plainText = stripHtml(essayHTML).trim();
-    const lower = plainText.toLowerCase();
-    const checks = {
-      hasSalutation: false,
-      hasClosingFormula: false,
-      hasSignature: false,
-      issues: [],
+    const result = checkRequiredElements(essayHTML, textType || '');
+    // Maintain backward compatibility with existing return shape
+    const checks = result.checks || {};
+    return {
+      hasSalutation: checks.hasSalutation || false,
+      hasClosingFormula: checks.hasClosing || false,
+      hasSignature: checks.hasSignature || false,
+      issues: result.issues,
     };
-
-    const salutations = ['dear', 'to whom it may concern', 'dear sir', 'dear madam', 'dear mr', 'dear mrs'];
-    checks.hasSalutation = salutations.some(s => lower.startsWith(s));
-    if (!checks.hasSalutation) {
-      checks.issues.push('Missing salutation (e.g., "Dear Mr. Smith,")');
-    }
-
-    const closings = ['yours sincerely', 'yours faithfully', 'regards', 'best regards', 'kind regards', 'sincerely', 'respectfully', 'yours truly'];
-    const lastLines = plainText.split(/\n/).slice(-3).join(' ').toLowerCase();
-    checks.hasClosingFormula = closings.some(c => lastLines.includes(c));
-    if (!checks.hasClosingFormula) {
-      checks.issues.push('Missing closing formula (e.g., "Yours sincerely,")');
-    }
-
-    checks.hasSignature = /[a-z]+\s+[a-z]+[,.]?\s*$/.test(plainText.trim());
-    if (!checks.hasSignature) {
-      checks.issues.push('Missing signature/name at end');
-    }
-
-    return checks;
   }, []);
 
   // --- Output validation (post-AI correction) ---
