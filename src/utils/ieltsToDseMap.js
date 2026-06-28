@@ -10,7 +10,7 @@ const STORAGE_KEY = 'crescendo-ielts-dse-map';
 // Each sub-object maps an IELTS band score (key) to an HKEAA score (value, 0-7).
 // Values derived from HKEAA level descriptors anchor bands (1, 3, 5, 7)
 // with interpolated values for intermediate bands.
-const DEFAULT_IELTS_DSE_MAP = {
+export const DEFAULT_IELTS_DSE_MAP = {
   ta: { 9: 7, 8: 7, 7.5: 6, 7: 6, 6.5: 5, 6: 5, 5.5: 4, 5: 3, 4.5: 2, 4: 1, 3: 1, 2: 1, 1: 1 },
   cc: { 9: 7, 8: 7, 7.5: 6, 7: 6, 6.5: 5, 6: 5, 5.5: 4, 5: 3, 4.5: 2, 4: 1, 3: 1, 2: 1, 1: 1 },
   lr: { 9: 7, 8: 7, 7.5: 6, 7: 6, 6.5: 5, 6: 5, 5.5: 4, 5: 3, 4.5: 2, 4: 1, 3: 1, 2: 1, 1: 1 },

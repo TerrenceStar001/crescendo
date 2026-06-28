@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useView } from '../context/ViewContext';
 import { getStoredBoundaries, storeBoundaries, getSkillBoundaries, PER_SKILL_DEFAULTS, SKILLS } from '../utils/dseGrading';
+import { getIeltsToDseMap, storeIeltsToDseMap, DEFAULT_IELTS_DSE_MAP } from '../utils/ieltsToDseMap';
 
 const TTS_PREF_KEY = 'crescendo-tts-pref';
 const STT_LANG_KEY = 'crescendo-stt-lang';
@@ -22,6 +23,8 @@ const SettingsPage = React.memo(function SettingsPage({ config, onUpdate, isOpen
   const [expandedSkills, setExpandedSkills] = useState(() => {
     const e = {}; SKILLS.forEach(s => { e[s] = true; }); return e;
   });
+  const [ieltsDseMap, setIeltsDseMap] = useState(() => getIeltsToDseMap());
+  const [ieltsExpanded, setIeltsExpanded] = useState(false);
   const [sttLang, setSttLang] = useState(() => {
     try { return localStorage.getItem(STT_LANG_KEY) || 'en-US'; } catch { return 'en-US'; }
   });
@@ -329,6 +332,88 @@ const SettingsPage = React.memo(function SettingsPage({ config, onUpdate, isOpen
               <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
                 Defaults are based on HKEAA 2017–2021 per-paper cut-off averages. Real DSE boundaries vary by year (±3%).
               </p>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '16px 0' }} />
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                IELTS→HKEAA Conversion Table. These thresholds map IELTS Writing band scores to HKEAA Content/Organisation/Language scores (0-7).
+              </p>
+              <div style={{ marginBottom: 16, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                <button
+                  onClick={() => setIeltsExpanded(p => !p)}
+                  style={{
+                    width: '100%', padding: '8px 12px', cursor: 'pointer', background: 'var(--color-surface-soft)',
+                    border: 'none', fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: 600,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-text)',
+                  }}
+                >
+                  <span>IELTS → HKEAA Conversion</span>
+                  <span style={{ transform: ieltsExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}>{'\u25BC'}</span>
+                </button>
+                {ieltsExpanded && (
+                  <div style={{ padding: '8px 12px' }}>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>
+                      Each IELTS band maps to an HKEAA score (0-7) for Content (from Task Achievement), Organisation (from Coherence and Cohesion), and Language (from average of Lexical Resource and Grammatical Range and Accuracy).
+                    </p>
+                    {/* TA → Content mapping */}
+                    <div style={{ marginBottom: 16 }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>Task Achievement → Content</span>
+                      {Object.entries(ieltsDseMap.ta || {}).filter(([band]) => Number(band) >= 4).map(([band, value]) => (
+                        <label key={band} className="settings-group" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontWeight: 600, minWidth: 50 }}>IELTS {band}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                            <input type="range" min="1" max="7" value={value}
+                              onChange={e => {
+                                const updated = JSON.parse(JSON.stringify(ieltsDseMap));
+                                updated.ta[band] = Number(e.target.value);
+                                setIeltsDseMap(updated);
+                                storeIeltsToDseMap(updated);
+                              }}
+                              style={{ flex: 1 }}
+                            />
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, minWidth: 20, textAlign: 'right' }}>{value}/7</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    {/* CC → Organisation mapping */}
+                    <div style={{ marginBottom: 16 }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>Coherence and Cohesion → Organisation</span>
+                      {Object.entries(ieltsDseMap.cc || {}).filter(([band]) => Number(band) >= 4).map(([band, value]) => (
+                        <label key={band} className="settings-group" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontWeight: 600, minWidth: 50 }}>IELTS {band}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                            <input type="range" min="1" max="7" value={value}
+                              onChange={e => {
+                                const updated = JSON.parse(JSON.stringify(ieltsDseMap));
+                                updated.cc[band] = Number(e.target.value);
+                                setIeltsDseMap(updated);
+                                storeIeltsToDseMap(updated);
+                              }}
+                              style={{ flex: 1 }}
+                            />
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, minWidth: 20, textAlign: 'right' }}>{value}/7</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    {/* Reset button */}
+                    <button
+                      onClick={() => {
+                        setIeltsDseMap(DEFAULT_IELTS_DSE_MAP);
+                        storeIeltsToDseMap(DEFAULT_IELTS_DSE_MAP);
+                      }}
+                      style={{
+                        padding: '4px 10px', marginTop: 8, background: 'transparent',
+                        border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit',
+                        color: 'var(--color-text-secondary)',
+                      }}
+                    >
+                      Reset to Default
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -3,6 +3,7 @@ import { useView } from '../context/ViewContext';
 import { scoreToDseLevel, dseLevelToIelts, pctToIeltsWriting } from '../utils/dseGrading';
 import RubricDisplay from './RubricDisplay';
 import ErrorAnnotation from './ErrorAnnotation';
+import FormatChecker from './FormatChecker';
 
 const SESSION_KEY = 'crescendo-writing-session';
 const TOTAL_DURATION = 7200; // 2 hours in seconds
@@ -981,30 +982,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           </div>
 
           {/* Pre-scoring warnings */}
-          {cr._preChecks && (
-            <div className="writing__pre-check-warnings">
-              {cr._preChecks.hasNoPrompt && (
-                <div className="writing__warning writing__warning--warning">
-                  ⚠️ No prompt provided — task-fulfilment could not be verified. Content score may not reflect exam conditions.
-                </div>
-              )}
-              {cr._preChecks.isOffTopic && (
-                <div className="writing__warning writing__warning--critical">
-                  ⚠️ Text Type Mismatch: Expected "{cr._preChecks.textTypeMatch?.note?.split(',')[0] || 'letter'}" but detected "{cr._preChecks.textTypeMatch?.detected}". Content score may be artificially high.
-                </div>
-              )}
-              {cr._preChecks.hasFormatIssues && cr._preChecks.formatIssues?.length > 0 && (
-                <div className="writing__warning writing__warning--major">
-                  ⚠️ Format Issues (Part A):
-                  <ul>
-                    {cr._preChecks.formatIssues.map((issue, i) => (
-                      <li key={i}>{issue}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+          <FormatChecker
+            checks={cr._preChecks}
+            textType={sessionData?.partA?.prompt?.type}
+          />
 
           {renderCorrectionBlock(cr, 'Part A', partA.essay)}
 
@@ -1152,30 +1133,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           )}
 
           {/* Pre-scoring warnings */}
-          {correctionPartAResult && correctionPartAResult._preChecks && (
-            <div className="writing__pre-check-warnings">
-              {correctionPartAResult._preChecks.hasNoPrompt && (
-                <div className="writing__warning writing__warning--warning">
-                  ⚠️ No prompt provided — task-fulfilment could not be verified. Content score may not reflect exam conditions.
-                </div>
-              )}
-              {correctionPartAResult._preChecks.isOffTopic && (
-                <div className="writing__warning writing__warning--critical">
-                  ⚠️ Text Type Mismatch: Expected "{correctionPartAResult._preChecks.textTypeMatch?.note?.split(',')[0] || 'letter'}" but detected "{correctionPartAResult._preChecks.textTypeMatch?.detected}". Content score may be artificially high.
-                </div>
-              )}
-              {correctionPartAResult._preChecks.hasFormatIssues && correctionPartAResult._preChecks.formatIssues?.length > 0 && (
-                <div className="writing__warning writing__warning--major">
-                  ⚠️ Format Issues (Part A):
-                  <ul>
-                    {correctionPartAResult._preChecks.formatIssues.map((issue, i) => (
-                      <li key={i}>{issue}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+          <FormatChecker
+            checks={correctionPartAResult?._preChecks}
+            textType={sessionData?.partA?.prompt?.type}
+          />
 
           {/* Part A correction block */}
           {renderCorrectionBlock(correctionPartAResult, 'Part A - Correction', partA.essay)}

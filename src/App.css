@@ -6601,6 +6601,20 @@ html[data-theme="dark"] {
   flex-shrink: 0;
 }
 
+/* --- Notes Status --- */
+.writing__notes-status {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  padding: var(--space-2) 0;
+}
+.writing__notes-status--success {
+  color: var(--color-success);
+}
+.writing__notes-status--error {
+  color: var(--color-error);
+}
+
 /* --- Correction Actions --- */
 .writing__correction-actions {
   display: flex;
@@ -7022,6 +7036,72 @@ html[data-theme="dark"] {
 
 .writing__warning li {
   margin-bottom: var(--space-1);
+}
+
+/* ===== Format Checker (Phase 5) ===== */
+.format-checker {
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.format-checker__header {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  margin: 0 0 var(--space-3);
+  color: var(--color-text);
+}
+.format-checker__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.format-checker__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+}
+.format-checker__item--pass {
+  color: var(--color-success);
+}
+.format-checker__item--fail {
+  color: var(--color-error);
+}
+.format-checker__icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+}
+.format-checker__label {
+  color: var(--color-text);
+}
+.format-checker__issues {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.format-checker__issues-title {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-2);
+}
+.format-checker__issues-list {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.format-checker__issue {
+  font-size: var(--font-xs);
+  color: var(--color-error);
+  margin-bottom: var(--space-1);
+}
+.format-checker__no-prompt {
+  margin-top: var(--space-3);
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
 }
 
 .writing__correction-part-title {
