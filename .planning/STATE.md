@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 5
+current_phase: 05
 status: executing
-last_updated: "2026-06-27T15:28:30.648Z"
+last_updated: "2026-06-29T14:29:10.310Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 4
   total_plans: 21
-  completed_plans: 18
-  percent: 80
+  completed_plans: 20
+  percent: 67
 ---
 
 # Project State
 
 ## Session: Phase 5 — IELTS-First Grading Pipeline & DSE Conversion
 
-**Current phase:** 5
+**Current phase:** 05
 **Last action:** Phase 4 complete. Phase 5 repurposed — goal changed from "Writing Examiner Insights" to "IELTS-First Grading Pipeline & DSE Conversion".
 
 ## Project Reference
@@ -26,7 +26,13 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 
 **Core value:** Students can practice authentic DSE-style English exam papers with AI-generated passages and questions, get immediate feedback with detailed analysis, and track their progress across all four skills.
 
-**Current focus:** Phase 3 — Notes & Analysis Overhaul (pending)
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 6 added: Courses feature
+
+**Current focus:** Phase 05 — writing-examiner-insights
 
 ## Status
 
@@ -37,6 +43,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 | 3     | ✓      | 3/3   | 100%     |
 | 4     | ✓      | 4/4   | 100%     |
 | 5     | ○      | 0/3   | 0% (planned) |
+| 6     | ○      | 0/0   | 0% (added)   |
 
 ## Phase 1 Completion Report
 
