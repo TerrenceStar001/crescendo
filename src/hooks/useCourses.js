@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 
 const ENROLLMENT_KEY = 'crescendo-course-enrollments';
+const COMPLETED_KEY = 'crescendo-course-completed';
 const ACTIVE_LESSON_KEY = 'crescendo-course-active-lesson';
 
 export default function useCourses() {
@@ -167,6 +168,122 @@ export default function useCourses() {
     }
   }, []);
 
+  /**
+   * getEnrollmentStatus: Returns 'enrolled' | 'completed' | null for a course.
+   */
+  const getEnrollmentStatus = useCallback((courseId) => {
+    try {
+      const raw = localStorage.getItem(ENROLLMENT_KEY);
+      const enrollments = raw ? JSON.parse(raw) : [];
+      if (!enrollments.includes(courseId)) return null;
+      const completedRaw = localStorage.getItem(COMPLETED_KEY);
+      const completed = completedRaw ? JSON.parse(completedRaw) : [];
+      if (completed.includes(courseId)) return 'completed';
+      return 'enrolled';
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /**
+   * setEnrollmentStatus: Sets enrollment status for a course.
+   * status: 'enrolled' | 'completed' | 'archived'
+   */
+  const setEnrollmentStatus = useCallback((courseId, status) => {
+    try {
+      const raw = localStorage.getItem(ENROLLMENT_KEY);
+      let enrollments = raw ? JSON.parse(raw) : [];
+
+      if (status === 'enrolled') {
+        if (!enrollments.includes(courseId)) enrollments.push(courseId);
+      } else if (status === 'completed') {
+        if (!enrollments.includes(courseId)) enrollments.push(courseId);
+        const completedRaw = localStorage.getItem(COMPLETED_KEY);
+        const completed = completedRaw ? JSON.parse(completedRaw) : [];
+        if (!completed.includes(courseId)) {
+          completed.push(courseId);
+          localStorage.setItem(COMPLETED_KEY, JSON.stringify(completed));
+        }
+      } else if (status === 'archived') {
+        enrollments = enrollments.filter(id => id !== courseId);
+        const completedRaw = localStorage.getItem(COMPLETED_KEY);
+        const completed = completedRaw ? JSON.parse(completedRaw) : [];
+        localStorage.setItem(COMPLETED_KEY, JSON.stringify(completed.filter(id => id !== courseId)));
+      }
+
+      localStorage.setItem(ENROLLMENT_KEY, JSON.stringify(enrollments));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /**
+   * getCourseProgress: Returns { completedLessons, finalAssessmentScore, lastAccessed } for a course.
+   */
+  const getCourseProgress = useCallback(async (courseId) => {
+    try {
+      const progress = await getItem(`${DSE_KEYS.COURSE_PROGRESS}:${courseId}`);
+      if (!progress) return null;
+      return {
+        completedLessons: progress.completedLessons || [],
+        finalAssessmentScore: progress.finalAssessmentScore ?? null,
+        lastAccessed: progress.lastAccessed || null,
+      };
+    } catch {
+      return null;
+    }
+  }, [getItem, DSE_KEYS.COURSE_PROGRESS]);
+
+  /**
+   * markLessonComplete: Adds a lesson index to the completed lessons set.
+   */
+  const markLessonComplete = useCallback(async (courseId, lessonIndex) => {
+    try {
+      const key = `${DSE_KEYS.COURSE_PROGRESS}:${courseId}`;
+      const existing = await getItem(key) || {};
+      const completedLessons = [...(existing.completedLessons || [])];
+      if (!completedLessons.includes(lessonIndex)) {
+        completedLessons.push(lessonIndex);
+      }
+      await setItem(key, {
+        ...existing,
+        completedLessons,
+        lastAccessed: Date.now(),
+        courseId,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [getItem, setItem, DSE_KEYS.COURSE_PROGRESS]);
+
+  /**
+   * getActiveCourseId: Returns the course ID with the active lesson (D-04).
+   */
+  const getActiveCourseId = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_LESSON_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return data.courseId || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /**
+   * setActiveCourseId: Sets the active course, clearing any previous (D-04).
+   */
+  const setActiveCourseId = useCallback((courseId) => {
+    try {
+      localStorage.setItem(ACTIVE_LESSON_KEY, JSON.stringify({ courseId }));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   return {
     getCourses,
     saveCourse,
@@ -178,5 +295,11 @@ export default function useCourses() {
     getEnrolledCourses,
     getInProgressCourseId,
     setActiveLesson,
+    getEnrollmentStatus,
+    setEnrollmentStatus,
+    getCourseProgress,
+    markLessonComplete,
+    getActiveCourseId,
+    setActiveCourseId,
   };
 }
