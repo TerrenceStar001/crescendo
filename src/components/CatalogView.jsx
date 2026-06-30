@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 
 const FILTER_TAGS = ['grammar', 'vocabulary', 'sentence-structure'];
 
@@ -16,6 +16,34 @@ const FILTER_TAGS = ['grammar', 'vocabulary', 'sentence-structure'];
  *   completedIds      — array of completed course IDs
  *   callAI            — AI call function
  */
+function getOverallDseLevel(skillAnalytics) {
+  // Infer DSE level from skill rings or overallDseLevel (D-30)
+  if (!skillAnalytics) return '1';
+  if (skillAnalytics.overallDseLevel) return skillAnalytics.overallDseLevel;
+  const numLevel = (() => {
+    const levels = ['reading', 'writing', 'listening', 'speaking']
+      .map(s => parseInt((skillAnalytics[s]?.dseLevel || '1').replace(/[^\d]/g, ''), 10))
+      .filter(v => !isNaN(v));
+    if (levels.length === 0) return 1;
+    return Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
+  })();
+  // Convert numeric level back to DSE string (5**, 5*, 5, 4, 3, 2, 1)
+  if (numLevel >= 5.5) return '5**';
+  if (numLevel >= 5) return '5*';
+  if (numLevel >= 4.5) return '5';
+  if (numLevel >= 4) return '4';
+  if (numLevel >= 3) return '3';
+  if (numLevel >= 2) return '2';
+  return '1';
+}
+
+function levelToNumber(level) {
+  if (!level) return 1;
+  if (level === '5**') return 5.5;
+  if (level === '5*') return 5;
+  return parseInt(level, 10) || 1;
+}
+
 export default function CatalogView({
   courses = [],
   onEnroll,
@@ -24,9 +52,18 @@ export default function CatalogView({
   enrolledIds = [],
   completedIds = [],
   callAI,
+  skillAnalytics,
+  filterTags,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTag, setActiveTag] = useState(null);
+  const [activeTag, setActiveTag] = useState(filterTags || null);
+
+  // Sync filterTags prop when it changes externally
+  const prevFilterTags = React.useRef(filterTags);
+  if (filterTags !== prevFilterTags.current) {
+    prevFilterTags.current = filterTags;
+    if (filterTags) setActiveTag(filterTags);
+  }
 
   // Derive course sets
   const completedSet = useMemo(() => new Set(completedIds), [completedIds]);
@@ -77,9 +114,29 @@ export default function CatalogView({
     });
   }, [enrolledCourses, searchQuery, activeTag]);
 
-  const renderCourseCard = (course, showEnroll = false) => (
-    <div key={course.id} className="course__card">
+  // Difficulty progression (D-30): check if course is locked based on DSE level
+  const isLocked = useMemo(() => {
+    return (course) => {
+      if (!course?.difficulty) return false;
+      const userLevel = levelToNumber(getOverallDseLevel(skillAnalytics));
+      if (course.difficulty === 'advanced' && userLevel < 4) return true;
+      if (course.difficulty === 'intermediate' && userLevel < 3) return true;
+      return false;
+    };
+  }, [skillAnalytics]);
+
+  const getLockRequirement = (difficulty) => {
+    if (difficulty === 'advanced') return 'Requires DSE Level 4+ to unlock';
+    if (difficulty === 'intermediate') return 'Requires DSE Level 3+ to unlock';
+    return null;
+  };
+
+  const renderCourseCard = (course, showEnroll = false) => {
+    const locked = isLocked(course);
+    return (
+    <div key={course.id} className={`course__card${locked ? ' course__card--locked' : ''}`}>
       <div className="course__card-body">
+        {locked && <div className="course__card-lock-overlay" title={getLockRequirement(course.difficulty)}>🔒</div>}
         <h3 className="course__card-title">{course.title}</h3>
         {course.description && (
           <p className="course__card-desc">{course.description}</p>
@@ -99,15 +156,19 @@ export default function CatalogView({
             ))}
           </div>
         )}
+        {locked && (
+          <div className="course__card-lock-tooltip">{getLockRequirement(course.difficulty)}</div>
+        )}
       </div>
       <div className="course__card-actions">
         <button
-          className="course__btn course__btn--primary"
-          onClick={() => onOpenCourse?.(course.id)}
+          className={`course__btn course__btn--primary${locked ? ' course__btn--disabled' : ''}`}
+          onClick={() => { if (!locked) onOpenCourse?.(course.id); }}
+          title={locked ? getLockRequirement(course.difficulty) : ''}
         >
-          {completedSet.has(course.id) ? 'Review' : 'View Course'}
+          {locked ? 'Locked' : (completedSet.has(course.id) ? 'Review' : 'View Course')}
         </button>
-        {showEnroll && !enrolledSet.has(course.id) && !completedSet.has(course.id) && (
+        {showEnroll && !locked && !enrolledSet.has(course.id) && !completedSet.has(course.id) && (
           <button
             className="course__btn course__btn--secondary"
             onClick={() => onEnroll?.(course.id)}
@@ -117,7 +178,8 @@ export default function CatalogView({
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="course__catalog">

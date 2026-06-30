@@ -7,6 +7,7 @@ const DEFAULT_SECTIONS = ['overview', 'recommendations', 'gradeHistory', 'weakAr
 
 export default function Dashboard({
   notes, skillAnalytics, onSwitchToModule, onCreate, onOpenDaily, onRandom,
+  courseCompletionCount = 0, onBrowseCourses,
 }) {
   const [visibleSections, setVisibleSections] = useState(() => {
     try {
@@ -112,6 +113,8 @@ export default function Dashboard({
             <span className="dashboard__stats-item"><strong>{sessionCounts.total}</strong> sessions</span>
             <span className="dashboard__stats-sep" />
             <span className="dashboard__stats-item"><strong>{notes.length}</strong> notes</span>
+            <span className="dashboard__stats-sep" />
+            <span className="dashboard__stats-item">Courses: <strong>{courseCompletionCount}</strong> completed</span>
             <span className="dashboard__stats-sep" />
             <span className="dashboard__stats-item">Target: <strong>5**</strong></span>
           </div>
@@ -235,6 +238,12 @@ export default function Dashboard({
               <span className="dashboard__action-icon">🎤</span>
               <span className="dashboard__action-label">Speaking Drill</span>
             </button>
+            {onBrowseCourses && (
+              <button className="dashboard__action" onClick={onBrowseCourses}>
+                <span className="dashboard__action-icon">📚</span>
+                <span className="dashboard__action-label">Browse Courses</span>
+              </button>
+            )}
           </div>
         </Section>
       </div>

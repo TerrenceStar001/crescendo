@@ -66,6 +66,7 @@ function CrescendoApp() {
   const [courseView, setCourseView] = useState('catalog'); // 'catalog' | 'overview' | 'player'
   const [enrolledIds, setEnrolledIds] = useState([]);
   const [completedIds, setCompletedIds] = useState([]);
+  const [courseCompletionCount, setCourseCompletionCount] = useState(0);
 
   const refreshCourses = useCallback(() => {
     coursesHook.getCourses().then(setCourses);
@@ -84,6 +85,7 @@ function CrescendoApp() {
       const completedRaw = localStorage.getItem('crescendo-course-completed');
       const completed = completedRaw ? JSON.parse(completedRaw) : [];
       setCompletedIds(completed);
+      setCourseCompletionCount(completed.length);
     } catch {}
   }, [courses]);
 
@@ -106,6 +108,41 @@ function CrescendoApp() {
     setActiveCourseId(null);
     setCourseView('catalog');
   }, []);
+
+  const handleBrowseCourses = useCallback(() => {
+    setCourseView('catalog');
+    setDseTab('courses');
+  }, []);
+
+  const [courseFilterTags, setCourseFilterTags] = useState(null);
+
+  // Re-generation trigger (D-15): fire when a new reading/writing session completes
+  // Checks if completed courses need to be regenerated based on persistent weakness
+  useEffect(() => {
+    const sessions = skillAnalytics?.sessions || [];
+    if (sessions.length === 0) return;
+    const latest = sessions[0];
+    if (!latest || !latest.completedAt) return;
+    // Only trigger for reading and writing sessions
+    if (latest.skill !== 'reading' && latest.skill !== 'writing') return;
+    const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
+    if (weakAreas.length === 0) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const completedCourses = await coursesHook.getCompletedCourses();
+        const completedIds = completedCourses.map(c => c.id);
+        if (completedIds.length === 0) return;
+        const draft = await coursesHook.checkAndRegenerateCourse(weakAreas, completedIds, callAI);
+        if (draft) {
+          // Refresh courses list
+          refreshCourses();
+        }
+      } catch { /* silent */ }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [skillAnalytics?.sessions, coursesHook, callAI, refreshCourses]);
 
   const callAI = useCallback(async (prompt, opts = {}) => {
     const isExternal = config.endpoint && !config.endpoint.startsWith('/');
@@ -692,6 +729,8 @@ function CrescendoApp() {
             onCreate={handleCreateNote}
             onOpenDaily={handleOpenDaily}
             onRandom={handleRandom}
+            courseCompletionCount={courseCompletionCount}
+            onBrowseCourses={() => setDseTab('courses')}
           />
         </main>
 
@@ -837,6 +876,8 @@ function CrescendoApp() {
             onCreate={handleCreateNote}
             onOpenDaily={handleOpenDaily}
             onRandom={handleRandom}
+            courseCompletionCount={courseCompletionCount}
+            onBrowseCourses={() => setDseTab('courses')}
           />
         ) : dseTab === 'progress' ? (
           <div className="dse-module">
@@ -926,6 +967,8 @@ function CrescendoApp() {
               enrolledIds={enrolledIds}
               completedIds={completedIds}
               callAI={callAI}
+              skillAnalytics={skillAnalytics}
+              filterTags={courseFilterTags}
             />
           )
         ) : (

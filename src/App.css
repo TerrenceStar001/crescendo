@@ -8487,6 +8487,40 @@ html[data-theme="dark"] .shortcut-overlay {
   gap: var(--space-2);
 }
 
+/* --- Locked Course Card --- */
+.course__card--locked {
+  opacity: 0.6;
+  position: relative;
+}
+
+.course__card--locked .course__card-body {
+  filter: blur(0.5px);
+}
+
+.course__card-lock-overlay {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  font-size: 1.2rem;
+  z-index: 1;
+  cursor: help;
+}
+
+.course__card-lock-tooltip {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+  padding: 4px 8px;
+  background: var(--color-surface-soft);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.course__btn--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* --- Buttons --- */
 .course__btn {
   padding: 7px 16px;
