@@ -6,6 +6,7 @@ import SidebarNav from './components/SidebarNav';
 import ContextPanel from './components/ContextPanel';
 import NoteHeader from './components/NoteHeader';
 import Canvas from './components/Canvas';
+import CatalogView from './components/CatalogView';
 import CommandPalette from './components/CommandPalette';
 import SettingsPage from './components/SettingsPage';
 import { ViewProvider, useView } from './context/ViewContext';
@@ -20,6 +21,7 @@ import useStudyMode from './hooks/useStudyMode';
 import useSynthesis from './hooks/useSynthesis';
 import useSkillAnalytics from './hooks/useSkillAnalytics';
 import useDSEPapers from './hooks/useDSEPapers';
+import useCourses from './hooks/useCourses';
 import ReadingModule from './components/ReadingModule';
 import WritingModule from './components/WritingModule';
 import ListeningModule from './components/ListeningModule';
@@ -54,6 +56,12 @@ function CrescendoApp() {
   const { config, updateConfig, isConfigured, generateBoth, testConnection } = useAI();
   const skillAnalytics = useSkillAnalytics();
   const dsePapers = useDSEPapers();
+  const coursesHook = useCourses();
+  const [courses, setCourses] = useState([]);
+
+  useEffect(() => {
+    coursesHook.getCourses().then(setCourses);
+  }, [coursesHook]);
 
   const callAI = useCallback(async (prompt, opts = {}) => {
     const isExternal = config.endpoint && !config.endpoint.startsWith('/');
@@ -86,12 +94,26 @@ function CrescendoApp() {
     } catch (e) {
       clearTimeout(timeout);
       if (e.name === 'AbortError') throw new Error('AI request timed out');
+      if (isExternal) {
+        try {
+          const fallbackRes = await fetch('/api/ai/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'opencode/deepseek-v4-flash-free', messages, max_tokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 }),
+            signal: AbortSignal.timeout(120000),
+          });
+          if (fallbackRes.ok) {
+            const data = await fallbackRes.json();
+            return data.choices?.[0]?.message?.content?.trim() || '';
+          }
+        } catch {}
+      }
       throw e;
     }
   }, [config]);
 
   useEffect(() => {
-    if (['reading', 'writing', 'listening', 'speaking', 'progress'].includes(dseTab)) {
+    if (['reading', 'writing', 'listening', 'speaking', 'progress', 'courses'].includes(dseTab)) {
       setActive(null);
     }
   }, [dseTab, setActive]);
@@ -814,6 +836,7 @@ function CrescendoApp() {
             skillAnalytics={skillAnalytics}
             callAI={callAI}
             notes={notes}
+            createNote={createNote}
             onBack={() => { setDseTab('dashboard'); setActive(null); }}
           />
         ) : dseTab === 'listening' ? (
@@ -828,6 +851,13 @@ function CrescendoApp() {
             skillAnalytics={skillAnalytics}
             callAI={callAI}
             onBack={() => { setDseTab('dashboard'); setActive(null); }}
+          />
+        ) : dseTab === 'courses' ? (
+          <CatalogView
+            courses={courses}
+            onEnroll={(courseId) => coursesHook.enrollCourse(courseId)}
+            onOpenCourse={(courseId) => { /* CoursePlayer will be added in a later plan */ }}
+            callAI={callAI}
           />
         ) : (
           <>
@@ -864,7 +894,7 @@ function CrescendoApp() {
               <div className="main-footer__left">
                 <span className="main-footer__stat">{wordCount} words</span>
                 <span className="main-footer__stat">{charCount} chars</span>
-                {saveStatus && <span className="main-footer__stat" style={{ color: 'var(--color-success)' }}>{saveStatus}</span>}
+                {saveStatus && <span className="main-footer__stat" style={{ color: 'var(--color-success)' }} aria-live="polite">{saveStatus}</span>}
               </div>
               <div className="main-footer__right">
                 <button
@@ -985,7 +1015,7 @@ function CrescendoApp() {
           <div className="shortcut-modal" onClick={e => e.stopPropagation()}>
             <div className="shortcut-modal__header">
               <h3>Keyboard Shortcuts</h3>
-              <button className="shortcut-modal__close" onClick={() => setShowShortcuts(false)}>✕</button>
+              <button className="shortcut-modal__close" autoFocus onClick={() => setShowShortcuts(false)}>✕</button>
             </div>
             <div className="shortcut-modal__body">
               <table className="shortcut-table">

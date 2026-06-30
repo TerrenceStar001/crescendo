@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { id: 'writing', icon: '✍️', label: 'Writing' },
   { id: 'listening', icon: '🎧', label: 'Listening' },
   { id: 'speaking', icon: '🎤', label: 'Speaking' },
+  { id: 'courses', icon: '📚', label: 'Courses' },
   { id: 'graph', icon: '🔗', label: 'Graph' },
   { id: 'progress', icon: '📊', label: 'Progress' },
   { id: 'settings', icon: '⚙', label: 'Settings' },
@@ -34,6 +35,11 @@ export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes })
         setNavTab('notes');
         setDseTab('progress');
         break;
+      case 'courses':
+        setDseTab('courses');
+        setViewMode('list');
+        setNavTab('notes');
+        break;
       case 'reading':
       case 'writing':
       case 'listening':
@@ -51,6 +57,7 @@ export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes })
     if (id === 'notes') return navTab === 'notes' && dseTab === 'dashboard' && viewMode !== 'constellation';
     if (id === 'graph') return viewMode === 'constellation';
     if (id === 'progress') return dseTab === 'progress';
+    if (id === 'courses') return dseTab === 'courses';
     if (['reading', 'writing', 'listening', 'speaking'].includes(id)) return dseTab === id;
     if (id === 'settings') return false;
     return navTab === id;
@@ -66,7 +73,7 @@ export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes })
           aria-label={item.label}
           title={item.label}
         >
-          {item.icon}
+          <span role="img" aria-hidden="true">{item.icon}</span>
           <span className="nav-btn__tooltip">{item.label}</span>
         </button>
       ))}
