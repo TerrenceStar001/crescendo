@@ -1748,9 +1748,10 @@ Return as JSON array of 3 objects:
     }
   }, [getCachedPapers, cachePapers]);
 
-  const buildCorrectionPrompt = useCallback((part, essay, promptInfo, selfAssessment) => {
-    const essayWords = (essay?.text || '').split(/\s+/).length;
-    const expectedWords = part === 'A' ? 200 : 400;
+  const buildCorrectionPrompt = useCallback((part, essayData, selfAssessment) => {
+    const { text, prompt: promptInfo } = essayData || {};
+    const essayWords = (text || '').split(/\s+/).length;
+    const expectedWords = promptInfo?.wordLimit || (part === 'A' ? 200 : 400);
     const wordCountNote = essayWords < expectedWords * 0.7
       ? `⚠️ UNDER-LENGTH: ~${essayWords} words (expected ~${expectedWords}). This likely harms content development and task fulfilment.`
       : essayWords > expectedWords * 1.5
@@ -1785,7 +1786,7 @@ ${noPromptWarning}
 ---END PROMPT---
 
 ---STUDENT'S ESSAY---
-${essay?.text || ''}
+${text || ''}
 ---END ESSAY---
 
 ${selfAssessment?.length > 0 ? `The student is unsure about: ${selfAssessment.join(', ')}. Pay special attention to these areas.` : ''}

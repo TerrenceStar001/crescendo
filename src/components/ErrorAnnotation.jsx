@@ -1,14 +1,24 @@
 import React from 'react';
 
-function stripHtml(html) {
+const BLOCK_RE = /<\/(p|div|h[1-6]|blockquote|li|pre|tr|hr)>/gi;
+
+function htmlToPlaintext(html) {
   if (!html) return '';
-  return html.replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ').trim();
+  const withBreaks = html
+    .replace(BLOCK_RE, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return withBreaks;
 }
 
 export default function ErrorAnnotation({ essayHTML, inlineAnnotations }) {
   if (!inlineAnnotations?.length) return null;
 
-  const plainText = stripHtml(essayHTML);
+  const plainText = htmlToPlaintext(essayHTML);
   let result = plainText;
   const markers = [];
 
@@ -27,20 +37,23 @@ export default function ErrorAnnotation({ essayHTML, inlineAnnotations }) {
   return (
     <div className="writing__annotated-essay">
       <h3 className="writing__annotated-essay-header">Your Essay with Annotations</h3>
-      <div className="writing__annotated-essay-body">
-        {parts.map((part, i) => (
-          <React.Fragment key={i}>
-            {part}
-            {markers[idx] && (
-              <span className={`writing__annotation writing__annotation--${markers[idx].type}`}
-                title={`${markers[idx].type}: '${markers[idx].text}' \u2192 '${markers[idx].replacement}'`}
-              >
-                {markers[idx].text}
-              </span>
-            )}
-            {idx++}
-          </React.Fragment>
-        ))}
+      <div className="writing__annotated-essay-body" style={{ whiteSpace: 'pre-wrap' }}>
+        {parts.map((part, i) => {
+          const marker = markers[idx];
+          idx++;
+          return (
+            <React.Fragment key={i}>
+              {part}
+              {marker && (
+                <span className={`writing__annotation writing__annotation--${marker.type}`}
+                  title={`${marker.type}: '${marker.text}' \u2192 '${marker.replacement}'`}
+                >
+                  {marker.text}
+                </span>
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );

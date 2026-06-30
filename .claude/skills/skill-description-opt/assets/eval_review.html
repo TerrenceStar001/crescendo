@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eval Review — __SKILL_NAME_PLACEHOLDER__</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { color: #333; }
+  .skill-info { background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
+  .skill-info h2 { margin-top: 0; }
+  .eval-item { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+  .eval-item label { font-weight: bold; display: block; margin-bottom: 0.5rem; }
+  .eval-item p { margin: 0.5rem 0; }
+  .eval-item textarea { width: 100%; min-height: 60px; margin-top: 0.5rem; }
+  .toggle-group { display: flex; gap: 1rem; margin: 0.5rem 0; }
+  .toggle-group label { font-weight: normal; }
+  button { background: #0066cc; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+  button:hover { background: #0055aa; }
+  .export-btn { float: right; }
+</style>
+</head>
+<body>
+<h1>Eval Review — __SKILL_NAME_PLACEHOLDER__</h1>
+<div class="skill-info">
+  <h2>Current Description</h2>
+  <p><em>__SKILL_DESCRIPTION_PLACEHOLDER__</em></p>
+</div>
+
+<h2>Eval Queries</h2>
+<p>Review each query. Toggle <strong>should_trigger</strong> as needed, edit the query text, or add comments. Click "Export Eval Set" when done.</p>
+
+<div id="eval-list"></div>
+
+<button class="export-btn" onclick="exportEvalSet()">Export Eval Set</button>
+<button onclick="window.close()">Close</button>
+
+<script>
+const EVAL_DATA = __EVAL_DATA_PLACEHOLDER__;
+
+function renderEvals() {
+  const container = document.getElementById('eval-list');
+  container.innerHTML = '';
+  EVAL_DATA.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'eval-item';
+    div.innerHTML = `
+      <label>Query ${i + 1}</label>
+      <p><strong>Should trigger:</strong></p>
+      <div class="toggle-group">
+        <label><input type="radio" name="trigger-${i}" value="true" ${item.should_trigger ? 'checked' : ''}> Yes</label>
+        <label><input type="radio" name="trigger-${i}" value="false" ${!item.should_trigger ? 'checked' : ''}> No</label>
+      </div>
+      <p><strong>Query:</strong></p>
+      <textarea id="query-${i}">${item.query}</textarea>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function exportEvalSet() {
+  const updated = EVAL_DATA.map((item, i) => ({
+    query: document.getElementById(`query-${i}`).value,
+    should_trigger: document.querySelector(`input[name="trigger-${i}"]:checked`).value === 'true'
+  }));
+  const blob = new Blob([JSON.stringify(updated, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'eval_set.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+renderEvals();
+</script>
+</body>
+</html>

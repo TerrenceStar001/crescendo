@@ -67,6 +67,7 @@ function CrescendoApp() {
   const [enrolledIds, setEnrolledIds] = useState([]);
   const [completedIds, setCompletedIds] = useState([]);
   const [courseCompletionCount, setCourseCompletionCount] = useState(0);
+  const seedAttemptedRef = useRef(false);
 
   const refreshCourses = useCallback(() => {
     coursesHook.getCourses().then(setCourses);
@@ -139,34 +140,6 @@ function CrescendoApp() {
     setDseTab('courses');
   }, []);
 
-  // Re-generation trigger (D-15): fire when a new reading/writing session completes
-  // Checks if completed courses need to be regenerated based on persistent weakness
-  useEffect(() => {
-    const sessions = skillAnalytics?.sessions || [];
-    if (sessions.length === 0) return;
-    const latest = sessions[0];
-    if (!latest || !latest.completedAt) return;
-    // Only trigger for reading and writing sessions
-    if (latest.skill !== 'reading' && latest.skill !== 'writing') return;
-    const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
-    if (weakAreas.length === 0) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        const completedCourses = await coursesHook.getCompletedCourses();
-        const completedIds = completedCourses.map(c => c.id);
-        if (completedIds.length === 0) return;
-        const draft = await coursesHook.checkAndRegenerateCourse(weakAreas, completedIds, callAI);
-        if (draft) {
-          // Refresh courses list
-          refreshCourses();
-        }
-      } catch { /* silent */ }
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [skillAnalytics?.sessions, coursesHook, callAI, refreshCourses]);
-
   const callAI = useCallback(async (prompt, opts = {}) => {
     const isExternal = config.endpoint && !config.endpoint.startsWith('/');
     const ep = (() => {
@@ -215,6 +188,64 @@ function CrescendoApp() {
       throw e;
     }
   }, [config]);
+
+  // Re-generation trigger (D-15): fire when a new reading/writing session completes
+  // Checks if completed courses need to be regenerated based on persistent weakness
+  useEffect(() => {
+    const sessions = skillAnalytics?.sessions || [];
+    if (sessions.length === 0) return;
+    const latest = sessions[0];
+    if (!latest || !latest.completedAt) return;
+    // Only trigger for reading and writing sessions
+    if (latest.skill !== 'reading' && latest.skill !== 'writing') return;
+    const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
+    if (weakAreas.length === 0) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const completedCourses = await coursesHook.getCompletedCourses();
+        const completedIds = completedCourses.map(c => c.id);
+        if (completedIds.length === 0) return;
+        const draft = await coursesHook.checkAndRegenerateCourse(weakAreas, completedIds, callAI);
+        if (draft) {
+          // Refresh courses list
+          refreshCourses();
+        }
+      } catch { /* silent */ }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [skillAnalytics?.sessions, coursesHook, callAI, refreshCourses]);
+
+  // Initial course seed: auto-generate courses from weak areas when catalog is empty
+  useEffect(() => {
+    if (seedAttemptedRef.current) return;
+    if (courses.length > 0) return;
+    if (!skillAnalytics?.isLoaded) return;
+    const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
+    if (weakAreas.length === 0) {
+      console.warn('[course-seed] getWeakAreas returned empty — no subScores below 60. Profile:', skillAnalytics?.profile);
+      return;
+    }
+
+    seedAttemptedRef.current = true;
+    console.warn('[course-seed] weak areas found:', weakAreas);
+    const timer = setTimeout(async () => {
+      try {
+        const { weaknessTagsToCourseTags } = await import('./utils/errorPatternAnalysis');
+        const tags = weaknessTagsToCourseTags(weakAreas);
+        console.warn('[course-seed] mapped tags:', tags);
+        if (tags.length === 0) return;
+        const result = await coursesHook.autoGenerateCourse(tags, [], callAI);
+        console.warn('[course-seed] auto-generate result:', result ? 'success' : 'failed (null)');
+        if (result) refreshCourses();
+      } catch (e) {
+        console.warn('[course-seed] error:', e.message);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [courses.length, skillAnalytics, coursesHook, callAI, refreshCourses]);
 
   useEffect(() => {
     if (['reading', 'writing', 'listening', 'speaking', 'progress', 'courses'].includes(dseTab)) {

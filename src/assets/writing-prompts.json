@@ -4,7 +4,7 @@
     "part": "A",
     "type": "letter",
     "title": "School Exchange Programme Inquiry",
-    "context": "You are a Form 6 student at Hong Kong Heights Secondary School. Your school is organising a文化交流 programme with a school in the UK.",
+    "context": "You are a Form 6 student at Hong Kong Heights Secondary School. Your school is organising acultural exchange programme with a school in the UK.",
     "task": "Write an email to the UK school's programme coordinator asking for details about the exchange. You should introduce yourself, express interest, and ask about accommodation, daily schedule, and costs.",
     "wordLimit": { "min": 180, "max": 250 },
     "suggestedPoints": ["Introduce yourself and your school", "Express enthusiasm for the programme", "Ask about accommodation arrangements", "Inquire about daily schedule", "Ask about programme costs and what is included"],

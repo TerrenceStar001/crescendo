@@ -48,6 +48,10 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/api/ai/chat/completions': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
       '/api/ai': {
         target: 'http://127.0.0.1:4010',
         changeOrigin: true,

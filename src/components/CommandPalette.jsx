@@ -5,9 +5,38 @@ export default function CommandPalette({ notes, onSelect, onCreate, onQuickCaptu
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef(null);
   const itemsRef = useRef([]);
+  const paletteRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const el = paletteRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    function handleTab(e) {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }
+    document.addEventListener('keydown', handleTab);
+    return () => document.removeEventListener('keydown', handleTab);
   }, []);
 
   useEffect(() => {
@@ -59,7 +88,7 @@ export default function CommandPalette({ notes, onSelect, onCreate, onQuickCaptu
 
   return (
     <div className="cmd-palette-overlay" onClick={onClose}>
-      <div className="cmd-palette" onClick={e => e.stopPropagation()} onKeyDown={handleKey}>
+      <div className="cmd-palette" ref={paletteRef} onClick={e => e.stopPropagation()} onKeyDown={handleKey}>
         <div className="cmd-palette__input-wrap">
           <span className="cmd-palette__prefix">&gt;</span>
           <input

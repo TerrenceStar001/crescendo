@@ -160,15 +160,38 @@ export function identifyWeakAreas(bySkill, byType) {
 }
 
 /**
- * weaknessTagsToCourseTags: Maps weak areas from identifyWeakAreas() to course tags
- * using the WEAKNESS_TO_TAG_MAP from courseSchema.js.
+ * QUESTION_TYPE_TO_AREA: Maps question type names (from getWeakAreas) to
+ * WEAKNESS_TO_TAG_MAP area keys. getWeakAreas returns question types like
+ * 'mcq', 'gap-fill' from subScores, but WEAKNESS_TO_TAG_MAP keys are skill
+ * areas like 'Grammar', 'Vocabulary', 'Inference'.
+ */
+const QUESTION_TYPE_TO_AREA = {
+  'gap-fill': 'Grammar',
+  'sentence-rewrite': 'Sentence Structure',
+  cloze: 'Vocabulary',
+  reordering: 'Sentence Structure',
+  'short-answer': 'Grammar',
+  matching: 'Vocabulary',
+  'pronoun-ref': 'Sentence Structure',
+  'semantic-connect': 'Sentence Structure',
+  'summary-cloze': 'Main Idea',
+  tfng: 'Detail Retrieval',
+  'open-ended': 'Inference',
+  mcq: 'Grammar',
+};
+
+/**
+ * weaknessTagsToCourseTags: Maps weak areas from identifyWeakAreas() or
+ * skillAnalytics.getWeakAreas() to course tags using WEAKNESS_TO_TAG_MAP.
+ * Translates question type names to skill areas when needed.
  * Returns array of course tag strings (e.g., ['grammar:tenses', 'vocab:academic']).
  */
 export function weaknessTagsToCourseTags(weakAreas) {
   if (!weakAreas?.length) return [];
   const tags = new Set();
   for (const wa of weakAreas) {
-    const mapped = WEAKNESS_TO_TAG_MAP[wa.area];
+    const area = WEAKNESS_TO_TAG_MAP[wa.area] ? wa.area : QUESTION_TYPE_TO_AREA[wa.area];
+    const mapped = WEAKNESS_TO_TAG_MAP[area];
     if (mapped) mapped.forEach(t => tags.add(t));
   }
   return [...tags];

@@ -13,6 +13,7 @@ export default function TheVoid({
   const [retryMode, setRetryMode] = useState(false);
   const [wrongIndices, setWrongIndices] = useState([]);
   const inputRef = useRef(null);
+  const voidPanelRef = useRef(null);
 
   const questions = studySession?.questions || [];
   const resultsRef = useRef([]);
@@ -29,6 +30,34 @@ export default function TheVoid({
       }, 100);
     }
   }, [currentIdx, sessionDone, feedback]);
+
+  useEffect(() => {
+    const el = voidPanelRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    function handleTab(e) {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }
+    document.addEventListener('keydown', handleTab);
+    return () => document.removeEventListener('keydown', handleTab);
+  }, [sessionDone, feedback, currentIdx]);
 
   function handleKey(e) {
     if (e.key === 'Escape') {
@@ -311,7 +340,7 @@ export default function TheVoid({
 
   return (
     <div className="void-overlay" onClick={onClose} onKeyDown={handleKey}>
-      <div className="void" onClick={e => e.stopPropagation()}>
+      <div className="void" ref={voidPanelRef} onClick={e => e.stopPropagation()}>
         <div className="void__header">
           <h3 className="void__title">
             Studying:<span className="void__note-title">{note.title || 'Untitled'}</span>

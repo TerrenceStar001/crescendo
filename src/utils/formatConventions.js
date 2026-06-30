@@ -51,12 +51,39 @@ export const PART_A_FORMAT_RULES = {
     wordRange: '80-150',
     commonErrors: ['overly formal register', 'no engagement with original post']
   },
-  'questionnaire response': {
+   'questionnaire response': {
     requiredElements: ['introductory_statement', 'numbered_responses', 'closing'],
     register: 'semi-formal',
     wordRange: '120-180',
     commonErrors: ['unstructured responses', 'missing introductory context']
-  },
+   },
+   review: {
+    requiredElements: ['title', 'introduction', 'body_evaluation', 'conclusion'],
+    register: 'semi-formal to formal',
+    wordRange: '200-450',
+    commonErrors: [
+      'no title or byline',
+      'narrative tone instead of evaluative',
+      'missing personal evaluation/verdict',
+      'descriptive summary without critical analysis'
+    ]
+   },
+   blog: {
+    requiredElements: ['title', 'opening_hook', 'body', 'conclusion'],
+    register: 'informal to semi-formal',
+    wordRange: '200-400',
+    commonErrors: [
+      'overly formal register',
+      'no personal voice',
+      'missing engaging opening'
+    ]
+   },
+   general: {
+    requiredElements: [],
+    register: 'varies',
+    wordRange: 'varies',
+    commonErrors: []
+   },
 };
 
 /**
