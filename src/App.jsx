@@ -7,6 +7,7 @@ import ContextPanel from './components/ContextPanel';
 import NoteHeader from './components/NoteHeader';
 import Canvas from './components/Canvas';
 import CatalogView from './components/CatalogView';
+import CourseIngestion from './components/CourseIngestion';
 import CommandPalette from './components/CommandPalette';
 import SettingsPage from './components/SettingsPage';
 import { ViewProvider, useView } from './context/ViewContext';
@@ -58,10 +59,20 @@ function CrescendoApp() {
   const dsePapers = useDSEPapers();
   const coursesHook = useCourses();
   const [courses, setCourses] = useState([]);
+  const [showCourseIngestion, setShowCourseIngestion] = useState(false);
 
-  useEffect(() => {
+  const refreshCourses = useCallback(() => {
     coursesHook.getCourses().then(setCourses);
   }, [coursesHook]);
+
+  useEffect(() => {
+    refreshCourses();
+  }, [refreshCourses]);
+
+  const handleCourseSave = useCallback(async (course) => {
+    await coursesHook.saveCourse(course);
+    refreshCourses();
+  }, [coursesHook, refreshCourses]);
 
   const callAI = useCallback(async (prompt, opts = {}) => {
     const isExternal = config.endpoint && !config.endpoint.startsWith('/');
@@ -853,12 +864,21 @@ function CrescendoApp() {
             onBack={() => { setDseTab('dashboard'); setActive(null); }}
           />
         ) : dseTab === 'courses' ? (
-          <CatalogView
-            courses={courses}
-            onEnroll={(courseId) => coursesHook.enrollCourse(courseId)}
-            onOpenCourse={(courseId) => { /* CoursePlayer will be added in a later plan */ }}
-            callAI={callAI}
-          />
+          showCourseIngestion ? (
+            <CourseIngestion
+              callAI={callAI}
+              onSave={handleCourseSave}
+              onBack={() => setShowCourseIngestion(false)}
+            />
+          ) : (
+            <CatalogView
+              courses={courses}
+              onEnroll={(courseId) => coursesHook.enrollCourse(courseId)}
+              onOpenCourse={(courseId) => { /* CoursePlayer will be added in a later plan */ }}
+              onOpenIngestion={() => setShowCourseIngestion(true)}
+              callAI={callAI}
+            />
+          )
         ) : (
           <>
             <NoteHeader

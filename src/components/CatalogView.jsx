@@ -8,12 +8,13 @@ const FILTER_TAGS = ['grammar', 'vocabulary', 'sentence-structure'];
  * Includes search bar and tag filter chips.
  *
  * Props:
- *   courses       — array of course objects
- *   onEnroll      — (courseId) => void
- *   onOpenCourse  — (courseId) => void
- *   callAI        — AI call function
+ *   courses          — array of course objects
+ *   onEnroll         — (courseId) => void
+ *   onOpenCourse     — (courseId) => void
+ *   onOpenIngestion  — () => void, opens PDF ingestion panel
+ *   callAI           — AI call function
  */
-export default function CatalogView({ courses = [], onEnroll, onOpenCourse, callAI }) {
+export default function CatalogView({ courses = [], onEnroll, onOpenCourse, onOpenIngestion, callAI }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState(null);
 
@@ -53,6 +54,11 @@ export default function CatalogView({ courses = [], onEnroll, onOpenCourse, call
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
         />
+        {onOpenIngestion && (
+          <button className="course__btn course__btn--upload" onClick={onOpenIngestion}>
+            Upload PDF
+          </button>
+        )}
       </div>
 
       <div className="course__tag-filters">
