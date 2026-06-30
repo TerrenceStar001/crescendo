@@ -58,6 +58,22 @@ export function createSchema(db) {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS courses (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      content TEXT,
+      tags TEXT DEFAULT '[]',
+      difficulty TEXT DEFAULT 'intermediate',
+      source TEXT,
+      source_task_id TEXT,
+      weakness_pattern TEXT,
+      draft_content TEXT,
+      published INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS crawl_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       source TEXT NOT NULL,

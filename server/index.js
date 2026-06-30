@@ -15,6 +15,7 @@ import { RAGEngine } from './rag/engine.js';
 import contentRoutes from './routes/content.js';
 import analyzeRoutes from './routes/analyze.js';
 import crawlRoutes from './routes/crawl.js';
+import coursesRoutes from './routes/courses.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -284,6 +285,7 @@ app.use((req, res, next) => {
 app.use('/api', contentRoutes);
 app.use('/api/analyze', analyzeRoutes);
 app.use('/api/crawl', crawlRoutes);
+app.use('/api/courses', coursesRoutes);
 
 app.get('/api/health', (req, res) => {
   const scmpDone = db.prepare("SELECT COUNT(*) as c FROM crawl_log WHERE source = 'scmp' AND status = 'complete'").get().c > 0;
@@ -456,6 +458,37 @@ app.get('/api/rag/article/:id', (req, res) => {
     res.json(row);
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/ai/chat/completions', async (req, res) => {
+  try {
+    const { model, messages, max_tokens, temperature } = req.body;
+    const apiKey = process.env.AGNES_API_KEY || process.env.NVIDIA_API_KEY;
+    const defaultEndpoint = process.env.AGNES_API_KEY
+      ? 'https://apihub.agnes-ai.com/v1/chat/completions'
+      : process.env.NVIDIA_API_KEY
+        ? 'https://integrate.api.nvidia.com/v1/chat/completions'
+        : null;
+    if (!apiKey || !defaultEndpoint) {
+      return res.status(500).json({ error: 'No AI provider configured. Set AGNES_API_KEY in server/.env or configure an AI provider in Settings.' });
+    }
+
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
+    const response = await fetch(defaultEndpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model: model || 'agnes-2.0-flash', messages, max_tokens: max_tokens || 2000, temperature: temperature ?? 0.3 }),
+      signal: AbortSignal.timeout(120000),
+    });
+
+    const text = await response.text();
+    const ct = response.headers.get('content-type');
+    if (ct) res.setHeader('content-type', ct);
+    res.status(response.status).send(text);
+  } catch (e) {
+    console.error('AI chat completions proxy error:', e.message);
+    res.status(502).json({ error: `AI proxy failed: ${e.message}` });
   }
 });
 
