@@ -128,5 +128,5 @@ Plans:
 Plans:
 - [x] 06-01-PLAN.md — Foundation: course data model, IndexedDB keys, sidebar nav, backend skeleton, catalog shell (Wave 1)
 - [x] 06-02-PLAN.md — PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses (Wave 2)
-- [ ] 06-03-PLAN.md — Course Player: exercise-first state machine, reference unlock, auto-save, final assessment, course overview (Wave 3)
+- [x] 06-03-PLAN.md — Course Player: exercise-first state machine, reference unlock, auto-save, final assessment, course overview (Wave 3)
 - [ ] 06-04-PLAN.md — Recommendations: weakness→tag mapping, auto-generation, inline post-task suggestions, dashboard integration, offline caching, difficulty progression, re-generation trigger (Wave 4)
