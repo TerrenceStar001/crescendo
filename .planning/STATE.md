@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06
 status: executing
-last_updated: "2026-06-30T02:57:27.588Z"
+last_updated: "2026-06-30T03:06:44.000Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 25
-  completed_plans: 24
-  percent: 68
+  completed_plans: 25
+  percent: 100
 ---
 
 # Project State
@@ -18,7 +18,7 @@ progress:
 ## Session: Phase 6 — Courses Feature
 
 **Current phase:** 06
-**Last action:** Plan 06-03 completed: CoursePlayer exercise-first lesson delivery, CourseOverview entry page, CatalogView enrollment sections, and App.jsx course routing.
+**Last action:** Plan 06-04 completed: Weakness-to-course recommendation pipeline, auto-generation from error tags, Dashboard integration, difficulty progression locking, offline caching, and inline post-task course suggestion banner.
 
 ## Project Reference
 
@@ -34,6 +34,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 - Plan 06-01 complete: Foundation scaffolding (data model, backend, nav, catalog shell)
 - Plan 06-02 complete: PDF ingestion pipeline with AI structuring, CourseIngestion upload/review, CatalogView course cards
 - Plan 06-03 complete: CoursePlayer exercise-first lesson delivery, CourseOverview entry page, CatalogView enrollment sections
+- Plan 06-04 complete: Weakness-to-course recommendation pipeline (WEAKNESS_TO_TAG_MAP, calculateCourseRecommendations), auto-generation from error tags (autoGenerateCourse, POST /api/courses/auto-generate), Dashboard integration (course completion count, Browse Courses button), difficulty progression locking (D-30), offline caching (D-31), re-generation trigger (D-15), inline post-task suggestion banner (D-18)
 
 **Current focus:** Phase 06 — courses-feature
 
@@ -46,7 +47,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 | 3     | ✓      | 3/3   | 100%     |
 | 4     | ✓      | 4/4   | 100%     |
 | 5     | ○      | 0/3   | 0% (planned) |
-| 6     | ○      | 3/4   | 75% (exercise-first delivery done) |
+| 6     | ✓      | 4/4   | 100% |
 
 ## Phase 1 Completion Report
 
@@ -148,20 +149,18 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 
 - Build passes: ✅
 
-## Next Step
+## Phase 6 Complete
 
-Execute Phase 6 Plan 02: `/gsd-execute-phase 06-courses-feature` (`/clear` first)
-
-Phase 6 transforms external learning resources (IELTS vocab, grammar, sentence structure PDFs) into structured courses. Foundation is done — Plan 02 adds the PDF upload pipeline, draft review UI, and catalog with published courses.
-
-4 plans in 4 waves:
+Phase 6 has been fully implemented across 4 waves:
 
 | Wave | Plan | Description | Status |
 |------|------|-------------|--------|
 | 1 | 06-01 | Foundation: course data model, IndexedDB, backend, sidebar nav, catalog shell | ✓ Complete |
 | 2 | 06-02 | PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses | ✓ Complete |
 | 3 | 06-03 | Course Player: exercise-first state machine, reference unlock, auto-save, final assessment | ✓ Complete |
-| 4 | 06-04 | Recommendations: weakness→tag mapping, auto-generation, dashboard integration | ○ Pending |
+| 4 | 06-04 | Recommendations: weakness→tag mapping, auto-generation, dashboard integration, post-task suggestions | ✓ Complete |
+
+All 25 plans across all 6 phases are complete.
 
 ### Phase 4 Completion Report
 

@@ -2,7 +2,7 @@
 
 **Created:** 2026-06-23
 **Mode:** mvp
-**Phases:** 5 | **Requirements:** 7 | **Coverage:** 100% ✓
+**Phases:** 6 | **Requirements:** 7 | **Coverage:** 100% ✓
 
 ### Phase 1: Passage Quality & DSE Authenticity
 
@@ -129,4 +129,4 @@ Plans:
 - [x] 06-01-PLAN.md — Foundation: course data model, IndexedDB keys, sidebar nav, backend skeleton, catalog shell (Wave 1)
 - [x] 06-02-PLAN.md — PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses (Wave 2)
 - [x] 06-03-PLAN.md — Course Player: exercise-first state machine, reference unlock, auto-save, final assessment, course overview (Wave 3)
-- [ ] 06-04-PLAN.md — Recommendations: weakness→tag mapping, auto-generation, inline post-task suggestions, dashboard integration, offline caching, difficulty progression, re-generation trigger (Wave 4)
+- [x] 06-04-PLAN.md — Recommendations: weakness→tag mapping, auto-generation, inline post-task suggestions, dashboard integration, offline caching, difficulty progression, re-generation trigger (Wave 4)
