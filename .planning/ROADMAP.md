@@ -117,3 +117,16 @@ Plans:
 - [ ] 05-01-PLAN.md — Core IELTS pipeline: rewrite correction prompt with IELTS band descriptors, create ieltsToDseMap.js + hkeaaWritingRubrics.js, update parseCorrectionResponse/combineCorrections (Wave 1)
 - [ ] 05-02-PLAN.md — Format conventions: create formatConventions.js, update correction pipeline with text-type format rules + memorised phrase detection (Wave 2)
 - [ ] 05-03-PLAN.md — Component extraction: extract RubricDisplay, ErrorAnnotation, FormatChecker from WritingModule.jsx; add conversion settings UI to Settings → DSE tab (Wave 3)
+
+### Phase 6: Courses feature - Transform external resources (IELTS vocab, grammar, sentence structure PDFs) into structured courses students can attend. Based on submitted reading/writing tasks, distinguish weaknesses and recommend relevant courses. Includes auto-generated courses from user-submitted tasks.
+
+**Goal:** Build a Course system where external learning resources are transformed into structured courses. Students browse a catalog, enroll with an exercise-first approach, and complete via final assessment. System analyzes weaknesses from reading/writing tasks and recommends/auto-generates courses.
+**Requirements**: All 44 CONTEXT.md decisions (D-01 through D-44)
+**Depends on:** Phase 5
+**Plans:** 4 plans in 4 waves
+
+Plans:
+- [ ] 06-01-PLAN.md — Foundation: course data model, IndexedDB keys, sidebar nav, backend skeleton, catalog shell (Wave 1)
+- [ ] 06-02-PLAN.md — PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses (Wave 2)
+- [ ] 06-03-PLAN.md — Course Player: exercise-first state machine, reference unlock, auto-save, final assessment, course overview (Wave 3)
+- [ ] 06-04-PLAN.md — Recommendations: weakness→tag mapping, auto-generation, inline post-task suggestions, dashboard integration, offline caching, difficulty progression, re-generation trigger (Wave 4)
