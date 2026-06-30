@@ -106,6 +106,9 @@ export function useIndexedDB() {
     RECORDINGS: 'crescendo-speech-recordings',
     SESSION_ANSWERS: 'crescendo-session-answers',
     WRITING_SESSIONS: 'crescendo-writing-sessions',
+    COURSES: 'crescendo-course-definitions',
+    COURSE_PROGRESS: 'crescendo-course-progress',
+    COURSE_INGESTION: 'crescendo-course-ingestion',
   };
 
   return { getItem, setItem, updateItem, deleteItem, getKeys, clearAll, getStorageEstimate, DSE_KEYS };
