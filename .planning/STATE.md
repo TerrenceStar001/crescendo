@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06
 status: executing
-last_updated: "2026-06-30T02:39:11Z"
+last_updated: "2026-06-30T02:46:55Z"
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 22
-  completed_plans: 21
-  percent: 68
+  completed_plans: 22
+  percent: 72
 ---
 
 # Project State
@@ -18,7 +18,7 @@ progress:
 ## Session: Phase 6 — Courses Feature
 
 **Current phase:** 06
-**Last action:** Plan 06-01 completed: Course data model, IndexedDB keys, backend course routes, SidebarNav Courses tab, and CatalogView shell.
+**Last action:** Plan 06-02 completed: PDF Ingestion pipeline with AI structuring, CourseIngestion upload/review component, and CatalogView course card grid.
 
 ## Project Reference
 
@@ -32,6 +32,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 
 - Phase 6 added: Courses feature
 - Plan 06-01 complete: Foundation scaffolding (data model, backend, nav, catalog shell)
+- Plan 06-02 complete: PDF ingestion pipeline with AI structuring, CourseIngestion upload/review, CatalogView course cards
 
 **Current focus:** Phase 06 — courses-feature
 
@@ -44,7 +45,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 | 3     | ✓      | 3/3   | 100%     |
 | 4     | ✓      | 4/4   | 100%     |
 | 5     | ○      | 0/3   | 0% (planned) |
-| 6     | ○      | 1/4   | 25% (foundation done) |
+| 6     | ○      | 2/4   | 50% (ingestion pipeline done) |
 
 ## Phase 1 Completion Report
 
@@ -157,7 +158,7 @@ Phase 6 transforms external learning resources (IELTS vocab, grammar, sentence s
 | Wave | Plan | Description | Status |
 |------|------|-------------|--------|
 | 1 | 06-01 | Foundation: course data model, IndexedDB, backend, sidebar nav, catalog shell | ✓ Complete |
-| 2 | 06-02 | PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses | ○ Pending |
+| 2 | 06-02 | PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses | ✓ Complete |
 | 3 | 06-03 | Course Player: exercise-first state machine, reference unlock, auto-save, final assessment | ○ Pending |
 | 4 | 06-04 | Recommendations: weakness→tag mapping, auto-generation, dashboard integration | ○ Pending |
 
