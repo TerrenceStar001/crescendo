@@ -116,6 +116,29 @@ function CrescendoApp() {
 
   const [courseFilterTags, setCourseFilterTags] = useState(null);
 
+  // Callback for ReadingModule/WritingModule to get course recommendations
+  const getCourseRecommendations = useCallback(async () => {
+    try {
+      const recs = await coursesHook.getRecommendations(skillAnalytics);
+      return recs;
+    } catch {
+      return [];
+    }
+  }, [coursesHook, skillAnalytics]);
+
+  // Callback for PostTaskSuggestion enrollment — navigates to catalog filtered by tags
+  const handleEnrollCourse = useCallback((tagSet) => {
+    if (tagSet?.length) {
+      // Derive a single filter tag from the first recommended tag's prefix
+      const firstTag = tagSet[0];
+      const prefix = firstTag?.split(':')[0];
+      setCourseFilterTags(prefix || null);
+    } else {
+      setCourseFilterTags(null);
+    }
+    setDseTab('courses');
+  }, []);
+
   // Re-generation trigger (D-15): fire when a new reading/writing session completes
   // Checks if completed courses need to be regenerated based on persistent weakness
   useEffect(() => {
@@ -914,6 +937,9 @@ function CrescendoApp() {
             notes={notes}
             createNote={createNote}
             onBack={() => { setDseTab('dashboard'); setActive(null); }}
+            onGetCourseRecommendations={getCourseRecommendations}
+            onEnrollCourse={handleEnrollCourse}
+            onBrowseCourses={handleBrowseCourses}
           />
         ) : dseTab === 'writing' ? (
           <WritingModule
@@ -923,6 +949,9 @@ function CrescendoApp() {
             notes={notes}
             createNote={createNote}
             onBack={() => { setDseTab('dashboard'); setActive(null); }}
+            onGetCourseRecommendations={getCourseRecommendations}
+            onEnrollCourse={handleEnrollCourse}
+            onBrowseCourses={handleBrowseCourses}
           />
         ) : dseTab === 'listening' ? (
           <ListeningModule

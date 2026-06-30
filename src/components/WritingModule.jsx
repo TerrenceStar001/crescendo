@@ -4,6 +4,7 @@ import { scoreToDseLevel, dseLevelToIelts, pctToIeltsWriting } from '../utils/ds
 import RubricDisplay from './RubricDisplay';
 import ErrorAnnotation from './ErrorAnnotation';
 import FormatChecker from './FormatChecker';
+import PostTaskSuggestion from './PostTaskSuggestion';
 
 const SESSION_KEY = 'crescendo-writing-session';
 const TOTAL_DURATION = 7200; // 2 hours in seconds
@@ -31,7 +32,7 @@ function getBadgeInfo(type) {
   return TEXT_TYPE_BADGES[lower] || { label: type, color: '#8a8aa0' };
 }
 
-export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack }) {
+export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack, onGetCourseRecommendations, onEnrollCourse, onBrowseCourses }) {
   const { focusMode, setFocusMode } = useView();
   const [phase, setPhase] = useState('start');
   const [sessionData, setSessionData] = useState(null);
@@ -55,9 +56,18 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   const [practiceMode, setPracticeMode] = useState('both'); // 'both' | 'partA' | 'partB'
   const [partAAnalysisStatus, setPartAAnalysisStatus] = useState(null); // null | 'analysing' | 'done' | 'failed'
   const [notesGenerated, setNotesGenerated] = useState(null); // null=generating, true=done, false=failed
+  const [courseRecommendations, setCourseRecommendations] = useState([]);
+  const [showCourseSuggestion, setShowCourseSuggestion] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [customContext, setCustomContext] = useState('');
+  const [customTextType, setCustomTextType] = useState('essay');
+  const [customEssay, setCustomEssay] = useState('');
+  const [customCorrectionResult, setCustomCorrectionResult] = useState(null);
+  const [viewingHistorySession, setViewingHistorySession] = useState(null);
   const notesGenDataRef = useRef(null);
   const partAResultRef = useRef(null);
   const editorRef = useRef(null);
+  const customEditorRef = useRef(null);
   const timerRef = useRef(null);
   const saveTimerRef = useRef(null);
   const partADoneTimerRef = useRef(null);
@@ -481,6 +491,79 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     }
   }, [activePart, getCurrentEssay, getEssayPlainText, partA, partB, sessionData, selfAssessment, correctionPartAResult, callAI, skillAnalytics, dsePapers, setFocusMode, practiceMode]);
 
+  const saveCustomSessionToHistory = useCallback(async (correction, plainText, essayHtml) => {
+    try {
+      const existing = await dsePapers.writingSessionGet?.() || [];
+      const session = {
+        id: `custom_${Date.now()}`,
+        type: 'custom',
+        completedAt: new Date().toISOString(),
+        prompt: customPrompt,
+        context: customContext,
+        textType: customTextType,
+        essayHtml: essayHtml || plainText,
+        essayPlainText: plainText,
+        wordCount: plainText.split(/\s+/).filter(Boolean).length,
+        correction,
+        dseLevel: correction.overall?.dseLevel || '\u2014',
+      };
+      const updated = [session, ...existing].slice(0, 50);
+      dsePapers.writingSessionSet?.(updated);
+    } catch (e) {
+      console.warn('Failed to save custom session:', e);
+    }
+  }, [customPrompt, customContext, customTextType, dsePapers]);
+
+  // --- Custom Practice submit ---
+  const handleCustomSubmit = useCallback(async () => {
+    let essayHtml = customEssay;
+    const el = customEditorRef.current;
+    if (el) essayHtml = el.innerHTML;
+    const plainText = essayHtml.replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ').trim();
+    if (!plainText) return;
+
+    setSubmitting(true);
+    setPhase('correctingCustom');
+
+    try {
+      const promptInfo = {
+        context: customContext,
+        task: customPrompt,
+        type: customTextType,
+        wordLimit: { min: 200, max: 500 },
+      };
+      const prompt = dsePapers.buildCorrectionPrompt('B', { text: plainText, prompt: promptInfo }, selfAssessment);
+      const data = await callAI(prompt, {
+        system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Assess using IELTS Writing band descriptors: Task Achievement/9, Coherence & Cohesion/9, Lexical Resource/9, Grammatical Range & Accuracy/9. Return ONLY valid JSON.',
+        temperature: 0.3,
+        maxTokens: 3000,
+      });
+      const parsed = dsePapers.parseCorrectionResponse(data);
+      if (!parsed) throw new Error('Failed to parse AI response');
+
+      const partTotal = (parsed.content?.score || 0) + (parsed.organization?.score || 0) + (parsed.language?.score || 0);
+      const partPct = Math.round((partTotal / 21) * 100);
+      const dseLevel = scoreToDseLevel(partPct, 'writing').level || '\u2014';
+      parsed.overall = { ...parsed.overall, total: partTotal, maxTotal: 21, percentage: partPct, dseLevel };
+      setCustomCorrectionResult(parsed);
+      saveCustomSessionToHistory(parsed, plainText, essayHtml);
+      setPhase('correctionCustom');
+    } catch (e) {
+      console.error('Custom correction failed:', e);
+      const errorResult = {
+        content: { score: 0, feedback: 'Correction failed. Please try again.' },
+        organization: { score: 0, feedback: '' },
+        language: { score: 0, feedback: '' },
+        overall: { total: 0, maxTotal: 21, percentage: 0, dseLevel: '\u2014', narrativeSummary: 'Correction failed.' },
+        errors: [], vocabularySuggestions: [], goodLanguage: [], sectionBreakdown: {}, pitfallsAvoided: [], targetedImprovements: [], inlineAnnotations: [],
+      };
+      setCustomCorrectionResult(errorResult);
+      setPhase('correctionCustom');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [customEssay, customPrompt, customContext, customTextType, selfAssessment, callAI, dsePapers, saveCustomSessionToHistory]);
+
   // --- Proceed to Part B ---
   const handleProceedToPartB = useCallback(() => {
     setActivePart('B');
@@ -523,6 +606,18 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       console.warn('Failed to save session to history:', e);
     }
   }, [partA.essay, partB.essay, partB.chosenOption, selfAssessment, timeRemaining, getEssayPlainText, dsePapers]);
+
+  // --- Load course recommendations when entering correction phase ---
+  useEffect(() => {
+    if ((phase === 'correctionCombined' || phase === 'correctionPartA') && correctionResult && onGetCourseRecommendations) {
+      onGetCourseRecommendations().then(recs => {
+        if (recs?.length > 0) {
+          setCourseRecommendations(recs);
+          setShowCourseSuggestion(true);
+        }
+      }).catch(() => {});
+    }
+  }, [phase, correctionResult, onGetCourseRecommendations]);
 
   // --- Auto-generate study notes from correction analysis ---
   useEffect(() => {
@@ -581,6 +676,11 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     setResubmitMode(false);
     setNotesGenerated(null);
     notesGenDataRef.current = null;
+    setCustomPrompt('');
+    setCustomContext('');
+    setCustomTextType('essay');
+    setCustomEssay('');
+    setCustomCorrectionResult(null);
     clearSessionStorage();
   }, [clearSessionStorage]);
 
@@ -847,8 +947,67 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             <button className="writing__start-btn--primary" onClick={handleStartSession} disabled={generating}>
               {generating ? 'Generating...' : 'Start Writing Practice'}
             </button>
+            <button className="writing__start-btn--tertiary" onClick={() => setPhase('writingCustom')}>
+              + Custom Practice
+            </button>
             <button className="writing__start-btn--secondary" onClick={() => setPhase('history')}>
               View History
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Custom Writing input screen
+  if (phase === 'writingCustom') {
+    return (
+      <div className="dse-module">
+        <div className="dse-module__header">
+          <button className="dse-module__back" onClick={() => setPhase('start')}>← Back</button>
+          <h1 className="dse-module__title">Custom Writing Practice</h1>
+        </div>
+        <div className="writing__custom-page">
+          <div className="writing__custom-input">
+            <div className="writing__custom-input-scroll">
+              <label>Your Prompt / Question</label>
+              <textarea
+                className="writing__custom-prompt-input"
+                placeholder="e.g., Should Hong Kong embrace digital currency?"
+                value={customPrompt}
+                onChange={e => setCustomPrompt(e.target.value)}
+              />
+              <label>Context (optional)</label>
+              <textarea
+                className="writing__custom-context-input"
+                placeholder="Provide any background context or instructions..."
+                value={customContext}
+                onChange={e => setCustomContext(e.target.value)}
+              />
+              <label>Text Type</label>
+              <select value={customTextType} onChange={e => setCustomTextType(e.target.value)}>
+                {[...PART_A_TYPES, ...PART_B_TYPES.filter(t => !PART_A_TYPES.includes(t))].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <label>Your Essay</label>
+              <div className="writing__custom-editor-wrapper">
+                <div
+                  ref={customEditorRef}
+                  className="writing__editor--exam writing__editor-ruled"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={e => setCustomEssay(e.currentTarget.innerHTML)}
+                  data-placeholder="Start writing your essay here..."
+                />
+              </div>
+            </div>
+            <button
+              className="writing__start-btn--primary"
+              onClick={handleCustomSubmit}
+              disabled={submitting || !customEssay.replace(/<[^>]+>/g, '').trim()}
+            >
+              {submitting ? 'Submitting...' : 'Submit for Correction'}
             </button>
           </div>
         </div>
@@ -925,8 +1084,8 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     );
   }
 
-  // Correcting state (Part A or Part B)
-  if (phase === 'correctingPartA' || phase === 'correctingPartB') {
+  // Correcting state (Part A or Part B or Custom)
+  if (phase === 'correctingPartA' || phase === 'correctingPartB' || phase === 'correctingCustom') {
     return (
       <div className="dse-module">
         <div className="dse-module__header">
@@ -1025,6 +1184,60 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
               </button>
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // Custom correction results
+  if (phase === 'correctionCustom') {
+    const cr = customCorrectionResult;
+    if (!cr) return null;
+    const total = cr.overall?.total || 0;
+    const maxTotal = cr.overall?.maxTotal || 21;
+    const pct = cr.overall?.percentage || 0;
+    const level = cr.overall?.dseLevel || scoreToDseLevel(pct, 'writing').level || '\u2014';
+    return (
+      <div className="dse-module">
+        <div className="dse-module__header">
+          <button className="dse-module__back" onClick={() => { setPhase('start'); setCustomCorrectionResult(null); }}>← Back</button>
+          <h1 className="dse-module__title">Custom Writing — Correction</h1>
+        </div>
+        <div className="writing__correction">
+          <div className="writing__correction-summary">
+            <div className="writing__correction-ring" style={{ '--pct': pct }}>
+              <svg viewBox="0 0 36 36" className="reading__results-svg">
+                <path className="reading__results-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className="reading__results-fill" strokeDasharray={`${pct}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <text x="18" y="20.5" className="reading__results-text" textAnchor="middle">{pct}%</text>
+              </svg>
+            </div>
+            <div className={`writing__correction-level writing__correction-level--${pct >= 80 ? 'high' : pct >= 60 ? 'mid' : 'low'}`}>
+              DSE Level: {level}  <span className="writing__correction-ielts">IELTS Writing ~{dseLevelToIelts(level)}</span>
+            </div>
+            <div className="writing__correction-total">{total} / {maxTotal}</div>
+            {cr.overall?.narrativeSummary && (
+              <div className="writing__correction-narrative">
+                <div className="writing__correction-narrative-label">Overall Feedback</div>
+                {cr.overall.narrativeSummary}
+              </div>
+            )}
+          </div>
+          {renderCorrectionBlock(cr, 'Custom', customEssay)}
+          <div className="writing__correction-actions">
+            <button className="writing__resubmit-btn" onClick={() => {
+              setCustomCorrectionResult(null);
+              setPhase('writingCustom');
+            }}>
+              Revise and Re-submit
+            </button>
+            <button className="writing__start-btn--primary" onClick={() => {
+              setCustomCorrectionResult(null);
+              setPhase('start');
+            }}>
+              Start New Practice
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1162,6 +1375,16 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             </div>
           )}
 
+          {/* Course suggestion */}
+          {showCourseSuggestion && courseRecommendations.length > 0 && (
+            <PostTaskSuggestion
+              recommendations={courseRecommendations}
+              onEnroll={(tagSet) => { onEnrollCourse?.(tagSet); setShowCourseSuggestion(false); }}
+              onDismiss={() => setShowCourseSuggestion(false)}
+              onBrowseAll={() => onBrowseCourses?.()}
+            />
+          )}
+
           {/* Notes status */}
           {notesGenerated === null && (
             <div className="writing__notes-status">Generating study notes...</div>
@@ -1211,12 +1434,14 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                 <div key={ses.id || idx} className="writing__history-item">
                   <div className="writing__history-meta">
                     <span className="writing__history-date">{ses.completedAt ? new Date(ses.completedAt).toLocaleDateString() : 'Unknown date'}</span>
-                    {ses.partB?.prompt && (
+                    {ses.type === 'custom' ? (
+                      <span className="writing__history-type">Custom</span>
+                    ) : ses.partB?.prompt && (
                       <span className="writing__history-type">{getBadgeInfo(ses.partB.prompt.type)?.label || ses.partB.prompt.type || 'Part B'}</span>
                     )}
                   </div>
                   <div className="writing__history-title">
-                    {ses.partB?.prompt?.title || ses.partA?.prompt?.title || 'Untitled'}
+                    {ses.type === 'custom' ? ses.prompt || 'Custom Practice' : ses.partB?.prompt?.title || ses.partA?.prompt?.title || 'Untitled'}
                   </div>
                   <div className="writing__history-score-row">
                     <span className={`writing__history-level writing__history-level--${(ses.correction?.overall?.percentage || 0) >= 80 ? 'high' : (ses.correction?.overall?.percentage || 0) >= 60 ? 'mid' : 'low'}`}>
@@ -1226,21 +1451,100 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                       {ses.correction?.overall?.total || 0}/{ses.correction?.overall?.maxTotal || 42}
                     </span>
                   </div>
-                  {pastWritingSessions.length >= 2 && (
+                  <div className="writing__history-actions">
                     <button
-                      className="writing__history-compare-btn"
+                      className="writing__history-detail-btn"
                       onClick={() => {
-                        setCompareSessionId(ses.id);
-                        setPhase('comparison');
+                        setViewingHistorySession(ses);
+                        setPhase('correctionHistoryDetail');
                       }}
                     >
-                      Compare
+                      View Details
                     </button>
-                  )}
+                    {pastWritingSessions.length >= 2 && (
+                      <button
+                        className="writing__history-compare-btn"
+                        onClick={() => {
+                          setCompareSessionId(ses.id);
+                          setPhase('comparison');
+                        }}
+                      >
+                        Compare
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // History detail phase
+  if (phase === 'correctionHistoryDetail') {
+    const ses = viewingHistorySession;
+    if (!ses) return null;
+    const cr = ses.correction;
+    if (!cr) return (
+      <div className="dse-module">
+        <div className="dse-module__header">
+          <button className="dse-module__back" onClick={() => setPhase('history')}>← Back to History</button>
+          <h1 className="dse-module__title">Session Detail</h1>
+        </div>
+        <div className="writing__correction-error-state">
+          <p>Correction data not available for this session.</p>
+        </div>
+      </div>
+    );
+    const total = cr.overall?.total || (cr.content?.score || 0) + (cr.organization?.score || 0) + (cr.language?.score || 0);
+    const maxTotal = cr.overall?.maxTotal || 21;
+    const pct = cr.overall?.percentage || Math.round((total / maxTotal) * 100);
+    const level = cr.overall?.dseLevel || scoreToDseLevel(pct, 'writing').level || '\u2014';
+
+    return (
+      <div className="dse-module">
+        <div className="dse-module__header">
+          <button className="dse-module__back" onClick={() => { setViewingHistorySession(null); setPhase('history'); }}>← Back to History</button>
+          <h1 className="dse-module__title">
+            {ses.type === 'custom' ? ses.prompt || 'Custom Practice' : ses.partB?.prompt?.title || 'Writing Session'}
+          </h1>
+        </div>
+        <div className="writing__correction">
+          <div className="writing__correction-summary">
+            <div className="writing__correction-ring" style={{ '--pct': pct }}>
+              <svg viewBox="0 0 36 36" className="reading__results-svg">
+                <path className="reading__results-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className="reading__results-fill" strokeDasharray={`${pct}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <text x="18" y="20.5" className="reading__results-text" textAnchor="middle">{pct}%</text>
+              </svg>
+            </div>
+            <div className={`writing__correction-level writing__correction-level--${pct >= 80 ? 'high' : pct >= 60 ? 'mid' : 'low'}`}>
+              DSE Level: {level}  <span className="writing__correction-ielts">IELTS Writing ~{dseLevelToIelts(level)}</span>
+            </div>
+            <div className="writing__correction-total">{total} / {maxTotal}</div>
+            {cr.overall?.narrativeSummary && (
+              <div className="writing__correction-narrative">
+                <div className="writing__correction-narrative-label">Overall Feedback</div>
+                {cr.overall.narrativeSummary}
+              </div>
+            )}
+          </div>
+          {ses.type === 'custom' ? (
+            renderCorrectionBlock(cr, 'Custom', ses.essayHtml || ses.essayPlainText)
+          ) : (
+            <>
+              {ses.partA?.correction && renderCorrectionBlock(ses.partA.correction, 'Part A', ses.partA.essay)}
+              {ses.partB?.correction && renderCorrectionBlock(ses.partB.correction, 'Part B', ses.partB.essay)}
+              {!ses.partA?.correction && !ses.partB?.correction && renderCorrectionBlock(cr, 'Combined', null)}
+            </>
+          )}
+          <div className="writing__correction-actions">
+            <button className="writing__start-btn--primary" onClick={() => { setViewingHistorySession(null); setPhase('history'); }}>
+              ← Back to History
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -8975,6 +8975,75 @@ html[data-theme="dark"] .course__exercise-type--mcq { background: #bf360c33; col
   margin-top: var(--space-3);
 }
 
+/* --- Post-Task Suggestion --- */
+.course__post-task {
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+.course__post-task-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.course__post-task-icon {
+  font-size: 1.2rem;
+}
+
+.course__post-task-title {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--color-text);
+}
+
+.course__post-task-desc {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+  line-height: 1.5;
+}
+
+.course__post-task-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.course__post-task-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.course__post-task-btn--primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.course__post-task-btn--primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.course__post-task-btn--ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.course__post-task-btn--ghost:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 /* ===== Course Overview & Player ===== */
 
 /* --- Overview --- */

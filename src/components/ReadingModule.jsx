@@ -3,8 +3,9 @@ import QuestionRenderer from './QuestionRenderer';
 import { computeWeightedScore, computeSubScores, scoreToDseLevel, isQuestionCorrect } from '../utils/dseGrading';
 import { computeScore } from '../utils/answerChecking';
 import ReadingResults from './ReadingResults';
+import PostTaskSuggestion from './PostTaskSuggestion';
 
-export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack }) {
+export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack, onGetCourseRecommendations, onEnrollCourse, onBrowseCourses }) {
   const [phase, setPhase] = useState('start');
   const [paper, setPaper] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -25,6 +26,21 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
   const questionStartRef = useRef(Date.now());
   const questionTimersRef = useRef({});
   const notesGenDataRef = useRef(null);
+
+  const [courseRecommendations, setCourseRecommendations] = useState([]);
+  const [showCourseSuggestion, setShowCourseSuggestion] = useState(false);
+
+  // Load course recommendations when entering results phase
+  useEffect(() => {
+    if (phase === 'results' && results && onGetCourseRecommendations) {
+      onGetCourseRecommendations().then(recs => {
+        if (recs?.length > 0) {
+          setCourseRecommendations(recs);
+          setShowCourseSuggestion(true);
+        }
+      }).catch(() => {});
+    }
+  }, [phase, results, onGetCourseRecommendations]);
 
   const SESSION_KEY = 'crescendo-reading-session';
 
@@ -228,8 +244,8 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
       percentage: sessionData.percentage,
       score: sessionData.score,
       totalQuestions: sessionData.totalQuestions,
-      passageTitle: currentPassage?.title || 'Reading Passage',
-      passageContent: currentPassage?.content || '',
+      passageTitle: currentPassage?.title || paper?.passages?.[0]?.title || 'Reading Passage',
+      passageContent: currentPassage?.content || paper?.passages?.[0]?.content || '',
       duration: sessionData.duration,
       questions: sessionData.questions,
     };
@@ -561,22 +577,34 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
   if (phase === 'results') {
     if (!results) return null;
     return (
-      <ReadingResults
-        results={results}
-        questions={questions}
-        answers={answers}
-        paper={paper}
-        passageContent={passageText}
-        passagePreview={passageText.replace(/<[^>]+>/g, '').slice(0, 2000)}
-        part={part}
-        answerFlags={answerFlags}
-        handleFlagAnswer={handleFlagAnswer}
-        handleUnflagAnswer={handleUnflagAnswer}
-        notesGenerated={notesGenerated}
-        callAI={callAI}
-        onBack={() => { setPhase('start'); setPaper(null); }}
-        onPracticeAgain={() => startSession(paper.difficulty)}
-      />
+      <>
+        <ReadingResults
+          results={results}
+          questions={questions}
+          answers={answers}
+          paper={paper}
+          passageContent={passageText}
+          passagePreview={passageText.replace(/<[^>]+>/g, '').slice(0, 2000)}
+          part={part}
+          answerFlags={answerFlags}
+          handleFlagAnswer={handleFlagAnswer}
+          handleUnflagAnswer={handleUnflagAnswer}
+          notesGenerated={notesGenerated}
+          callAI={callAI}
+          onBack={() => { setPhase('start'); setPaper(null); }}
+          onPracticeAgain={() => startSession(paper.difficulty)}
+        />
+        {showCourseSuggestion && courseRecommendations.length > 0 && (
+          <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 var(--space-4)' }}>
+            <PostTaskSuggestion
+              recommendations={courseRecommendations}
+              onEnroll={(tagSet) => { onEnrollCourse?.(tagSet); setShowCourseSuggestion(false); }}
+              onDismiss={() => setShowCourseSuggestion(false)}
+              onBrowseAll={() => onBrowseCourses?.()}
+            />
+          </div>
+        )}
+      </>
     );
   }
 
