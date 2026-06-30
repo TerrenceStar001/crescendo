@@ -7,6 +7,8 @@ import ContextPanel from './components/ContextPanel';
 import NoteHeader from './components/NoteHeader';
 import Canvas from './components/Canvas';
 import CatalogView from './components/CatalogView';
+import CourseOverview from './components/CourseOverview';
+import CoursePlayer from './components/CoursePlayer';
 import CourseIngestion from './components/CourseIngestion';
 import CommandPalette from './components/CommandPalette';
 import SettingsPage from './components/SettingsPage';
@@ -60,6 +62,10 @@ function CrescendoApp() {
   const coursesHook = useCourses();
   const [courses, setCourses] = useState([]);
   const [showCourseIngestion, setShowCourseIngestion] = useState(false);
+  const [activeCourseId, setActiveCourseId] = useState(null);
+  const [courseView, setCourseView] = useState('catalog'); // 'catalog' | 'overview' | 'player'
+  const [enrolledIds, setEnrolledIds] = useState([]);
+  const [completedIds, setCompletedIds] = useState([]);
 
   const refreshCourses = useCallback(() => {
     coursesHook.getCourses().then(setCourses);
@@ -69,10 +75,37 @@ function CrescendoApp() {
     refreshCourses();
   }, [refreshCourses]);
 
+  // Refresh enrollment/completion state when course list changes
+  useEffect(() => {
+    try {
+      const enrollRaw = localStorage.getItem('crescendo-course-enrollments');
+      const enroll = enrollRaw ? JSON.parse(enrollRaw) : [];
+      setEnrolledIds(enroll);
+      const completedRaw = localStorage.getItem('crescendo-course-completed');
+      const completed = completedRaw ? JSON.parse(completedRaw) : [];
+      setCompletedIds(completed);
+    } catch {}
+  }, [courses]);
+
   const handleCourseSave = useCallback(async (course) => {
     await coursesHook.saveCourse(course);
     refreshCourses();
   }, [coursesHook, refreshCourses]);
+
+  const handleOpenCourse = useCallback((courseId) => {
+    setActiveCourseId(courseId);
+    setCourseView('overview');
+  }, []);
+
+  const handleStartCourse = useCallback((courseId) => {
+    setActiveCourseId(courseId);
+    setCourseView('player');
+  }, []);
+
+  const handleBackToCatalog = useCallback(() => {
+    setActiveCourseId(null);
+    setCourseView('catalog');
+  }, []);
 
   const callAI = useCallback(async (prompt, opts = {}) => {
     const isExternal = config.endpoint && !config.endpoint.startsWith('/');
@@ -870,12 +903,28 @@ function CrescendoApp() {
               onSave={handleCourseSave}
               onBack={() => setShowCourseIngestion(false)}
             />
+          ) : courseView === 'player' && activeCourseId ? (
+            <CoursePlayer
+              course={courses.find(c => c.id === activeCourseId) || {}}
+              onBack={handleBackToCatalog}
+              callAI={callAI}
+              dsePapers={dsePapers}
+            />
+          ) : courseView === 'overview' && activeCourseId ? (
+            <CourseOverview
+              course={courses.find(c => c.id === activeCourseId) || {}}
+              onBack={handleBackToCatalog}
+              onStart={handleStartCourse}
+              callAI={callAI}
+            />
           ) : (
             <CatalogView
               courses={courses}
               onEnroll={(courseId) => coursesHook.enrollCourse(courseId)}
-              onOpenCourse={(courseId) => { /* CoursePlayer will be added in a later plan */ }}
+              onOpenCourse={handleOpenCourse}
               onOpenIngestion={() => setShowCourseIngestion(true)}
+              enrolledIds={enrolledIds}
+              completedIds={completedIds}
               callAI={callAI}
             />
           )

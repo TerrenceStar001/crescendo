@@ -8,25 +8,44 @@ const FILTER_TAGS = ['grammar', 'vocabulary', 'sentence-structure'];
  * Includes search bar and tag filter chips.
  *
  * Props:
- *   courses          — array of course objects
- *   onEnroll         — (courseId) => void
- *   onOpenCourse     — (courseId) => void
- *   onOpenIngestion  — () => void, opens PDF ingestion panel
- *   callAI           — AI call function
+ *   courses           — array of course objects
+ *   onEnroll          — (courseId) => void
+ *   onOpenCourse      — (courseId) => void, opens CourseOverview
+ *   onOpenIngestion   — () => void, opens PDF ingestion panel
+ *   enrolledIds       — array of enrolled course IDs
+ *   completedIds      — array of completed course IDs
+ *   callAI            — AI call function
  */
-export default function CatalogView({ courses = [], onEnroll, onOpenCourse, onOpenIngestion, callAI }) {
+export default function CatalogView({
+  courses = [],
+  onEnroll,
+  onOpenCourse,
+  onOpenIngestion,
+  enrolledIds = [],
+  completedIds = [],
+  callAI,
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState(null);
 
-  // Filter courses by search query and active tag
-  const filteredCourses = useMemo(() => {
-    let result = courses;
+  // Derive course sets
+  const completedSet = useMemo(() => new Set(completedIds), [completedIds]);
+  const enrolledSet = useMemo(() => new Set(enrolledIds), [enrolledIds]);
+
+  const enrolledCourses = useMemo(() => courses.filter(c => enrolledSet.has(c.id) && !completedSet.has(c.id)), [courses, enrolledSet, completedSet]);
+  const completedCourses = useMemo(() => courses.filter(c => completedSet.has(c.id)), [courses, completedSet]);
+  const availableCourses = useMemo(() => courses.filter(c => !enrolledSet.has(c.id) && !completedSet.has(c.id)), [courses, enrolledSet, completedSet]);
+
+  // Filter available courses by search query and active tag
+  const filteredAvailable = useMemo(() => {
+    let result = availableCourses;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(c =>
         (c.title || '').toLowerCase().includes(q) ||
-        (c.description || '').toLowerCase().includes(q)
+        (c.description || '').toLowerCase().includes(q) ||
+        (c.tags || []).some(t => t.toLowerCase().includes(q))
       );
     }
 
@@ -37,7 +56,68 @@ export default function CatalogView({ courses = [], onEnroll, onOpenCourse, onOp
     }
 
     return result;
-  }, [courses, searchQuery, activeTag]);
+  }, [availableCourses, searchQuery, activeTag]);
+
+  // Filter enrolled courses by search/tag too
+  const filteredEnrolled = useMemo(() => {
+    if (!searchQuery && !activeTag) return enrolledCourses;
+    return enrolledCourses.filter(c => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!(c.title || '').toLowerCase().includes(q) &&
+            !(c.description || '').toLowerCase().includes(q) &&
+            !(c.tags || []).some(t => t.toLowerCase().includes(q))) {
+          return false;
+        }
+      }
+      if (activeTag) {
+        if (!(c.tags || []).some(t => t.startsWith(activeTag))) return false;
+      }
+      return true;
+    });
+  }, [enrolledCourses, searchQuery, activeTag]);
+
+  const renderCourseCard = (course, showEnroll = false) => (
+    <div key={course.id} className="course__card">
+      <div className="course__card-body">
+        <h3 className="course__card-title">{course.title}</h3>
+        {course.description && (
+          <p className="course__card-desc">{course.description}</p>
+        )}
+        <div className="course__card-meta">
+          <span className={`course__card-difficulty course__card-difficulty--${course.difficulty || 'intermediate'}`}>
+            {course.difficulty || 'intermediate'}
+          </span>
+          <span className="course__card-source">
+            {course.source === 'pdf-import' ? '📄 Imported' : '🤖 Auto-generated'}
+          </span>
+        </div>
+        {course.tags && course.tags.length > 0 && (
+          <div className="course__card-tags">
+            {course.tags.slice(0, 3).map(t => (
+              <span key={t} className="course__card-tag">{t}</span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="course__card-actions">
+        <button
+          className="course__btn course__btn--primary"
+          onClick={() => onOpenCourse?.(course.id)}
+        >
+          {completedSet.has(course.id) ? 'Review' : 'View Course'}
+        </button>
+        {showEnroll && !enrolledSet.has(course.id) && !completedSet.has(course.id) && (
+          <button
+            className="course__btn course__btn--secondary"
+            onClick={() => onEnroll?.(course.id)}
+          >
+            Enroll
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="course__catalog">
@@ -50,7 +130,7 @@ export default function CatalogView({ courses = [], onEnroll, onOpenCourse, onOp
         <input
           className="course__search-input"
           type="text"
-          placeholder="Search courses..."
+          placeholder="Search courses by title, description, or tags..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
         />
@@ -74,10 +154,10 @@ export default function CatalogView({ courses = [], onEnroll, onOpenCourse, onOp
       </div>
 
       <div className="course__sections">
-        {/* Recommended for You */}
+        {/* Recommended for You — courses not yet enrolled */}
         <section className="course__section">
           <h2 className="course__section-title">Recommended for You</h2>
-          {filteredCourses.length === 0 ? (
+          {filteredAvailable.length === 0 ? (
             <p className="course__empty-message">
               {courses.length === 0
                 ? 'No courses available yet. Upload a PDF or complete practice tasks to generate courses.'
@@ -85,63 +165,39 @@ export default function CatalogView({ courses = [], onEnroll, onOpenCourse, onOp
             </p>
           ) : (
             <div className="course__grid">
-              {filteredCourses.map(course => (
-                <div key={course.id} className="course__card">
-                  <div className="course__card-body">
-                    <h3 className="course__card-title">{course.title}</h3>
-                    {course.description && (
-                      <p className="course__card-desc">{course.description}</p>
-                    )}
-                    <div className="course__card-meta">
-                      <span className={`course__card-difficulty course__card-difficulty--${course.difficulty || 'intermediate'}`}>
-                        {course.difficulty || 'intermediate'}
-                      </span>
-                      <span className="course__card-source">
-                        {course.source === 'pdf-import' ? '📄 Imported' : '🤖 Auto-generated'}
-                      </span>
-                    </div>
-                    {course.tags && course.tags.length > 0 && (
-                      <div className="course__card-tags">
-                        {course.tags.slice(0, 3).map(t => (
-                          <span key={t} className="course__card-tag">{t}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="course__card-actions">
-                    <button
-                      className="course__btn course__btn--primary"
-                      onClick={() => onOpenCourse?.(course.id)}
-                    >
-                      View Course
-                    </button>
-                    <button
-                      className="course__btn course__btn--secondary"
-                      onClick={() => onEnroll?.(course.id)}
-                    >
-                      Enroll
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {filteredAvailable.map(c => renderCourseCard(c, true))}
             </div>
           )}
         </section>
 
-        {/* In Progress */}
+        {/* In Progress — enrolled courses */}
         <section className="course__section">
           <h2 className="course__section-title">In Progress</h2>
-          <p className="course__empty-message">
-            Enroll in a course to start learning. Your active lessons will appear here.
-          </p>
+          {filteredEnrolled.length === 0 ? (
+            <p className="course__empty-message">
+              {enrolledCourses.length === 0
+                ? 'Enroll in a course to start learning. Your active lessons will appear here.'
+                : 'No enrolled courses match your search or filter.'}
+            </p>
+          ) : (
+            <div className="course__grid">
+              {filteredEnrolled.map(c => renderCourseCard(c))}
+            </div>
+          )}
         </section>
 
         {/* Completed */}
         <section className="course__section">
           <h2 className="course__section-title">Completed</h2>
-          <p className="course__empty-message">
-            Complete a course to see your achievements here. Course scores stay separate from DSE skill rings.
-          </p>
+          {completedCourses.length === 0 ? (
+            <p className="course__empty-message">
+              Complete a course to see your achievements here. Course scores stay separate from DSE skill rings.
+            </p>
+          ) : (
+            <div className="course__grid">
+              {completedCourses.map(c => renderCourseCard(c))}
+            </div>
+          )}
         </section>
       </div>
     </div>
