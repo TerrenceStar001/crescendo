@@ -8,7 +8,7 @@
  */
 import { useCallback } from 'react';
 import { useIndexedDB } from './useIndexedDB';
-import { calculateCourseRecommendations } from '../utils/courseSchema';
+import { calculateCourseRecommendations, validateCourse } from '../utils/courseSchema';
 
 const ENROLLMENT_KEY = 'crescendo-course-enrollments';
 const COMPLETED_KEY = 'crescendo-course-completed';
@@ -348,6 +348,12 @@ export default function useCourses() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.draftId && data.course) {
+        // Double-validate the generated course before saving (T-06-15)
+        const validation = validateCourse(data.course);
+        if (!validation.valid) {
+          console.warn('[autoGenerateCourse] Validation failed:', validation.errors);
+          return null;
+        }
         // Save the generated course to IndexedDB
         await saveCourse(data.course);
         return data.course;
