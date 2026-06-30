@@ -2,23 +2,23 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 05
+current_phase: 06
 status: executing
-last_updated: "2026-06-29T14:29:10.310Z"
+last_updated: "2026-06-30T02:39:11Z"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 21
-  completed_plans: 20
-  percent: 67
+  total_plans: 22
+  completed_plans: 21
+  percent: 68
 ---
 
 # Project State
 
-## Session: Phase 5 — IELTS-First Grading Pipeline & DSE Conversion
+## Session: Phase 6 — Courses Feature
 
-**Current phase:** 05
-**Last action:** Phase 4 complete. Phase 5 repurposed — goal changed from "Writing Examiner Insights" to "IELTS-First Grading Pipeline & DSE Conversion".
+**Current phase:** 06
+**Last action:** Plan 06-01 completed: Course data model, IndexedDB keys, backend course routes, SidebarNav Courses tab, and CatalogView shell.
 
 ## Project Reference
 
@@ -31,8 +31,9 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 ### Roadmap Evolution
 
 - Phase 6 added: Courses feature
+- Plan 06-01 complete: Foundation scaffolding (data model, backend, nav, catalog shell)
 
-**Current focus:** Phase 05 — writing-examiner-insights
+**Current focus:** Phase 06 — courses-feature
 
 ## Status
 
@@ -43,7 +44,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 | 3     | ✓      | 3/3   | 100%     |
 | 4     | ✓      | 4/4   | 100%     |
 | 5     | ○      | 0/3   | 0% (planned) |
-| 6     | ○      | 0/0   | 0% (added)   |
+| 6     | ○      | 1/4   | 25% (foundation done) |
 
 ## Phase 1 Completion Report
 
@@ -147,17 +148,18 @@ See: `.planning/PROJECT.md` (updated 2026-06-23)
 
 ## Next Step
 
-Execute Phase 5: `/gsd-execute-phase 05-writing-examiner-insights` (`/clear` first)
+Execute Phase 6 Plan 02: `/gsd-execute-phase 06-courses-feature` (`/clear` first)
 
-Phase 5 addresses a fundamental accuracy issue: LLMs don't understand HKDSE standards deeply enough to grade authentically. The fix is to grade in IELTS bands (which LLMs handle well), then convert to DSE levels via a calibrated mapping table.
+Phase 6 transforms external learning resources (IELTS vocab, grammar, sentence structure PDFs) into structured courses. Foundation is done — Plan 02 adds the PDF upload pipeline, draft review UI, and catalog with published courses.
 
-3 plans in 3 waves:
+4 plans in 4 waves:
 
-| Wave | Plan | Description | Autonomous |
-|------|------|-------------|------------|
-| 1 | 05-01 | IELTS-first correction prompt redesign + band descriptor rubrics | ✓ |
-| 2 | 05-02 | IELTS→DSE conversion mapping table with HKEAA calibration | ✓ |
-| 3 | 05-03 | UI: IELTS badge, conversion settings, validation tool | ✗ (1 checkpoint) |
+| Wave | Plan | Description | Status |
+|------|------|-------------|--------|
+| 1 | 06-01 | Foundation: course data model, IndexedDB, backend, sidebar nav, catalog shell | ✓ Complete |
+| 2 | 06-02 | PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses | ○ Pending |
+| 3 | 06-03 | Course Player: exercise-first state machine, reference unlock, auto-save, final assessment | ○ Pending |
+| 4 | 06-04 | Recommendations: weakness→tag mapping, auto-generation, dashboard integration | ○ Pending |
 
 ### Phase 4 Completion Report
 
