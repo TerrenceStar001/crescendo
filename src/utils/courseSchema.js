@@ -74,6 +74,102 @@ export const TAG_TAXONOMY = {
 };
 
 /**
+ * WEAKNESS_TO_TAG_MAP: Maps error pattern area names to course tags.
+ * Used by the recommendation pipeline to match weak areas to courses.
+ */
+export const WEAKNESS_TO_TAG_MAP = {
+  'Grammar': ['grammar:articles', 'grammar:tenses', 'grammar:subject-verb-agreement', 'grammar:conditionals', 'grammar:passive-voice'],
+  'Vocabulary': ['vocab:academic', 'vocab:collocations', 'vocab:idiomatic', 'vocab:phrasal-verbs', 'vocab:word-forms'],
+  'Inference': ['reading:inference'],
+  'Main Idea': ['reading:main-idea'],
+  'Sentence Structure': ['sentence-structure:complex-sentences', 'sentence-structure:relative-clauses', 'sentence-structure:inversion', 'sentence-structure:ellipsis', 'sentence-structure:cohesion'],
+  'Detail Retrieval': ['reading:detail'],
+  'Vocabulary in Context': ['vocab:context', 'reading:vocab-in-context'],
+  'Tone & Attitude': ['reading:tone'],
+  'Purpose': ['reading:purpose'],
+};
+
+/**
+ * calculateCourseRecommendations: Maps weak areas to course tag sets, sorted by severity.
+ * Excludes tags that completed courses already cover — unless weakness persists (D-14).
+ *
+ * @param {Array} weakAreas - Array from identifyWeakAreas() of { area, type, percentage, severity }
+ * @param {Array} completedCourses - Array of completed course objects with tags[]
+ * @returns {Array<{ tags: string[], confidence: number, source: string }>} Recommended tag sets
+ */
+export function calculateCourseRecommendations(weakAreas, completedCourses = []) {
+  if (!weakAreas?.length) return [];
+
+  // Collect all tags covered by completed courses
+  const completedTags = new Set();
+  completedCourses.forEach(c => {
+    (c.tags || []).forEach(t => completedTags.add(t));
+  });
+
+  const recommendations = [];
+
+  for (const wa of weakAreas) {
+    const tags = WEAKNESS_TO_TAG_MAP[wa.area];
+    if (!tags || tags.length === 0) continue;
+
+    // D-14: Always recommend even if tags are covered — fresh courses may take different approach
+    // But tag suggestions are still filtered to avoid recommending exactly the same content
+    const newTags = tags.filter(t => !completedTags.has(t));
+    const suggestedTags = newTags.length > 0 ? newTags : tags;
+
+    const confidence = wa.severity === 'critical' ? 0.9 : 0.7;
+
+    recommendations.push({
+      tags: suggestedTags,
+      confidence,
+      source: wa.type === 'skill' ? 'weakness' : 'pattern',
+      percentage: wa.percentage,
+    });
+  }
+
+  // Sort by severity (critical first), then by percentage (lower = worse)
+  return recommendations.sort((a, b) => {
+    if (a.confidence !== b.confidence) return b.confidence - a.confidence;
+    return (a.percentage || 100) - (b.percentage || 100);
+  });
+}
+
+/**
+ * DISMISSED_RECS_KEY: localStorage key for dismissed post-task recommendations.
+ */
+const DISMISSED_RECS_KEY = 'crescendo-dismissed-recs';
+const DISMISS_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * getDismissedRecommendations: Returns active (non-expired) dismissed tag sets from localStorage.
+ * Filters out dismissals older than 7 days.
+ * @returns {Array} Array of { tags: string[], dismissedAt: number }
+ */
+export function getDismissedRecommendations() {
+  try {
+    const raw = localStorage.getItem(DISMISSED_RECS_KEY);
+    const entries = raw ? JSON.parse(raw) : [];
+    const now = Date.now();
+    return entries.filter(e => now - e.dismissedAt < DISMISS_EXPIRY_MS);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * dismissRecommendation: Stores a dismissed recommendation tag set in localStorage.
+ * @param {string[]} tagSet - The recommended tags that were dismissed
+ */
+export function dismissRecommendation(tagSet) {
+  try {
+    const raw = localStorage.getItem(DISMISSED_RECS_KEY);
+    const entries = raw ? JSON.parse(raw) : [];
+    entries.push({ tags: tagSet, dismissedAt: Date.now() });
+    localStorage.setItem(DISMISSED_RECS_KEY, JSON.stringify(entries));
+  } catch { /* silent */ }
+}
+
+/**
  * validateCourse: Validates the full course structure.
  * Returns { valid: boolean, errors: string[] }.
  */

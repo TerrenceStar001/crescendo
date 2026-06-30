@@ -4,6 +4,7 @@
 // Deterministic, offline-capable, no side effects.
 
 import { checkAnswer } from './answerChecking';
+import { WEAKNESS_TO_TAG_MAP } from './courseSchema';
 
 export const SKILL_LABELS = {
   mainIdea: 'Main Idea',
@@ -156,6 +157,21 @@ export function identifyWeakAreas(bySkill, byType) {
   }
 
   return weakAreas.sort((a, b) => a.percentage - b.percentage);
+}
+
+/**
+ * weaknessTagsToCourseTags: Maps weak areas from identifyWeakAreas() to course tags
+ * using the WEAKNESS_TO_TAG_MAP from courseSchema.js.
+ * Returns array of course tag strings (e.g., ['grammar:tenses', 'vocab:academic']).
+ */
+export function weaknessTagsToCourseTags(weakAreas) {
+  if (!weakAreas?.length) return [];
+  const tags = new Set();
+  for (const wa of weakAreas) {
+    const mapped = WEAKNESS_TO_TAG_MAP[wa.area];
+    if (mapped) mapped.forEach(t => tags.add(t));
+  }
+  return [...tags];
 }
 
 /**

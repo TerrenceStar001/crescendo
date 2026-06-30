@@ -8,10 +8,13 @@
  */
 import { useCallback } from 'react';
 import { useIndexedDB } from './useIndexedDB';
+import { calculateCourseRecommendations } from '../utils/courseSchema';
 
 const ENROLLMENT_KEY = 'crescendo-course-enrollments';
 const COMPLETED_KEY = 'crescendo-course-completed';
 const ACTIVE_LESSON_KEY = 'crescendo-course-active-lesson';
+const COURSE_CACHE_PREFIX = 'crescendo-course-cache:';
+const IMPROVEMENT_KEY = 'crescendo-course-improvements';
 
 export default function useCourses() {
   const { getItem, setItem, updateItem, DSE_KEYS } = useIndexedDB();
@@ -284,6 +287,208 @@ export default function useCourses() {
     }
   }, []);
 
+  // ─── Recommendation & Auto-generation Methods ───
+
+  /**
+   * getCompletedCourses: Returns courses with enrollmentStatus === 'completed'.
+   */
+  const getCompletedCourses = useCallback(async () => {
+    try {
+      const allCourses = await getCourses();
+      const completedRaw = localStorage.getItem(COMPLETED_KEY);
+      const completedIds = completedRaw ? JSON.parse(completedRaw) : [];
+      return allCourses.filter(c => completedIds.includes(c.id));
+    } catch {
+      return [];
+    }
+  }, [getCourses]);
+
+  /**
+   * getCourseCount: Returns total course count (published + drafts).
+   */
+  const getCourseCount = useCallback(async () => {
+    try {
+      const courses = await getCourses();
+      return courses.length;
+    } catch {
+      return 0;
+    }
+  }, [getCourses]);
+
+  /**
+   * getRecommendations: Maps skill analytics weak areas to course tag recommendations.
+   * @param {Object} skillAnalytics - The useSkillAnalytics hook object
+   * @returns {Array<{ tags: string[], confidence: number, source: string }>}
+   */
+  const getRecommendations = useCallback(async (skillAnalytics) => {
+    try {
+      const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
+      if (weakAreas.length === 0) return [];
+      const completedCourses = await getCompletedCourses();
+      return calculateCourseRecommendations(weakAreas, completedCourses);
+    } catch {
+      return [];
+    }
+  }, [getCompletedCourses]);
+
+  /**
+   * autoGenerateCourse: Calls backend to auto-generate a course from weakness tags.
+   * @param {string[]} weaknessTags - Course tags to target
+   * @param {string[]} completedCourseIds - IDs of courses already completed
+   * @param {Function} callAI - AI call function (not used directly — calls backend endpoint)
+   * @returns {Object|null} The generated course draft or null
+   */
+  const autoGenerateCourse = useCallback(async (weaknessTags, completedCourseIds, callAI) => {
+    try {
+      const res = await fetch('/api/courses/auto-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weaknessTags, completedCourseIds }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.draftId && data.course) {
+        // Save the generated course to IndexedDB
+        await saveCourse(data.course);
+        return data.course;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [saveCourse]);
+
+  /**
+   * trackPostCourseImprovement: Stores pre-course and post-course error patterns (D-29).
+   * @param {string} courseId - The course that was completed
+   * @param {Object} beforeAnalysis - Error pattern analysis before the course
+   * @param {Object} afterAnalysis - Error pattern analysis after the course
+   */
+  const trackPostCourseImprovement = useCallback((courseId, beforeAnalysis, afterAnalysis) => {
+    try {
+      const raw = localStorage.getItem(IMPROVEMENT_KEY);
+      const entries = raw ? JSON.parse(raw) : {};
+      entries[courseId] = {
+        beforeAnalysis,
+        afterAnalysis,
+        trackedAt: new Date().toISOString(),
+      };
+      // Keep only last 50 entries
+      const keys = Object.keys(entries);
+      if (keys.length > 50) {
+        const sorted = keys.sort((a, b) => new Date(entries[b].trackedAt) - new Date(entries[a].trackedAt));
+        const toDelete = sorted.slice(50);
+        toDelete.forEach(k => delete entries[k]);
+      }
+      localStorage.setItem(IMPROVEMENT_KEY, JSON.stringify(entries));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /**
+   * checkAndRegenerateCourse: Implements D-15 — re-generate after completion if weakness persists.
+   * Compares current weak areas against the weaknessPattern stored in completed courses.
+   * If the same weakness tags persist (overlap > 50%), calls autoGenerateCourse().
+   * @param {Array} weakAreas - Current weak areas from error analysis
+   * @param {string[]} completedCourseIds - IDs of completed courses
+   * @param {Function} callAI - AI call function
+   * @returns {Object|null} New course draft or null if no regeneration needed
+   */
+  const checkAndRegenerateCourse = useCallback(async (weakAreas, completedCourseIds, callAI) => {
+    try {
+      if (!weakAreas?.length || !completedCourseIds?.length) return null;
+
+      const { weaknessTagsToCourseTags } = await import('../utils/errorPatternAnalysis');
+      const currentTags = weaknessTagsToCourseTags(weakAreas);
+
+      // Get completed courses and check their weakness patterns
+      const completedCourses = await getCompletedCourses();
+      const persistedTags = new Set();
+      completedCourses.forEach(c => {
+        if (c.weaknessPattern) {
+          c.weaknessPattern.split(', ').forEach(t => persistedTags.add(t));
+        }
+      });
+
+      if (persistedTags.size === 0) return null;
+
+      // Calculate overlap between current weakness tags and persisted patterns
+      const overlap = currentTags.filter(t => persistedTags.has(t));
+      const overlapRatio = overlap.length / Math.max(persistedTags.size, 1);
+
+      // Re-generate only if overlap > 50% (D-15: weakness persists)
+      if (overlapRatio > 0.5 && overlap.length > 0) {
+        return await autoGenerateCourse(overlap, completedCourseIds, callAI);
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }, [getCompletedCourses, autoGenerateCourse]);
+
+  // ─── Offline Caching Methods ───
+
+  /**
+   * cacheCourseOffline: Stores course in IndexedDB and PWA cache for offline access.
+   * Called when a student enrolls in or starts a course (D-31).
+   */
+  const cacheCourseOffline = useCallback(async (course) => {
+    try {
+      if (!course?.id) return false;
+      // Store in IndexedDB
+      const key = `${COURSE_CACHE_PREFIX}${course.id}`;
+      await setItem(key, course);
+
+      // Also register in PWA cache via Cache API
+      if ('caches' in window) {
+        const cache = await caches.open('crescendo-courses-v1');
+        const response = new Response(JSON.stringify(course), {
+          headers: { 'Content-Type': 'application/json', 'X-Crescendo-Course': course.id },
+        });
+        await cache.put(`/api/courses/cached/${course.id}`, response);
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }, [setItem]);
+
+  /**
+   * getCachedCourse: Returns cached course from IndexedDB or null.
+   * Falls back to fetching from backend if not cached (for browsing).
+   */
+  const getCachedCourse = useCallback(async (courseId) => {
+    try {
+      const key = `${COURSE_CACHE_PREFIX}${courseId}`;
+      const cached = await getItem(key);
+      if (cached) return cached;
+      // Fall back to backend fetch
+      const res = await fetch(`/api/courses/${courseId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data;
+    } catch {
+      return null;
+    }
+  }, [getItem]);
+
+  /**
+   * isCourseAvailableOffline: Returns boolean based on whether course is cached.
+   */
+  const isCourseAvailableOffline = useCallback(async (courseId) => {
+    try {
+      const key = `${COURSE_CACHE_PREFIX}${courseId}`;
+      const cached = await getItem(key);
+      return !!cached;
+    } catch {
+      return false;
+    }
+  }, [getItem]);
+
   return {
     getCourses,
     saveCourse,
@@ -301,5 +506,14 @@ export default function useCourses() {
     markLessonComplete,
     getActiveCourseId,
     setActiveCourseId,
+    getCompletedCourses,
+    getCourseCount,
+    getRecommendations,
+    autoGenerateCourse,
+    trackPostCourseImprovement,
+    checkAndRegenerateCourse,
+    cacheCourseOffline,
+    getCachedCourse,
+    isCourseAvailableOffline,
   };
 }
