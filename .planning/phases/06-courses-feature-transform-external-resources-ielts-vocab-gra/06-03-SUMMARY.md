@@ -146,5 +146,22 @@ Each task was committed atomically:
 
 ---
 
+## Self-Check: PASSED
+
+| Check | Result |
+|-------|--------|
+| CoursePlayer.jsx exists | ✅ |
+| CourseOverview.jsx exists | ✅ |
+| BEM CSS usage in CoursePlayer (120 .course__) | ✅ |
+| BEM CSS usage in CourseOverview (33 .course__) | ✅ |
+| export default function in CoursePlayer | ✅ |
+| export default function in CourseOverview | ✅ |
+| Commit 099cded (Task 1: CoursePlayer + useCourses) | ✅ |
+| Commit f19985c (Task 2: CourseOverview + CatalogView + App.jsx + CSS) | ✅ |
+| Commit 21731b8 (docs: SUMMARY.md + STATE.md + ROADMAP.md) | ✅ |
+| Build passes | ✅ |
+
+---
+
 *Phase: 06-courses-feature-transform-external-resources-ielts-vocab-gra*
 *Completed: 2026-06-30*
