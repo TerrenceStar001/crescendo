@@ -111,5 +111,32 @@ export function useIndexedDB() {
     COURSE_INGESTION: 'crescendo-course-ingestion',
   };
 
-  return { getItem, setItem, updateItem, deleteItem, getKeys, clearAll, getStorageEstimate, DSE_KEYS };
+  const syncCourses = useCallback(async (fetchFn) => {
+    try {
+      const res = await fetchFn('/api/courses/sync', { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { courses } = await res.json();
+      if (courses && courses.length > 0) {
+        await setItem(DSE_KEYS.COURSES, courses);
+      } else if (courses) {
+        // Empty courses array — still valid, store empty
+        await setItem(DSE_KEYS.COURSES, []);
+      }
+      return courses || [];
+    } catch (e) {
+      console.warn('[IndexedDB] Course sync failed:', e.message);
+      return null;
+    }
+  }, [setItem]);
+
+  const getCachedCourses = useCallback(async () => {
+    try {
+      const courses = await getItem(DSE_KEYS.COURSES);
+      return Array.isArray(courses) ? courses : [];
+    } catch {
+      return [];
+    }
+  }, [getItem]);
+
+  return { getItem, setItem, updateItem, deleteItem, getKeys, clearAll, getStorageEstimate, DSE_KEYS, syncCourses, getCachedCourses };
 }
