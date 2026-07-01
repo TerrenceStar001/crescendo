@@ -1,7 +1,7 @@
 /**
  * CourseIngestion — PDF upload and course draft review component.
  *
- * State machine: idle → uploading → parsing → generating → review → saving → done
+ * State machine: idle → uploading → parsing → quality → generating → review → saving → done
  *
  * Props:
  *   callAI    — AI call function (from useAI)
@@ -15,11 +15,29 @@ import React, { useState, useRef, useCallback } from 'react';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+/**
+ * DOM-based toast notification for warnings and success messages.
+ * Injected into body, auto-removes after 4 seconds.
+ */
+function showToast(message, type = 'warning') {
+  const toast = document.createElement('div');
+  toast.className = `course__toast course__toast--${type}`;
+  toast.textContent = message;
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.remove(); }, 4000);
+}
+
 export default function CourseIngestion({ callAI, onSave, onBack }) {
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState('');
   const [draft, setDraft] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [qualityData, setQualityData] = useState(null);
+  const [extractionId, setExtractionId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [errorType, setErrorType] = useState('');
   const fileInputRef = useRef(null);
 
   // Edit state for review phase
@@ -38,28 +56,26 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
     // Validate file type
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       setError('Please select a .pdf file.');
+      setErrorType('');
       return;
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       setError('File is too large. Maximum size is 10MB.');
+      setErrorType('size');
       return;
     }
 
     setError('');
+    setErrorType('');
+    setQualityData(null);
     setPhase('uploading');
 
     try {
-      // Read file as base64
+      setPhase('parsing');
       const base64 = await fileToBase64(file);
 
-      // Show parsing state briefly, then generating (AI work happens on server)
-      setPhase('parsing');
-      await new Promise(r => setTimeout(r, 600));
-      setPhase('generating');
-
-      // Send to backend
       const res = await fetch('/api/courses/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,13 +87,58 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        setError(data.error || 'Failed to process PDF. Please try a different file.');
+      if (!res.ok || data.error) {
+        setError(data.error || 'Failed to process PDF.');
+        setErrorType(data.errorType || 'extract');
         setPhase('idle');
         return;
       }
 
-      // Enter review phase with editable draft
+      if (data.quality) {
+        setQualityData(data.quality);
+        setExtractionId(data.extractionId);
+        setPhase('quality');
+        return;
+      }
+
+      // Fallback: no quality data (old server?) — go directly to review
+      if (data.course) {
+        setDraft(data.course);
+        setEditTitle(data.course.title || '');
+        setEditDescription(data.course.description || '');
+        setEditTags(data.course.tags || []);
+        setEditDifficulty(data.course.difficulty || 'intermediate');
+        setExpandedTopics({});
+        setPhase('review');
+      }
+    } catch (e) {
+      setError('Network error. Please check your connection and try again.');
+      setErrorType('network');
+      setPhase('idle');
+    }
+  }, []);
+
+  /**
+   * Proceed to AI structuring after quality review passes.
+   */
+  const handleProceedToGeneration = useCallback(async () => {
+    if (!extractionId) return;
+    setPhase('generating');
+    try {
+      const res = await fetch(`/api/courses/ingest/generate/${extractionId}`, {
+        method: 'PUT',
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError(data.error || 'AI structuring failed.');
+        setErrorType('network');
+        setQualityData(null);
+        setPhase('idle');
+        showToast('AI structuring failed. Try a different PDF.', 'warning');
+        return;
+      }
+
       setDraft(data.course);
       setEditTitle(data.course.title || '');
       setEditDescription(data.course.description || '');
@@ -86,10 +147,11 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
       setExpandedTopics({});
       setPhase('review');
     } catch (e) {
-      setError('Network error. Please check your connection and try again.');
+      setError('Network error during AI structuring. Please try again.');
+      setErrorType('network');
       setPhase('idle');
     }
-  }, []);
+  }, [extractionId]);
 
   /**
    * Convert File to base64 data URL.
@@ -174,6 +236,9 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
     setEditTags([]);
     setEditDifficulty('intermediate');
     setError('');
+    setErrorType('');
+    setQualityData(null);
+    setExtractionId(null);
     setPhase('idle');
   }, []);
 
@@ -192,6 +257,32 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
   const handleToggleTopic = useCallback((index) => {
     setExpandedTopics(prev => ({ ...prev, [index]: !prev[index] }));
   }, []);
+
+  // --- Enhanced Error Banner ---
+  function EnhancedErrorBanner({ title, message, actionLabel, onAction, type = 'size' }) {
+    return (
+      <div className={`course__error-banner course__error-banner--${type}`} role="alert">
+        <div className="course__error-banner-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div className="course__error-banner-content">
+          <div className="course__error-banner-title">{title}</div>
+          <div className="course__error-banner-body">{message}</div>
+        </div>
+        {actionLabel && (
+          <div className="course__error-banner-action">
+            <button className="course__btn course__btn--primary" onClick={onAction}>
+              {actionLabel}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // --- Render: Idle State ---
   function renderIdle() {
@@ -228,21 +319,17 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
             }}
           />
         </div>
-        {error && (
-          <div className="course__error-msg">
-            <span>⚠</span> {error}
-          </div>
-        )}
-        {error && (
-          <div className="course__error-actions" style={{ display: 'flex', gap: 8 }}>
-            <button className="course__btn course__btn--primary" onClick={() => { setError(''); fileInputRef.current?.click(); }}>
-              Try Again
-            </button>
-            <button className="course__btn course__btn--secondary" onClick={handleDiscard}>
-              Cancel
-            </button>
-          </div>
-        )}
+        {error && (() => {
+          const errorConfigs = {
+            'size':     { title: 'File Too Large',         message: error, actionLabel: 'Try Again', onAction: () => { setError(''); setErrorType(''); fileInputRef.current?.click(); } },
+            'network':  { title: 'Upload Failed',          message: error, actionLabel: 'Try Again', onAction: () => { setError(''); setErrorType(''); } },
+            'extract':  { title: 'Extraction Failed',      message: error, actionLabel: 'Try a Different File', onAction: handleDiscard },
+            'quality':  { title: 'Insufficient Content',    message: error, actionLabel: 'Try a Different File', onAction: handleDiscard },
+            '':         { title: 'Upload Failed',           message: error, actionLabel: 'Try Again', onAction: () => { setError(''); setErrorType(''); } },
+          };
+          const cfg = errorConfigs[errorType] || errorConfigs[''];
+          return <EnhancedErrorBanner {...cfg} type={errorType || 'network'} />;
+        })()}
         <button className="course__btn course__btn--secondary" onClick={onBack} style={{ marginTop: 12 }}>
           ← Back to Catalog
         </button>
@@ -465,6 +552,92 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
     );
   }
 
+  // --- Render: Quality State ---
+  function renderQuality() {
+    if (!qualityData) return null;
+    const { pass, score, totalChars, englishPct, perPage } = qualityData;
+    const scoreClass = pass ? 'pass' : 'fail';
+
+    return (
+      <div className="course__quality-preview">
+        <div className="course__quality-header">
+          <div className={`course__quality-score course__quality-score--${scoreClass}`}>
+            {pass ? '✓' : '✗'}
+          </div>
+          <div>
+            <h2>Extraction Quality</h2>
+            <p className="course__quality-subtitle">
+              Review the extracted text quality before AI structuring.
+            </p>
+          </div>
+        </div>
+
+        {/* Quality block — shown when quality fails */}
+        {!pass && (
+          <div className="course__quality-block" role="alert">
+            <div className="course__quality-block-heading">Insufficient Content</div>
+            <div className="course__quality-block-body">
+              This PDF has {totalChars} characters ({englishPct}% English).
+              At least 500 characters with 70% English content is needed.
+              Try a different PDF or one with more readable text.
+            </div>
+            <button className="course__btn course__btn--primary" onClick={handleDiscard}>
+              Try a Different File
+            </button>
+          </div>
+        )}
+
+        {/* Per-page stats table */}
+        <table className="course__quality-table" role="table" aria-label="Page extraction quality">
+          <thead>
+            <tr className="course__quality-table-header">
+              <th>Page</th>
+              <th>Characters</th>
+              <th>English %</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {perPage.map(p => (
+              <tr key={p.page} className="course__quality-table-row">
+                <td>{p.page}</td>
+                <td>{p.chars}</td>
+                <td>{p.englishPct}%</td>
+                <td>
+                  {p.status === 'ok' ? (
+                    <div className="course__quality-bar" style={{ width: `${Math.min(100, (p.chars / 500) * 100)}%` }} />
+                  ) : (
+                    <span className="course__quality-bar--low">✗ Low</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="course__quality-table-total">
+              <td><strong>Total</strong></td>
+              <td><strong>{totalChars}</strong></td>
+              <td><strong>{englishPct}%</strong></td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Action buttons */}
+        <div className="course__quality-actions">
+          <button className="course__btn course__btn--secondary" onClick={handleDiscard}>
+            Cancel
+          </button>
+          {pass && (
+            <button className="course__btn course__btn--primary" onClick={handleProceedToGeneration}>
+              Proceed to Course Draft
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // --- Main render ---
   switch (phase) {
     case 'idle':
@@ -493,6 +666,15 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
             <h1 className="course__title">Import PDF</h1>
           </div>
           {renderLoading('Extracting text from PDF...')}
+        </div>
+      );
+    case 'quality':
+      return (
+        <div className="course__ingestion">
+          <div className="course__header">
+            <h1 className="course__title">Import PDF</h1>
+          </div>
+          {renderQuality()}
         </div>
       );
     case 'generating':
