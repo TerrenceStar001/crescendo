@@ -162,11 +162,11 @@ async function callAICourse(promptText, retries = 2) {
 
     let aiResponse;
     try {
-      const fetchRes = await fetch('http://127.0.0.1:4010/v1/chat/completions', {
+      const fetchRes = await fetch('http://localhost:3001/api/ai/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'opencode/deepseek-v4-flash-free',
+          model: 'agnes-2.0-flash',
           messages: [
             { role: 'system', content: 'You are a DSE English course designer. Return ONLY valid JSON, no markdown fences, no other text.' },
             { role: 'user', content: promptText },
@@ -186,7 +186,7 @@ async function callAICourse(promptText, retries = 2) {
       if (attempt < retries) continue;
       const errMsg = `AI structuring failed: ${e.message}`;
       if (e.message?.includes('ECONNREFUSED') || e.code === 'ECONNREFUSED') {
-        return { error: `${errMsg} — is 'opencode serve --port 4010' running?` };
+        return { error: `${errMsg} — is the backend server running on port 3001?` };
       }
       return { error: errMsg };
     }
