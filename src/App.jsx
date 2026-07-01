@@ -25,11 +25,13 @@ import useSynthesis from './hooks/useSynthesis';
 import useSkillAnalytics from './hooks/useSkillAnalytics';
 import useDSEPapers from './hooks/useDSEPapers';
 import useCourses from './hooks/useCourses';
+import { useIndexedDB } from './hooks/useIndexedDB';
 import ReadingModule from './components/ReadingModule';
 import WritingModule from './components/WritingModule';
 import ListeningModule from './components/ListeningModule';
 import SpeakingModule from './components/SpeakingModule';
 import corpusIndex from './utils/corpusIndex';
+import { WEAKNESS_TO_TAG_MAP } from './utils/courseSchema';
 import './App.css';
 
 const CanvasView = lazy(() => import('./components/CanvasView'));
@@ -59,7 +61,19 @@ function CrescendoApp() {
   const { config, updateConfig, isConfigured, generateBoth, testConnection } = useAI();
   const skillAnalytics = useSkillAnalytics();
   const dsePapers = useDSEPapers();
-  const coursesHook = useCourses();
+  const {
+    getCourses: getCoursesFn,
+    saveCourse: saveCourseFn,
+    deleteCourse: deleteCourseFn,
+    enrollCourse: enrollCourseFn,
+    unenrollCourse: unenrollCourseFn,
+    getCompletedCourses: getCompletedCoursesFn,
+    getCourseCount: getCourseCountFn,
+    getRecommendations: getRecommendationsFn,
+    autoGenerateCourse: autoGenerateCourseFn,
+    checkAndRegenerateCourse: checkAndRegenerateCourseFn,
+  } = useCourses();
+  const { syncCourses } = useIndexedDB();
   const [courses, setCourses] = useState([]);
   const [showCourseIngestion, setShowCourseIngestion] = useState(false);
   const [activeCourseId, setActiveCourseId] = useState(null);
@@ -70,8 +84,8 @@ function CrescendoApp() {
   const seedAttemptedRef = useRef(false);
 
   const refreshCourses = useCallback(() => {
-    coursesHook.getCourses().then(setCourses);
-  }, [coursesHook]);
+    getCoursesFn().then(setCourses);
+  }, [getCoursesFn]);
 
   useEffect(() => {
     refreshCourses();
@@ -91,9 +105,9 @@ function CrescendoApp() {
   }, [courses]);
 
   const handleCourseSave = useCallback(async (course) => {
-    await coursesHook.saveCourse(course);
+    await saveCourseFn(course);
     refreshCourses();
-  }, [coursesHook, refreshCourses]);
+  }, [saveCourseFn, refreshCourses]);
 
   const handleOpenCourse = useCallback((courseId) => {
     setActiveCourseId(courseId);
@@ -110,6 +124,20 @@ function CrescendoApp() {
     setCourseView('catalog');
   }, []);
 
+  const handleSyncCourses = useCallback(async () => {
+    try {
+      const courses = await syncCourses(fetch);
+      if (courses) {
+        await refreshCourses();
+        return courses.length || 0;
+      }
+      throw new Error('Sync returned no data');
+    } catch (e) {
+      console.warn('[App] Sync courses failed:', e.message);
+      throw e;
+    }
+  }, [syncCourses, refreshCourses]);
+
   const handleBrowseCourses = useCallback(() => {
     setCourseView('catalog');
     setDseTab('courses');
@@ -120,12 +148,12 @@ function CrescendoApp() {
   // Callback for ReadingModule/WritingModule to get course recommendations
   const getCourseRecommendations = useCallback(async () => {
     try {
-      const recs = await coursesHook.getRecommendations(skillAnalytics);
+      const recs = await getRecommendationsFn(skillAnalytics);
       return recs;
     } catch {
       return [];
     }
-  }, [coursesHook, skillAnalytics]);
+  }, [getRecommendationsFn, skillAnalytics]);
 
   // Callback for PostTaskSuggestion enrollment — navigates to catalog filtered by tags
   const handleEnrollCourse = useCallback((tagSet) => {
@@ -153,7 +181,7 @@ function CrescendoApp() {
     const messages = [{ role: 'user', content: prompt }];
     if (opts.system) { messages.unshift({ role: 'system', content: opts.system }); }
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), opts.timeout || 120000);
+    const timeout = setTimeout(() => controller.abort(), opts.timeout || 30000);
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
@@ -171,20 +199,6 @@ function CrescendoApp() {
     } catch (e) {
       clearTimeout(timeout);
       if (e.name === 'AbortError') throw new Error('AI request timed out');
-      if (isExternal) {
-        try {
-          const fallbackRes = await fetch('/api/ai/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'opencode/deepseek-v4-flash-free', messages, max_tokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 }),
-            signal: AbortSignal.timeout(120000),
-          });
-          if (fallbackRes.ok) {
-            const data = await fallbackRes.json();
-            return data.choices?.[0]?.message?.content?.trim() || '';
-          }
-        } catch {}
-      }
       throw e;
     }
   }, [config]);
@@ -203,10 +217,10 @@ function CrescendoApp() {
 
     const timer = setTimeout(async () => {
       try {
-        const completedCourses = await coursesHook.getCompletedCourses();
+        const completedCourses = await getCompletedCoursesFn();
         const completedIds = completedCourses.map(c => c.id);
         if (completedIds.length === 0) return;
-        const draft = await coursesHook.checkAndRegenerateCourse(weakAreas, completedIds, callAI);
+        const draft = await checkAndRegenerateCourseFn(weakAreas, completedIds, callAI);
         if (draft) {
           // Refresh courses list
           refreshCourses();
@@ -215,37 +229,84 @@ function CrescendoApp() {
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [skillAnalytics?.sessions, coursesHook, callAI, refreshCourses]);
+  }, [skillAnalytics?.sessions?.length, getCompletedCoursesFn, checkAndRegenerateCourseFn, callAI, refreshCourses]);
 
-  // Initial course seed: auto-generate courses from weak areas when catalog is empty
+  // Initial course seed: auto-generate courses from weak areas
   useEffect(() => {
     if (seedAttemptedRef.current) return;
-    if (courses.length > 0) return;
     if (!skillAnalytics?.isLoaded) return;
-    const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
-    if (weakAreas.length === 0) {
-      console.warn('[course-seed] getWeakAreas returned empty — no subScores below 60. Profile:', skillAnalytics?.profile);
-      return;
-    }
+        // Group weak areas individually — one course per weak area
+        const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
+        if (weakAreas.length === 0) {
+          console.warn('[course-seed] getWeakAreas returned empty — no subScores below 60. Profile:', skillAnalytics?.profile);
+          return;
+        }
 
-    seedAttemptedRef.current = true;
-    console.warn('[course-seed] weak areas found:', weakAreas);
-    const timer = setTimeout(async () => {
-      try {
-        const { weaknessTagsToCourseTags } = await import('./utils/errorPatternAnalysis');
-        const tags = weaknessTagsToCourseTags(weakAreas);
-        console.warn('[course-seed] mapped tags:', tags);
-        if (tags.length === 0) return;
-        const result = await coursesHook.autoGenerateCourse(tags, [], callAI);
-        console.warn('[course-seed] auto-generate result:', result ? 'success' : 'failed (null)');
-        if (result) refreshCourses();
-      } catch (e) {
-        console.warn('[course-seed] error:', e.message);
-      }
-    }, 1000);
+        seedAttemptedRef.current = true;
+        console.warn('[course-seed] weak areas found:', weakAreas.length);
+        const timer = setTimeout(async () => {
+          try {
+            const existingCourses = await getCoursesFn();
+            const existingTagSets = new Set();
+            for (const c of existingCourses) {
+              if (c.source === 'auto-generated' && c.tags?.length > 0) {
+                existingTagSets.add(c.tags.sort().join('|'));
+              }
+            }
+
+            // Build reverse index: sub-topic name → tag + area key
+            const subTopicToTag = {};
+            const subTopicToArea = {};
+            for (const [areaKey, tags] of Object.entries(WEAKNESS_TO_TAG_MAP)) {
+              for (const tag of tags) {
+                const sub = tag.split(':')[1];
+                if (sub) {
+                  const key = sub.replace(/[- ]/g, '').toLowerCase();
+                  subTopicToTag[key] = tag;
+                  subTopicToArea[key] = areaKey;
+                }
+              }
+            }
+
+            // Group weak sub-topics by their parent skill area (skip question types)
+            const areaWeaknesses = new Map();
+            for (const wa of weakAreas) {
+              const normalizedKey = wa.area.replace(/[- ]/g, '').toLowerCase();
+              const tag = subTopicToTag[normalizedKey];
+              if (!tag) {
+                console.warn(`[course-seed] skipping ${wa.area}: not a recognized skill sub-topic`);
+                continue;
+              }
+              const areaKey = subTopicToArea[normalizedKey];
+              if (!areaWeaknesses.has(areaKey)) {
+                areaWeaknesses.set(areaKey, { tags: new Set(), sources: [] });
+              }
+              areaWeaknesses.get(areaKey).tags.add(tag);
+              areaWeaknesses.get(areaKey).sources.push(wa.area);
+            }
+
+            console.warn(`[course-seed] ${weakAreas.length} weak areas → ${areaWeaknesses.size} skill-area courses`);
+
+            for (const [areaKey, { tags, sources }] of areaWeaknesses) {
+              const tagsArray = [...tags].sort();
+              const tagKey = tagsArray.join('|');
+              if (existingTagSets.has(tagKey)) {
+                console.warn(`[course-seed] skipping ${sources.join(', ')}: course with these tags already exists`);
+                continue;
+              }
+              existingTagSets.add(tagKey);
+              console.warn(`[course-seed] generating course for ${sources.join(', ')}:`, tagsArray);
+              const result = await autoGenerateCourseFn(tagsArray, [], callAI);
+              console.warn(`[course-seed] ${sources[0]} result:`, result ? 'success' : 'failed (null)');
+            }
+            refreshCourses();
+          } catch (e) {
+            console.warn('[course-seed] error:', e.message);
+          }
+        }, 1000);
 
     return () => clearTimeout(timer);
-  }, [courses.length, skillAnalytics, coursesHook, callAI, refreshCourses]);
+  }, [courses.length, skillAnalytics?.isLoaded, getCoursesFn, getCompletedCoursesFn, autoGenerateCourseFn, callAI, refreshCourses]);
 
   useEffect(() => {
     if (['reading', 'writing', 'listening', 'speaking', 'progress', 'courses'].includes(dseTab)) {
@@ -1021,9 +1082,13 @@ function CrescendoApp() {
           ) : (
             <CatalogView
               courses={courses}
-              onEnroll={(courseId) => coursesHook.enrollCourse(courseId)}
+              onEnroll={(courseId) => {
+                enrollCourseFn(courseId);
+                setEnrolledIds(prev => prev.includes(courseId) ? prev : [...prev, courseId]);
+              }}
               onOpenCourse={handleOpenCourse}
               onOpenIngestion={() => setShowCourseIngestion(true)}
+              onRefreshCourses={handleSyncCourses}
               enrolledIds={enrolledIds}
               completedIds={completedIds}
               callAI={callAI}

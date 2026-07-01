@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 
 const FILTER_TAGS = ['grammar', 'vocabulary', 'sentence-structure'];
 
@@ -49,6 +49,7 @@ export default function CatalogView({
   onEnroll,
   onOpenCourse,
   onOpenIngestion,
+  onRefreshCourses,
   enrolledIds = [],
   completedIds = [],
   callAI,
@@ -64,6 +65,31 @@ export default function CatalogView({
     prevFilterTags.current = filterTags;
     if (filterTags) setActiveTag(filterTags);
   }
+
+  // State for sync button
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
+
+  const handleSync = useCallback(async () => {
+    if (!onRefreshCourses || syncing) return;
+    setSyncing(true);
+    setSyncError('');
+    try {
+      const count = await onRefreshCourses();
+      // Show success toast
+      const toast = document.createElement('div');
+      toast.className = 'course__toast course__toast--success';
+      toast.textContent = `Courses synced from server (${count} courses)`;
+      toast.setAttribute('role', 'status');
+      toast.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    } catch {
+      setSyncError('Sync failed. Please try again.');
+    } finally {
+      setSyncing(false);
+    }
+  }, [onRefreshCourses, syncing]);
 
   // Derive course sets
   const completedSet = useMemo(() => new Set(completedIds), [completedIds]);
@@ -196,12 +222,42 @@ export default function CatalogView({
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
         />
-        {onOpenIngestion && (
-          <button className="course__btn course__btn--upload" onClick={onOpenIngestion}>
-            Upload PDF
+        <div className="course__search-actions" style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="course__btn course__btn--refresh"
+            onClick={handleSync}
+            disabled={syncing || typeof navigator !== 'undefined' && !navigator.onLine}
+            title={!navigator.onLine ? 'Cannot refresh while offline' : 'Refresh courses from server'}
+            aria-label={syncing ? 'Syncing courses...' : 'Refresh courses from server'}
+          >
+            {syncing ? (
+              <>
+                <span className="course__btn-spinner" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+                Refresh Courses
+              </>
+            )}
           </button>
-        )}
+          {onOpenIngestion && (
+            <button className="course__btn course__btn--upload" onClick={onOpenIngestion}>
+              Upload PDF
+            </button>
+          )}
+        </div>
       </div>
+      {syncError && (
+        <p className="course__empty-message" style={{ color: 'var(--color-error)', fontSize: 'var(--font-xs)', marginTop: 4 }}>
+          {syncError}
+        </p>
+      )}
 
       <div className="course__tag-filters">
         {FILTER_TAGS.map(tag => (
