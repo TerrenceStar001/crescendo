@@ -122,6 +122,10 @@ None — no external service configuration required.
 - Frontend Plan 02 (CourseIngestion.jsx + useIndexedDB.js) can now consume the typed quality responses and sync endpoint
 - The `extractionId` pattern allows frontend to show quality preview before AI structuring
 
+## Self-Check: PASSED
+
+All claims verified — server limit, schema table, pdfParser rewrite with positional sort and quality metrics and heading detection, dseOcr preprocessing, courses.js quality gate and endpoints, all 4 commits confirmed, pdf2md package installed.
+
 ---
 
 *Phase: 07-pdf-ingestion-pipeline-fix*
