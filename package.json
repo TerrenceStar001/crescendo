@@ -9,6 +9,7 @@
     "backend": "node server/index.js"
   },
   "dependencies": {
+    "@opendocsg/pdf2md": "^0.2.7",
     "@xyflow/react": "^12.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -7,7 +7,22 @@ const PDF_BASE = 'https://raw.githubusercontent.com/Lucasyh/dse.life-mirror/refs
 const INDEX_URL = 'https://passpaper-unstoppable.github.io/dse.life/ppindex/eng/eng.html';
 const UA = 'Mozilla/5.0 (compatible; Crescendo/1.0)';
 const PARALLEL_OCR = 4;
-const RENDER_SCALE = 1.5;
+const RENDER_SCALE = 2.0;
+
+/**
+ * preprocessImage: Applies grayscale + binarization to improve OCR accuracy.
+ * Mutates the canvas in-place.
+ */
+function preprocessImage(canvas, ctx) {
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    const binary = gray > 128 ? 255 : 0;
+    data[i] = data[i + 1] = data[i + 2] = binary;
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
 
 async function fetchWithTimeout(url, ms = 30000) {
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(ms) });
@@ -19,7 +34,10 @@ function renderPageToPNG(page) {
   const viewport = page.getViewport({ scale: RENDER_SCALE });
   const canvas = createCanvas(viewport.width, viewport.height);
   const ctx = canvas.getContext('2d');
-  return page.render({ canvasContext: ctx, viewport }).promise.then(() => canvas.toBuffer('image/png'));
+  return page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+    preprocessImage(canvas, ctx);
+    return canvas.toBuffer('image/png');
+  });
 }
 
 // Discover all reading-paper PDFs from the index page
