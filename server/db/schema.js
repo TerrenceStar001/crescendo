@@ -83,6 +83,18 @@ export function createSchema(db) {
       started_at TEXT,
       completed_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS course_extractions (
+      id TEXT PRIMARY KEY,
+      course_id TEXT,
+      total_chars INTEGER,
+      english_pct INTEGER,
+      quality_score TEXT,
+      per_page_data TEXT,
+      extraction_method TEXT,
+      full_text TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Indexes for common queries
@@ -96,6 +108,7 @@ export function createSchema(db) {
     'CREATE INDEX IF NOT EXISTS idx_podcasts_difficulty ON podcasts(difficulty)',
     'CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id)',
     'CREATE INDEX IF NOT EXISTS idx_crawl_log_status ON crawl_log(status)',
+    'CREATE INDEX IF NOT EXISTS idx_course_extractions_course ON course_extractions(course_id)',
   ];
 
   for (const idx of indexes) {
