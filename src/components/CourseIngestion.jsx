@@ -54,7 +54,7 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
     if (!file) return;
 
     // Validate file type
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
+    if (!file.name.toLowerCase().includes('.pdf')) {
       setError('Please select a .pdf file.');
       setErrorType('');
       return;

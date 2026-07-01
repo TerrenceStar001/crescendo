@@ -184,7 +184,11 @@ async function callAICourse(promptText, retries = 2) {
       clearTimeout(timeout);
       console.warn(`[courses] AI call attempt ${attempt + 1} failed:`, e.message);
       if (attempt < retries) continue;
-      return { error: `AI structuring failed: ${e.message}` };
+      const errMsg = `AI structuring failed: ${e.message}`;
+      if (e.message?.includes('ECONNREFUSED') || e.code === 'ECONNREFUSED') {
+        return { error: `${errMsg} — is 'opencode serve --port 4010' running?` };
+      }
+      return { error: errMsg };
     }
 
     if (!aiResponse) {
@@ -282,9 +286,9 @@ router.post('/ingest', async (req, res) => {
       return res.status(400).json({ error: 'pdfBase64 and fileName are required', errorType: 'validation' });
     }
 
-    // Validate file extension — strip query params
+    // Validate file extension — strip query params, Google Drive suffixes
     const cleanName = fileName.split('?')[0];
-    if (!cleanName.toLowerCase().endsWith('.pdf')) {
+    if (!cleanName.toLowerCase().includes('.pdf')) {
       return res.status(400).json({ error: 'File must have .pdf extension', errorType: 'validation' });
     }
 
