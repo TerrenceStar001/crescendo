@@ -8,6 +8,16 @@ Crescendo (formerly NodeMind) is a DSE English learning platform that helps Hong
 
 Students can practice authentic DSE-style English exam papers with AI-generated passages and questions, get immediate feedback with detailed analysis, and track their progress across all four skills — all from a single offline-capable web app.
 
+## Current Milestone: v1.1 Courses Quality Polish
+
+**Goal:** Fix and polish the Courses feature so PDF uploads work end-to-end, auto-generated courses have quality content, and the catalog has useful seed courses — making courses genuinely usable for DSE prep.
+
+**Target features:**
+- Fix PDF upload pipeline (upload → text extraction → AI structuring)
+- Improve auto-generated courses — quality and quantity from user practice
+- Seed the catalog with useful built-in courses (DSE + general English)
+- Fix-first approach — debug existing code before considering rebuilds
+
 ## Requirements
 
 ### Validated
@@ -20,7 +30,7 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 - ✓ Past session review with passage + answers — existing
 - ✓ Answer reporting/flagging mechanism — existing
 - ✓ Skill analytics recording to IndexedDB — existing
-- ✓ Study notes generation after practice sessions — existing (needs overhaul)
+- ✓ Study notes generation after practice sessions — existing
 - ✓ Bundled offline content fallback — existing
 - ✓ Writing Module with AI correction (rubric, errors, vocab) — existing
 - ✓ Listening Module with TTS playback and MCQ — existing
@@ -28,16 +38,23 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 - ✓ Note-taking system with kind detection (12 content types) — existing
 - ✓ Dashboard with skill rings, grade history, recommendations — existing
 - ✓ PWA with offline support — existing
+- ✓ **READ-01**: Passages match real HKDSE Paper 1 in genre variety, difficulty calibration, and source authenticity — Phase 1 ✓
+- ✓ **READ-02**: Each part has correct marks and type distribution matching real DSE — Phase 2 ✓
+- ✓ **READ-03**: Question difficulty and trickiness with cognitive traps, proper NG distribution — Phase 2 ✓
+- ✓ **READ-04**: Answer checking with partial marking, spelling tolerance, rubric-aware scoring — Phase 2 ✓
+- ✓ **READ-05**: Notes analysis with marked-script annotations, error pattern analysis, drill recommendations — Phase 3 ✓
+- ✓ **READ-06**: Reading Module UI/UX matching DSE Paper 1 booklet format — Phase 3 ✓
+- ✓ **READ-07**: Full DSE question type range with correct proportions — Phase 2 ✓
+- ✓ Course Player with exercise-first state machine, reference unlock, final assessment — Phase 6 ✓
+- ✓ Course recommendations from weakness→tag mapping — Phase 6 ✓
+- ✓ PDF ingestion pipeline with AI structuring — Phase 6 ✓ (needs quality fix)
 
 ### Active
 
-- [ ] **READ-01**: Passages match real HKDSE Paper 1 in genre variety, difficulty calibration, topic selection, and source authenticity — not just AI-generated text
-- [ ] **READ-02**: Each part (A, B1, B2) has exactly 42 marks with question counts and type distribution matching real HKDSE Paper 1 (2020-2024 data)
-- [ ] **READ-03**: Question difficulty and trickiness matches real DSE — distractors use cognitive traps (over-generalization, temporal/causal flip, keyword bait), TFNG has proper NG distribution
-- [ ] **READ-04**: Answer checking handles DSE marking scheme nuances — partial marking, acceptable alternatives, spelling tolerance, rubric-aware scoring
-- [ ] **READ-05**: Notes analysis output is useful for learning — combines marked-script style annotations, error pattern analysis, and targeted drill recommendations
-- [ ] **READ-06**: Reading Module UI/UX reflects real DSE Paper 1 booklet format and examination experience
-- [ ] **READ-07**: Question generation covers the full DSE question type range with correct proportions (short answer, cloze, MCQ, matching, TFNG, table/chart, extended response)
+- [ ] **COURSE-01**: PDF upload pipeline works reliably — file upload, text extraction, and AI structuring produce usable courses end-to-end
+- [ ] **COURSE-02**: Auto-generated courses from user practice sessions have sufficient quality and quantity of content
+- [ ] **COURSE-03**: Catalog has useful seed courses available immediately (DSE + general English)
+- [ ] **COURSE-04**: Generated course content is sufficiently deep and well-structured for meaningful learning
 
 ### Out of Scope
 
@@ -82,7 +99,7 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 
 ---
 
-*Last updated: 2026-06-23 after initialization*
+*Last updated: 2026-07-01 after milestone v1.1 start*
 
 ## Evolution
 
