@@ -1,8 +1,29 @@
 # Roadmap: Crescendo
 
 **Created:** 2026-06-23
+**Updated:** 2026-07-01
+**Milestone:** v1.1 — Courses Quality Polish
 **Mode:** mvp
-**Phases:** 6 | **Requirements:** 7 | **Coverage:** 100% ✓
+**Phases:** 9 (6 from v1.0 + 3 from v1.1) | **v1.1 Requirements:** 8 | **Coverage:** 100% ✓
+
+## Phases
+
+### Milestone v1.0 (Completed)
+
+- [x] **Phase 1: Passage Quality & DSE Authenticity** — Reading passages match real HKDSE Paper 1
+- [x] **Phase 2: Question Quality & HKDSE Format** — Questions match real DSE type distribution and marking
+- [x] **Phase 3: Notes & Analysis Overhaul** — Post-practice study notes with error analysis and drills
+- [x] **Phase 4: Writing Module DSE Authenticity** — DSE-authentic writing exam experience with AI correction
+- [x] **Phase 5: IELTS-First Grading Pipeline** — IELTS band grading converted to DSE levels (planned)
+- [x] **Phase 6: Courses Feature** — Course system with PDF ingestion, player, recommendations
+
+### Milestone v1.1 (Active)
+
+- [ ] **Phase 7: PDF Ingestion Pipeline Fix** — Reliable PDF upload, text extraction, chunking, and AI structuring with clear error feedback
+- [ ] **Phase 8: Auto-Generation Reliability & Quality** — Fix timeout cascade, lower AI temperature, add semantic validation for deep, correct content
+- [ ] **Phase 9: Seed Catalog & Quality Features** — 8-10 seed courses, quality badges, and post-course score improvement tracking
+
+## Phase Details
 
 ### Phase 1: Passage Quality & DSE Authenticity
 
@@ -118,10 +139,10 @@ Plans:
 - [ ] 05-02-PLAN.md — Format conventions: create formatConventions.js, update correction pipeline with text-type format rules + memorised phrase detection (Wave 2)
 - [ ] 05-03-PLAN.md — Component extraction: extract RubricDisplay, ErrorAnnotation, FormatChecker from WritingModule.jsx; add conversion settings UI to Settings → DSE tab (Wave 3)
 
-### Phase 6: Courses feature - Transform external resources (IELTS vocab, grammar, sentence structure PDFs) into structured courses students can attend. Based on submitted reading/writing tasks, distinguish weaknesses and recommend relevant courses. Includes auto-generated courses from user-submitted tasks.
+### Phase 6: Courses feature
 
 **Goal:** Build a Course system where external learning resources are transformed into structured courses. Students browse a catalog, enroll with an exercise-first approach, and complete via final assessment. System analyzes weaknesses from reading/writing tasks and recommends/auto-generates courses.
-**Requirements**: All 44 CONTEXT.md decisions (D-01 through D-44)
+**Requirements:** All 44 CONTEXT.md decisions (D-01 through D-44)
 **Depends on:** Phase 5
 **Plans:** 4 plans in 4 waves
 
@@ -130,3 +151,65 @@ Plans:
 - [x] 06-02-PLAN.md — PDF Ingestion: upload pipeline, AI structuring, draft review UI, catalog with published courses (Wave 2)
 - [x] 06-03-PLAN.md — Course Player: exercise-first state machine, reference unlock, auto-save, final assessment, course overview (Wave 3)
 - [x] 06-04-PLAN.md — Recommendations: weakness→tag mapping, auto-generation, inline post-task suggestions, dashboard integration, offline caching, difficulty progression, re-generation trigger (Wave 4)
+
+### Phase 7: PDF Ingestion Pipeline Fix
+
+**Goal:** Users can reliably upload PDFs and receive well-structured courses with clear quality feedback — no more silent failures or garbage-in-garbage-out.
+
+**Depends on:** Phase 6 (Courses feature foundation, PDF upload pipeline)
+**Requirements:** COURSE-01, COURSE-05, COURSE-06
+
+**Success Criteria** (what must be TRUE):
+1. User can upload a PDF and receive a structured course with valid exercises (multi-column layouts handled correctly via positional text extraction)
+2. User sees per-page character counts and extraction quality info before AI structuring begins
+3. User gets clear, user-facing error message when a PDF has insufficient extractable content (<500 chars) — no silent `catch {}` failures
+4. User gets clear error message when upload exceeds 10MB body size limit (client and server limits match)
+5. Course ingested through the pipeline is consistently available in both IndexedDB and SQLite (dual storage sync works)
+
+**Plans:** TBD
+**UI hint**: yes
+
+### Phase 8: Auto-Generation Reliability & Quality
+
+**Goal:** AI-generated courses from user practice complete without timeout, have deep content with validated answers, and are flagged when quality is insufficient.
+
+**Depends on:** Phase 7 (stable PDF pipeline ensures AI doesn't receive garbage input)
+**Requirements:** COURSE-02, COURSE-04
+
+**Success Criteria** (what must be TRUE):
+1. User can generate a course from a practice session that completes without timeout (frontend timeout extended to 30s, matching useAI.js patterns)
+2. Generated courses have semantically valid exercises — MCQ correct answer ∈ options, gap-fill answers ≤10 words, matching pairs have item+match
+3. Generated course content is deep enough for meaningful learning (not template-like) — uses temperature 0.3, max_tokens 8192, adequate timeout configuration
+4. Courses with invalid content are blocked from saving with quality warnings explaining what's wrong
+
+**Plans:** TBD
+
+### Phase 9: Seed Catalog & Quality Features
+
+**Goal:** New users see a useful, trustworthy catalog on first launch with quality indicators and the ability to track improvement after completing courses.
+
+**Depends on:** Phase 8 (auto-generation pipeline produces quality content that validates correctly)
+**Requirements:** COURSE-03, COURSE-07, COURSE-08
+
+**Success Criteria** (what must be TRUE):
+1. First-time user sees 8-10 seed courses in the catalog on first launch (covering DSE grammar, vocabulary, writing, reading strategy, and general English)
+2. User sees quality badges (draft/reviewed/seed) on each course card in the catalog — can judge course maturity before enrolling
+3. User's score improvement is tracked after completing courses (e.g., grammar course completion → reduced grammar errors in subsequent writing practice)
+4. Post-course improvement data is visible to the user (dashboard widget or course completion view)
+
+**Plans:** TBD
+**UI hint**: yes
+
+## Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Passage Quality & DSE Authenticity | 4/4 | ✓ | 2026-06-23 |
+| 2. Question Quality & HKDSE Format | 3/3 | ✓ | 2026-06-23 |
+| 3. Notes & Analysis Overhaul | 3/3 | ✓ | 2026-06-23 |
+| 4. Writing Module DSE Authenticity | 4/4 | ✓ | 2026-06-23 |
+| 5. IELTS-First Grading Pipeline | 0/3 | Planned | - |
+| 6. Courses Feature | 4/4 | ✓ | 2026-06-23 |
+| 7. PDF Ingestion Pipeline Fix | 0/0 | Not started | - |
+| 8. Auto-Generation Reliability & Quality | 0/0 | Not started | - |
+| 9. Seed Catalog & Quality Features | 0/0 | Not started | - |

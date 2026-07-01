@@ -52,19 +52,19 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COURSE-01 | — | Pending |
-| COURSE-02 | — | Pending |
-| COURSE-03 | — | Pending |
-| COURSE-04 | — | Pending |
-| COURSE-05 | — | Pending |
-| COURSE-06 | — | Pending |
-| COURSE-07 | — | Pending |
-| COURSE-08 | — | Pending |
+| COURSE-01 | Phase 7 | Pending |
+| COURSE-02 | Phase 8 | Pending |
+| COURSE-03 | Phase 9 | Pending |
+| COURSE-04 | Phase 8 | Pending |
+| COURSE-05 | Phase 7 | Pending |
+| COURSE-06 | Phase 7 | Pending |
+| COURSE-07 | Phase 9 | Pending |
+| COURSE-08 | Phase 9 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 8 total
-- Mapped to phases: 0
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8
+- Unmapped: 0 ✓
 
 ---
 
