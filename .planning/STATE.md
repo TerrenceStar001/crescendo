@@ -2,11 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Courses Quality Polish
-status: planning
-last_updated: "2026-07-01T03:45:00.000Z"
-last_activity: 2026-07-01
+current_phase: 07
+status: Not started (roadmap defined)
+last_updated: "2026-07-01T07:32:33.042Z"
+last_activity: 2026-07-01 — Roadmap created for v1.1
 progress:
-  total_phases: 3
+  total_phases: 9
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -33,6 +34,7 @@ See: `.planning/PROJECT.md` (updated 2026-07-01)
 ### Milestone v1.0 Completion
 
 All 6 phases of v1.0 completed:
+
 - Phase 1-4: Reading + Writing Module DSE authenticity
 - Phase 5: IELTS grading pipeline (planned, not executed)
 - Phase 6: Courses feature (initial implementation — PDF ingestion, player, recommendations)
@@ -40,6 +42,7 @@ All 6 phases of v1.0 completed:
 ### Milestone v1.1 — Courses Quality Polish
 
 The Courses feature from Phase 6 has known quality issues that need fixing:
+
 1. **PDF ingestion pipeline** — text extraction quality gate too low (50 chars), no chunking, garbage-in-garbage-out AI structuring
 2. **Auto-generation timeout cascade** — frontend timeout (3000ms) far shorter than backend needs (30-120s), so AI path always falls through to template fallback
 3. **Empty catalog** — first-time user sees empty catalog with no courses to try
