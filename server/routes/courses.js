@@ -112,7 +112,7 @@ CONTENT TO ANALYZE:
 ${sanitizedText}
 
 INSTRUCTIONS:
-1. Identify the subject domain of the content (e.g., science, technology, business, history, literature, arts, mathematics, law, medicine, environment, social-sciences, current-affairs, philosophy, music, sports, or any other domain)
+1. Identify the subject domain of the content (e.g., science, technology, business, history, literature, arts, mathematics, law, medicine, environment, social-sciences, engineering, sports, philosophy, music, geography, languages, religion, media, health, military, economics, agriculture, vocational, education, communication, design, culinary, or any other domain)
 2. Extract key English vocabulary, terminology, and language patterns specific to this domain
 3. Design a structured course with topics, lessons, and exercises that teach both the subject matter and English language skills through reading comprehension, vocabulary building, and critical thinking
 
@@ -128,21 +128,32 @@ QUESTION TYPES: gap-fill, matching, cloze, short-answer, sentence-rewrite, reord
 TAGS:
 Generate 4-8 tags that accurately describe the course's focus. Tags use "category:subcategory" format. Derive tags from the actual content — do NOT use generic or mismatched tags.
 
-Appropriate tag examples across different subject domains (use only what fits your content):
-- science → "science:biology", "science:chemistry", "vocab:scientific-terminology", "reading:research"
-- technology → "technology:computing", "technology:networking", "vocab:technical-terms"
-- business → "business:management", "business:finance", "writing:reports", "vocab:business-english"
-- history → "history:world-war", "history:ancient-civilizations", "reading:primary-sources"
-- literature → "literature:analysis", "literature:poetry", "writing:essays", "vocab:literary-terms"
-- arts → "arts:visual", "arts:music", "vocab:aesthetic-terminology"
-- mathematics → "mathematics:algebra", "mathematics:statistics", "reading:problem-solving"
-- law → "law:contracts", "law:human-rights", "vocab:legal-terminology", "writing:argumentation"
-- medicine → "medicine:anatomy", "medicine:public-health", "vocab:medical-terminology"
-- environment → "environment:climate", "environment:conservation", "reading:scientific-texts"
-- social-sciences → "social:psychology", "social:economics", "vocab:academic-language"
-- sports → "sports:fitness", "sports:nutrition", "vocab:sports-terminology"
-- philosophy → "philosophy:ethics", "philosophy:logic", "reading:analytical-texts"
-- general-english → "grammar:tenses", "vocab:everyday", "speaking:conversation"
+Appropriate tag examples across many subject domains (use only what fits your content):
+- science → "science:biology", "science:chemistry", "science:physics", "science:astronomy", "science:geology", "science:ecology", "science:genetics", "science:neuroscience", "science:microbiology", "science:botany", "science:zoology", "science:biochemistry", "vocab:scientific-terminology", "reading:research-methods"
+- technology → "technology:computing", "technology:programming", "technology:networking", "technology:cybersecurity", "technology:data-science", "technology:ai-ml", "technology:software-engineering", "technology:web-dev", "technology:cloud", "technology:robotics", "technology:blockchain", "technology:game-dev", "technology:cryptography", "technology:iot", "vocab:technical-terms"
+- business → "business:management", "business:finance", "business:marketing", "business:accounting", "business:entrepreneurship", "business:economics", "business:housing", "business:supply-chain", "business:real-estate", "business:investment", "business:ecommerce", "business:banking", "business:consulting", "business:project-management", "writing:reports", "writing:proposals", "vocab:business-english"
+- history → "history:world-war", "history:ancient-civilizations", "history:modern-history", "history:medieval", "history:colonial", "history:art-history", "history:military", "history:diplomacy", "history:revolution", "history:archaeology", "history:cultural", "reading:primary-sources", "reading:historiography"
+- literature → "literature:analysis", "literature:poetry", "literature:drama", "literature:fiction", "literature:non-fiction", "literature:criticism", "literature:comparative", "literature:mythology", "literature:creative-writing", "literature:rhetoric", "writing:essays", "vocab:literary-terms"
+- arts → "arts:visual", "arts:music", "arts:theater", "arts:dance", "arts:film", "arts:photography", "arts:architecture", "arts:painting", "arts:sculpture", "arts:graphic-design", "arts:fashion", "arts:animation", "arts:calligraphy", "vocab:aesthetic-terminology"
+- mathematics → "math:algebra", "math:geometry", "math:calculus", "math:statistics", "math:trigonometry", "math:number-theory", "math:probability", "math:linear-algebra", "math:discrete-math", "math:topology", "reading:problem-solving", "reading:proofs"
+- law → "law:contract", "law:criminal", "law:constitutional", "law:human-rights", "law:international", "law:corporate", "law:ip", "law:tort", "law:legal-writing", "vocab:legal-terminology", "writing:argumentation"
+- medicine → "medicine:anatomy", "medicine:physiology", "medicine:pharmacology", "medicine:epidemiology", "medicine:pathology", "medicine:cardiology", "medicine:neurology", "medicine:pediatrics", "medicine:psychiatry", "medicine:oncology", "medicine:public-health", "medicine:immunology", "medicine:nutrition", "vocab:medical-terminology"
+- environment → "environment:climate", "environment:conservation", "environment:ecology", "environment:renewable-energy", "environment:pollution", "environment:sustainability", "environment:forestry", "environment:marine", "environment:agriculture", "reading:scientific-texts"
+- social-sciences → "social:psychology", "social:sociology", "social:anthropology", "social:political-science", "social:geography", "social:linguistics", "social:education", "social:international-relations", "social:behavioral-economics", "vocab:academic-language"
+- engineering → "engineering:mechanical", "engineering:electrical", "engineering:chemical", "engineering:structural", "engineering:aerospace", "engineering:industrial", "engineering:biomedical", "engineering:nuclear", "engineering:computer-engineering", "vocab:engineering-terminology"
+- sports → "sports:fitness", "sports:nutrition", "sports:sports-medicine", "sports:coaching", "sports:team-sports", "sports:athletics", "sports:martial-arts", "sports:swimming", "sports:gymnastics", "sports:yoga", "vocab:sports-terminology"
+- philosophy → "philosophy:ethics", "philosophy:logic", "philosophy:metaphysics", "philosophy:epistemology", "philosophy:aesthetics", "philosophy:political", "philosophy:existentialism", "reading:analytical-texts"
+- music → "music:theory", "music:composition", "music:performance", "music:history", "music:vocal", "music:instrumental", "music:production", "vocab:music-terminology"
+- geography → "geography:physical", "geography:human", "geography:cartography", "geography:urban-planning", "geography:geopolitics", "geography:demography", "geography:climatology", "reading:maps-data"
+- languages → "languages:french", "languages:spanish", "languages:japanese", "languages:latin", "languages:translation", "languages:linguistics", "languages:english-lit", "vocab:language-terminology"
+- religion → "religion:theology", "religion:comparative", "religion:biblical-studies", "religion:world-religions", "religion:spirituality", "reading:sacred-texts"
+- media → "media:journalism", "media:broadcasting", "media:advertising", "media:public-relations", "media:social-media", "media:publishing", "media:digital-media", "writing:journalism"
+- health → "health:public-health", "health:nursing", "health:pharmacy", "health:physiotherapy", "health:counseling", "health:mental-health", "health:dietetics", "vocab:health-terminology"
+- military → "military:strategy", "military:history", "military:defense", "military:security-studies", "military:peacekeeping", "military:intelligence", "reading:tactical-documents"
+- economics → "economics:microeconomics", "economics:macroeconomics", "economics:econometrics", "economics:development", "economics:trade", "economics:monetary-policy", "reading:economic-data"
+- agriculture → "agriculture:farming", "agriculture:horticulture", "agriculture:agronomy", "agriculture:soil-science", "agriculture:irrigation", "vocab:agricultural-terminology"
+- vocational → "vocational:culinary-arts", "vocational:hospitality", "vocational:tourism", "vocational:aviation", "vocational:construction", "vocational:automotive", "vocational:cosmetology", "vocational:electrical"
+- general-english → "grammar:tenses", "grammar:articles", "grammar:prepositions", "grammar:passive-voice", "grammar:conditionals", "grammar:reported-speech", "grammar:modals", "vocab:everyday", "vocab:academic", "vocab:business", "speaking:conversation", "speaking:presentation", "writing:emails", "writing:essays", "writing:reports", "reading:comprehension", "listening:comprehension", "ielts:preparation"
 
 DIFFICULTY:
 Assess difficulty based on actual content complexity:
@@ -578,7 +589,7 @@ Return ONLY a JSON object:
 {
   "title": string,
   "description": string,
-  "tags": string[],
+  "tags": string[],  // 4-8 tags in "category:subcategory" format reflecting the target areas
   "difficulty": "beginner" | "intermediate" | "advanced",
   "topics": [{
     "title": string,
