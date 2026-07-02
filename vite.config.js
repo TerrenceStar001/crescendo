@@ -68,6 +68,12 @@ export default defineConfig({
       '/api/analyze': { target: 'http://localhost:3001', changeOrigin: true },
       '/api/crawl': { target: 'http://localhost:3001', changeOrigin: true },
       '/api/rag': { target: 'http://localhost:3001', changeOrigin: true },
+      '/api/courses': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        proxyTimeout: 180000,
+        timeout: 180000,
+      },
     },
   },
 });

@@ -147,7 +147,7 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
       setExpandedTopics({});
       setPhase('review');
     } catch (e) {
-      setError('Network error during AI structuring. Please try again.');
+      setError('Network error during AI structuring. If the issue persists, try a hard refresh (Ctrl+Shift+R) and upload again.');
       setErrorType('network');
       setPhase('idle');
     }

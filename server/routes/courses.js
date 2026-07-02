@@ -424,7 +424,7 @@ router.put('/ingest/generate/:extractionId', async (req, res) => {
       course: { ...courseDraft, id: draftId, published: false },
     });
   } catch (e) {
-    console.error('[courses] Error in PUT /ingest/generate/:extractionId:', e.message);
+    console.error('[courses] Error in PUT /ingest/generate/:extractionId:', e.message, e.stack?.split('\n')[1]);
     res.status(500).json({ error: e.message || 'Internal server error' });
   }
 });
