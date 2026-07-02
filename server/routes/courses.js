@@ -106,26 +106,57 @@ function parseJSONResponse(text) {
  * buildCoursePrompt — Build structured AI prompt for course generation.
  */
 function buildCoursePrompt(sanitizedText, extraInstruction = '') {
-  return `You are a DSE English course designer. Convert the following educational content into a structured course.
+  return `You are an expert course designer for an English language learning platform. Analyze the provided content and create a structured course that helps learners improve their English proficiency through engaging with the material.
 
-CONTENT:
+CONTENT TO ANALYZE:
 ${sanitizedText}
 
-STRUCTURE:
-- 3-5 topics (grouped by subject area)
-- Each topic has 2-4 lessons
-- Each lesson has 3-5 exercises
-- Exercise types: gap-fill, matching, cloze, short-answer, sentence rewrite, reordering, mcq
-- Include referenceContent for each lesson (unlockable after struggle)
-- Final assessment mixes all exercise types
+INSTRUCTIONS:
+1. Identify the subject domain of the content (e.g., science, technology, business, history, literature, arts, mathematics, law, medicine, environment, social-sciences, current-affairs, philosophy, music, sports, or any other domain)
+2. Extract key English vocabulary, terminology, and language patterns specific to this domain
+3. Design a structured course with topics, lessons, and exercises that teach both the subject matter and English language skills through reading comprehension, vocabulary building, and critical thinking
+
+COURSE STRUCTURE:
+- 3-5 topics (grouped by conceptual area)
+- Each topic has 2-4 lessons with clear learning objectives
+- Each lesson has 3-5 exercises mixing different question types
+- Each lesson includes referenceContent (support material unlockable after struggle)
+- Include a final assessment covering all topics
+
+QUESTION TYPES: gap-fill, matching, cloze, short-answer, sentence-rewrite, reordering, mcq
+
+TAGS:
+Generate 4-8 tags that accurately describe the course's focus. Tags use "category:subcategory" format. Derive tags from the actual content — do NOT use generic or mismatched tags.
+
+Appropriate tag examples across different subject domains (use only what fits your content):
+- science → "science:biology", "science:chemistry", "vocab:scientific-terminology", "reading:research"
+- technology → "technology:computing", "technology:networking", "vocab:technical-terms"
+- business → "business:management", "business:finance", "writing:reports", "vocab:business-english"
+- history → "history:world-war", "history:ancient-civilizations", "reading:primary-sources"
+- literature → "literature:analysis", "literature:poetry", "writing:essays", "vocab:literary-terms"
+- arts → "arts:visual", "arts:music", "vocab:aesthetic-terminology"
+- mathematics → "mathematics:algebra", "mathematics:statistics", "reading:problem-solving"
+- law → "law:contracts", "law:human-rights", "vocab:legal-terminology", "writing:argumentation"
+- medicine → "medicine:anatomy", "medicine:public-health", "vocab:medical-terminology"
+- environment → "environment:climate", "environment:conservation", "reading:scientific-texts"
+- social-sciences → "social:psychology", "social:economics", "vocab:academic-language"
+- sports → "sports:fitness", "sports:nutrition", "vocab:sports-terminology"
+- philosophy → "philosophy:ethics", "philosophy:logic", "reading:analytical-texts"
+- general-english → "grammar:tenses", "vocab:everyday", "speaking:conversation"
+
+DIFFICULTY:
+Assess difficulty based on actual content complexity:
+- "beginner" → simple vocabulary, basic concepts, short sentences
+- "intermediate" → some technical terms, moderate sentence complexity
+- "advanced" → specialized vocabulary, complex structures, abstract concepts
 
 ${extraInstruction}
 
-Return ONLY a JSON object:
+Return ONLY a valid JSON object with this exact structure:
 {
-  "title": string,
-  "description": string,
-  "tags": string[],  // e.g., ["grammar:articles", "vocab:academic"]
+  "title": string (clear, descriptive title reflecting the content),
+  "description": string (what learners will gain, 2-3 sentences),
+  "tags": string[] (4-8 tags in "category:subcategory" format, derived from actual content),
   "difficulty": "beginner" | "intermediate" | "advanced",
   "topics": [{
     "title": string,
@@ -168,10 +199,10 @@ async function callAICourse(promptText, retries = 2) {
         body: JSON.stringify({
           model: 'agnes-2.0-flash',
           messages: [
-            { role: 'system', content: 'You are a DSE English course designer. Return ONLY valid JSON, no markdown fences, no other text.' },
+            { role: 'system', content: 'You are an expert course designer for an English learning platform. Analyze any content and create structured learning materials with domain-relevant English language exercises. Return ONLY valid JSON, no markdown fences, no other text.' },
             { role: 'user', content: promptText },
           ],
-          max_tokens: 4000,
+          max_tokens: 8000,
           temperature: 0.7,
         }),
         signal: controller.signal,
@@ -213,7 +244,7 @@ async function callAICourse(promptText, retries = 2) {
       console.warn(`[courses] Validation attempt ${attempt + 1} failed:`, validation.errors.join('; '));
       if (attempt < retries) {
         // Stricter prompt on retry — inject specific validation errors
-        promptText = `You are a DSE English course designer. The previous attempt had validation errors: ${validation.errors.join('; ')}. Fix these issues in your response.\n\n${promptText}\n\nIMPORTANT: Fix these validation errors: ${validation.errors.join('; ')}`;
+        promptText = `You are an expert course designer. The previous attempt had validation errors: ${validation.errors.join('; ')}. Fix these issues in your response.\n\n${promptText}\n\nIMPORTANT: Fix these validation errors: ${validation.errors.join('; ')}`;
         continue;
       }
       return { error: `AI generated incomplete course structure: ${validation.errors.join('; ')}` };
@@ -531,7 +562,7 @@ router.post('/auto-generate', async (req, res) => {
       }
     }
 
-    const aiPrompt = `You are a DSE English course designer. Generate a structured course targeting these weakness areas.
+    const aiPrompt = `You are an expert course designer for an English learning platform. Generate a structured course targeting these weakness areas.
 
 WEAKNESS TAGS: ${JSON.stringify(weaknessTags)}
 ${completedContext}

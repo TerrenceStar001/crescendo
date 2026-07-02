@@ -1,6 +1,17 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 
-const FILTER_TAGS = ['grammar', 'vocabulary', 'sentence-structure'];
+const STATIC_FILTER_TAGS = ['grammar', 'vocabulary', 'sentence-structure'];
+
+/** Extract unique tag categories (text before colon) from courses */
+function getFilterTags(courses) {
+  const dynamic = new Set();
+  (courses || []).forEach(c => (c.tags || []).forEach(t => {
+    const cat = t.split(':')[0].trim();
+    if (cat) dynamic.add(cat);
+  }));
+  const dynamicArr = [...dynamic].sort();
+  return dynamicArr.length >= 2 ? dynamicArr : STATIC_FILTER_TAGS;
+}
 
 /**
  * CatalogView — Course catalog browser.
@@ -58,6 +69,9 @@ export default function CatalogView({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState(filterTags || null);
+
+  // Derive filter categories dynamically from available course tags
+  const filterTagCategories = useMemo(() => getFilterTags(courses), [courses]);
 
   // Sync filterTags prop when it changes externally
   const prevFilterTags = React.useRef(filterTags);
@@ -260,7 +274,7 @@ export default function CatalogView({
       )}
 
       <div className="course__tag-filters">
-        {FILTER_TAGS.map(tag => (
+        {filterTagCategories.map(tag => (
           <button
             key={tag}
             className={`course__tag-chip${activeTag === tag ? ' course__tag-chip--active' : ''}`}
