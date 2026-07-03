@@ -194,7 +194,7 @@ Plans:
 **Plans:** 4 plans in 2 waves
 
 Plans:
-- [ ] 10-01-PLAN.md — Validation Engine + Hyper-Parameter Alignment (Wave 1)
+- [x] 10-01-PLAN.md — Validation Engine + Hyper-Parameter Alignment (Wave 1)
 - [ ] 10-02-PLAN.md — Global Loading State + App Wiring + Seed Fix (Wave 1)
 - [ ] 10-03-PLAN.md — No Hollow Templates + Explicit Failure + Catch Remediation + JSON Robustness (Wave 2)
 - [ ] 10-04-PLAN.md — PDF Timeout + PostTask Enrollment + Catch Remediation (Wave 2)

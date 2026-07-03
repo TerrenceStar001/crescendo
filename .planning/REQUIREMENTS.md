@@ -15,8 +15,8 @@ Requirements for milestone v1.1 — Courses Quality Polish. Each maps to roadmap
 
 ### Auto-Generation Improvements
 
-- [ ] **COURSE-02**: Auto-generated courses from user practice sessions have sufficient quality — reasonable content depth, valid exercises, semantically correct answers
-- [ ] **COURSE-04**: Generated course content is deep enough for meaningful learning (not thin template-like output) — uses lower AI temperature, adequate token limits, and proper timeout configuration
+- [x] **COURSE-02**: Auto-generated courses from user practice sessions have sufficient quality — reasonable content depth, valid exercises, semantically correct answers
+- [x] **COURSE-04**: Generated course content is deep enough for meaningful learning (not thin template-like output) — uses lower AI temperature, adequate token limits, and proper timeout configuration
 
 ### Seed Catalog & Content Quality
 
@@ -53,9 +53,9 @@ Explicitly excluded. Documented to prevent scope creep.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | COURSE-01 | Phase 7 | Pending |
-| COURSE-02 | Phase 8 | Pending |
+| COURSE-02 | Phase 8 | Complete |
 | COURSE-03 | Phase 9 | Pending |
-| COURSE-04 | Phase 8 | Pending |
+| COURSE-04 | Phase 8 | Complete |
 | COURSE-05 | Phase 7 | Pending |
 | COURSE-06 | Phase 7 | Pending |
 | COURSE-07 | Phase 9 | Pending |
