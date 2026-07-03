@@ -243,6 +243,10 @@ export function validateCourse(courseObj) {
     errors.push(`Course difficulty must be one of: beginner, intermediate, advanced (got "${courseObj.difficulty}")`);
   }
 
+  // Add semantic validation after structural checks
+  const semanticResult = semanticValidate(courseObj);
+  errors.push(...semanticResult.errors);
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -295,6 +299,73 @@ export function validateExercise(exercise, type) {
       errors.push('mcq exercise must have at least 2 options');
     }
   }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
+ * semanticValidate — Client-side semantic validation for course drafts.
+ * Mirrors the server validator in server/utils/courseSemanticValidator.js.
+ * All 5 checks are local helpers — only semanticValidate is exported.
+ * @param {object} courseDraft
+ * @returns {{ valid: boolean, errors: string[] }}
+ */
+export function semanticValidate(courseDraft) {
+  const errors = [];
+  if (!courseDraft || typeof courseDraft !== 'object') return { valid: false, errors: ['Course draft must be an object'] };
+  if (!Array.isArray(courseDraft.topics)) return { valid: false, errors: ['Course draft must have a topics array'] };
+
+  courseDraft.topics.forEach((topic, ti) => {
+    if (!topic || typeof topic !== 'object') return;
+    if (!Array.isArray(topic.lessons)) return;
+
+    topic.lessons.forEach((lesson, li) => {
+      if (!lesson || typeof lesson !== 'object') return;
+
+      // Lesson-level checks
+      const refContent = lesson.referenceContent;
+      if (refContent && typeof refContent === 'string') {
+        const wordCount = refContent.trim().split(/\s+/).length;
+        if (wordCount < 150) {
+          errors.push(`Topic ${ti}, Lesson ${li}: referenceContent too short (${wordCount} words, minimum 150)`);
+        }
+      }
+
+      const exCount = lesson.exercises?.length || 0;
+      if (exCount < 3) {
+        errors.push(`Topic ${ti}, Lesson ${li}: insufficient exercises (${exCount}, minimum 3)`);
+      }
+
+      // Exercise-level checks
+      if (Array.isArray(lesson.exercises)) {
+        lesson.exercises.forEach((exercise, ei) => {
+          if (!exercise || typeof exercise !== 'object') return;
+
+          if (exercise.type === 'mcq' && Array.isArray(exercise.options) && exercise.options.length > 0) {
+            const opts = exercise.options.map(o => String(o).toLowerCase().trim());
+            const ans = String(exercise.answer || '').toLowerCase().trim();
+            if (ans && !opts.includes(ans)) {
+              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): answer "${exercise.answer}" not found in options [${exercise.options.join(', ')}]`);
+            }
+          }
+
+          if ((exercise.type === 'gap-fill' || exercise.type === 'cloze') && exercise.answer) {
+            const content = lesson.referenceContent;
+            if (content && typeof content === 'string') {
+              if (!content.toLowerCase().includes(String(exercise.answer).toLowerCase().trim())) {
+                errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (${exercise.type}): answer "${exercise.answer}" not found in lesson referenceContent`);
+              }
+            }
+          }
+
+          const explLen = exercise.explanation?.trim().length || 0;
+          if (explLen < 40) {
+            errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: explanation too short (${explLen} chars, minimum 40)`);
+          }
+        });
+      }
+    });
+  });
 
   return { valid: errors.length === 0, errors };
 }
