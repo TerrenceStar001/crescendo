@@ -195,8 +195,8 @@ Plans:
 
 Plans:
 - [x] 10-01-PLAN.md — Validation Engine + Hyper-Parameter Alignment (Wave 1)
-- [ ] 10-02-PLAN.md — Global Loading State + App Wiring + Seed Fix (Wave 1)
-- [ ] 10-03-PLAN.md — No Hollow Templates + Explicit Failure + Catch Remediation + JSON Robustness (Wave 2)
+- [x] 10-02-PLAN.md — Global Loading State + App Wiring + Seed Fix (Wave 1)
+- [x] 10-03-PLAN.md — No Hollow Templates + Explicit Failure + Catch Remediation + JSON Robustness (Wave 2)
 - [ ] 10-04-PLAN.md — PDF Timeout + PostTask Enrollment + Catch Remediation (Wave 2)
 
 ### Phase 9: Seed Catalog & Quality Features
@@ -226,7 +226,7 @@ Plans:
 | 5. IELTS-First Grading Pipeline | 0/3 | Planned | - |
 | 6. Courses Feature | 4/4 | ✓ | 2026-06-23 |
 | 7. PDF Ingestion Pipeline Fix | 3/3 | Complete   | 2026-07-01 |
-| 8. Auto-Generation Reliability & Quality | 4/4 | Ready | - |
+| 8. Auto-Generation Reliability & Quality | 3/4 | Executing | - |
 | 9. Seed Catalog & Quality Features | 0/0 | Not started | - |
 
 

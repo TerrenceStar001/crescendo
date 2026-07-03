@@ -4,7 +4,9 @@ milestone: v1.1
 milestone_name: Courses Quality Polish
 current_phase: 07
 status: verifying
-last_updated: "2026-07-03T03:27:25.978Z"
+last_updated: "2026-07-03T03:38:26.019Z"
+completed_plans:
+  - "10-03: Remove hollow template fallbacks from course generation"
 last_activity: 2026-07-03
 progress:
   total_phases: 9
