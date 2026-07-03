@@ -20,7 +20,7 @@
 ### Milestone v1.1 (Active)
 
 - [x] **Phase 7: PDF Ingestion Pipeline Fix** — Reliable PDF upload, text extraction, chunking, and AI structuring with clear error feedback (completed 2026-07-01)
-- [ ] **Phase 8: Auto-Generation Reliability & Quality** — Fix timeout cascade, lower AI temperature, add semantic validation for deep, correct content
+- [x] **Phase 8: Auto-Generation Reliability & Quality** — Fix timeout cascade, lower AI temperature, add semantic validation for deep, correct content (completed 2026-07-03)
 - [ ] **Phase 9: Seed Catalog & Quality Features** — 8-10 seed courses, quality badges, and post-course score improvement tracking
 
 ## Phase Details
@@ -191,13 +191,7 @@ Plans:
 7. PDF generation has AbortController timeout (120s) matching backend timeout
 8. All silent catch blocks replaced with explicit error logging and user-visible states
 
-**Plans:** 4 plans in 2 waves
-
-Plans:
-- [x] 10-01-PLAN.md — Validation Engine + Hyper-Parameter Alignment (Wave 1)
-- [x] 10-02-PLAN.md — Global Loading State + App Wiring + Seed Fix (Wave 1)
-- [x] 10-03-PLAN.md — No Hollow Templates + Explicit Failure + Catch Remediation + JSON Robustness (Wave 2)
-- [ ] 10-04-PLAN.md — PDF Timeout + PostTask Enrollment + Catch Remediation (Wave 2)
+**Completed:** 2026-07-03
 
 ### Phase 9: Seed Catalog & Quality Features
 
@@ -226,7 +220,7 @@ Plans:
 | 5. IELTS-First Grading Pipeline | 0/3 | Planned | - |
 | 6. Courses Feature | 4/4 | ✓ | 2026-06-23 |
 | 7. PDF Ingestion Pipeline Fix | 3/3 | Complete   | 2026-07-01 |
-| 8. Auto-Generation Reliability & Quality | 3/4 | Executing | - |
+| 8. Auto-Generation Reliability & Quality | 4/4 | Complete   | 2026-07-03 |
 | 9. Seed Catalog & Quality Features | 0/0 | Not started | - |
 
 
