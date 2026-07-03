@@ -12,6 +12,7 @@
 import { Router } from 'express';
 import { getDB } from '../db/connection.js';
 import { parsePdf } from '../crawlers/pdfParser.js';
+import { semanticValidate } from '../utils/courseSemanticValidator.js';
 
 const router = Router();
 
@@ -113,20 +114,54 @@ function validateCourseDraft(courseObj) {
 }
 
 /**
- * parseJSONResponse — Extract JSON object from AI response text.
- * Pattern copied from drillGenerator.js (bracket extraction → full parse → null on failure).
- * Uses object braces {} since courses are objects, not arrays.
+ * parseJSONResponse — Multi-strategy JSON extraction from AI response text.
+ * Tries up to 4 strategies before returning null:
+ *  1. Outer braces (first { to last })
+ *  2. Brace-depth tracking (first { to depth-return-to-0)
+ *  3. Regex match for complete JSON objects
+ *  4. Full string parse
  */
 function parseJSONResponse(text) {
   if (!text || typeof text !== 'string') return null;
   const trimmed = text.trim();
-  // Try extracting JSON object (curly braces)
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try { return JSON.parse(jsonMatch[0]); } catch { /* fall through */ }
+  if (!trimmed) return null;
+
+  // Strategy 1: Outer braces — find first { and last }, try that substring
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = trimmed.slice(firstBrace, lastBrace + 1);
+    try { return JSON.parse(candidate); } catch { /* fall through */ }
   }
-  // Try full parse as fallback
-  try { return JSON.parse(trimmed); } catch { return null; }
+
+  // Strategy 2: Brace-depth tracking — find first {, track depth to balanced close
+  if (firstBrace !== -1) {
+    let depth = 0;
+    let closeIdx = -1;
+    for (let i = firstBrace; i < trimmed.length; i++) {
+      if (trimmed[i] === '{') depth++;
+      else if (trimmed[i] === '}') {
+        depth--;
+        if (depth === 0) { closeIdx = i; break; }
+      }
+    }
+    if (closeIdx > firstBrace) {
+      const candidate = trimmed.slice(firstBrace, closeIdx + 1);
+      try { return JSON.parse(candidate); } catch { /* fall through */ }
+    }
+  }
+
+  // Strategy 3: Regex match for complete JSON objects
+  const jsonRegex = /\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}/g;
+  let match;
+  while ((match = jsonRegex.exec(trimmed)) !== null) {
+    try { return JSON.parse(match[0]); } catch { /* continue trying */ }
+  }
+
+  // Strategy 4: Full string parse
+  try { return JSON.parse(trimmed); } catch { /* fall through */ }
+
+  return null;
 }
 
 /**
@@ -254,8 +289,8 @@ async function callAICourse(promptText, retries = 2) {
               { role: 'system', content: 'You are an expert course designer for an English learning platform. Analyze any content and create structured learning materials with domain-relevant English language exercises. Return ONLY valid JSON, no markdown fences, no other text.' },
               { role: 'user', content: promptText },
             ],
-            max_tokens: 8000,
-            temperature: 0.7,
+            max_tokens: 32768,
+            temperature: 0.3,
           }),
           signal: controller.signal,
         });
@@ -285,10 +320,23 @@ async function callAICourse(promptText, retries = 2) {
       }
 
       const validation = validateCourseDraft(courseDraft);
-      if (!validation.valid) {
-        console.warn(`[courses] Validation attempt ${attempt + 1} failed:`, validation.errors.join('; '));
+      const semanticValidation = semanticValidate(courseDraft);
+      const allErrors = [...validation.errors, ...semanticValidation.errors];
+
+      if (allErrors.length > 0) {
+        console.warn(`[courses] Validation attempt ${attempt + 1} failed:`, allErrors.join('; '));
         if (attempt < retries) {
-          promptText = `You are an expert course designer. The previous attempt had validation errors: ${validation.errors.join('; ')}. Fix these issues in your response.\n\n${promptText}\n\nIMPORTANT: Fix these validation errors: ${validation.errors.join('; ')}`;
+          promptText = `The previous attempt had validation errors:
+${allErrors.join('; ')}
+Specific corrections needed:
+- MCQ answers must be one of the provided options
+- Gap-fill/cloze answers must appear verbatim in the lesson referenceContent
+- Explanations must be at least 40 characters
+- Each lesson needs at least 3 exercises
+- ReferenceContent must be at least 150 words
+
+${promptText}
+IMPORTANT: Fix these errors: ${allErrors.join('; ')}`;
           continue;
         }
         break;
