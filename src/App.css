@@ -9063,6 +9063,41 @@ html[data-theme="dark"] .course__exercise-type--mcq { background: #bf360c33; col
   color: var(--color-accent);
 }
 
+/* --- Post-Task Generation States --- */
+.course__post-task-generating {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.course__post-task-gen-text {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.course__gen-inline-error {
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.course__gen-inline-error-text {
+  display: block;
+  font-size: var(--font-sm);
+  color: var(--color-error);
+  margin-bottom: var(--space-2);
+  line-height: 1.5;
+}
+
+.course__gen-inline-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 /* ===== Course Overview & Player ===== */
 
 /* --- Overview --- */
