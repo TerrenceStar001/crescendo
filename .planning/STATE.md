@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Courses Quality Polish
 current_phase: 07
-status: Not started (roadmap defined)
-last_updated: "2026-07-01T07:32:33.042Z"
-last_activity: 2026-07-01 — Roadmap created for v1.1
+status: executing
+last_updated: "2026-07-02T15:55:20.238Z"
+last_activity: 2026-07-01
 progress:
-  total_phases: 9
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 10
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
+  percent: 10
 ---
 
 # Project State
@@ -30,6 +30,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-01)
 **Current milestone:** v1.1 Courses Quality Polish — Fix and polish the Courses feature so PDF uploads work end-to-end, auto-generated courses have quality content, and the catalog has useful seed courses.
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 10 added: added phase: 8
+- Phase 10 added: context gathered: global loading state, semantic validation, explicit failure, simpler content mode, unified validator
 
 ### Milestone v1.0 Completion
 
@@ -80,10 +85,10 @@ The Courses feature from Phase 6 has known quality issues that need fixing:
 
 ## Current Position
 
-Phase: 07 — PDF Ingestion Pipeline Fix
-Plan: —
-Status: Not started (roadmap defined)
-Last activity: 2026-07-01 — Roadmap created for v1.1
+Phase: 07 (pdf-ingestion-pipeline-fix) — EXECUTING
+Plan: 3 of 3
+Status: Ready to execute
+Last activity: 2026-07-01
 
 ## Next Steps
 

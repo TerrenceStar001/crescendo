@@ -26,6 +26,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,wasm,svg,png}'],
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [{
+          urlPattern: /^\/api\//,
+          handler: 'NetworkOnly',
+          method: 'GET',
+        }],
       },
       minify: false,
     }),

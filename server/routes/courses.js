@@ -67,6 +67,23 @@ function validateCourseDraft(courseObj) {
               if (!exercise.type || typeof exercise.type !== 'string') {
                 errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: must have a type (string)`);
               }
+              if (exercise.type === 'mcq') {
+                if (!Array.isArray(exercise.options) || exercise.options.length < 2) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): must have options array with at least 2 items`);
+                }
+              } else if (exercise.type === 'matching') {
+                if (!Array.isArray(exercise.pairs)) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (matching): must have pairs array`);
+                }
+              } else if (exercise.type === 'reordering') {
+                if (!Array.isArray(exercise.correctOrder)) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (reordering): must have correctOrder array`);
+                }
+              } else if (['gap-fill', 'cloze', 'short-answer', 'sentence-rewrite'].includes(exercise.type)) {
+                if (typeof exercise.answer !== 'string' && !(exercise.answers && Array.isArray(exercise.answers))) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (${exercise.type}): must have answer (string) or answers (array)`);
+                }
+              }
             });
           }
         });
@@ -80,6 +97,16 @@ function validateCourseDraft(courseObj) {
 
   if (courseObj.difficulty && !['beginner', 'intermediate', 'advanced'].includes(courseObj.difficulty)) {
     errors.push(`Course difficulty must be one of: beginner, intermediate, advanced (got "${courseObj.difficulty}")`);
+  }
+
+  // Validate finalAssessment if present
+  if (courseObj.finalAssessment) {
+    if (!courseObj.finalAssessment.title || typeof courseObj.finalAssessment.title !== 'string') {
+      errors.push('finalAssessment must have a title (string)');
+    }
+    if (!Array.isArray(courseObj.finalAssessment.exercises) || courseObj.finalAssessment.exercises.length === 0) {
+      errors.push('finalAssessment must have at least one exercise');
+    }
   }
 
   return { valid: errors.length === 0, errors };
@@ -106,21 +133,27 @@ function parseJSONResponse(text) {
  * buildCoursePrompt — Build structured AI prompt for course generation.
  */
 function buildCoursePrompt(sanitizedText, extraInstruction = '') {
-  return `You are an expert course designer for an English language learning platform. Analyze the provided content and create a structured course that helps learners improve their English proficiency through engaging with the material.
+  return `You are an expert course designer for an English language learning platform. Analyze the provided content and create a structured course where each lesson includes a READING PASSAGE followed by comprehension exercises.
 
-CONTENT TO ANALYZE:
+CONTENT TO ANALYZE (this is the raw source text from a PDF):
 ${sanitizedText}
 
 INSTRUCTIONS:
 1. Identify the subject domain of the content (e.g., science, technology, business, history, literature, arts, mathematics, law, medicine, environment, social-sciences, engineering, sports, philosophy, music, geography, languages, religion, media, health, military, economics, agriculture, vocational, education, communication, design, culinary, or any other domain)
-2. Extract key English vocabulary, terminology, and language patterns specific to this domain
-3. Design a structured course with topics, lessons, and exercises that teach both the subject matter and English language skills through reading comprehension, vocabulary building, and critical thinking
+2. Split the source content into meaningful sections — one section per lesson
+3. For each lesson, include the actual source text as the "referenceContent" (this is the reading passage the learner will read)
+4. Create exercises that test comprehension of THAT lesson's referenceContent
+5. Exercises must be self-contained — the learner must be able to answer them after reading only the lesson's referenceContent
+6. Do NOT reference paragraph numbers, page numbers, or "the text above" — the referenceContent IS the text
+7. For referenceContent: extract the actual passage from the source text and format it as clean, readable prose. Structure it with proper paragraphs (separate paragraphs with double newlines \\n\\n). Convert bullet symbols (➢, •, →, etc.) into proper Markdown formatting (ordered/unordered lists). Remove PDF extraction artifacts like page numbers, headers, and footers. The referenceContent should be a polished, readable passage — NOT raw scraped text.
+8. Every exercise MUST include an "explanation" field (2-3 sentences minimum). The explanation teaches the learner WHY the answer is correct and WHY common wrong answers are incorrect. This is the primary learning mechanism — never omit it.
+9. For mcq exercises: ALWAYS include an "options" array with exactly 4 string options (one correct, three plausible distractors). Without options, the exercise is unplayable.
 
 COURSE STRUCTURE:
 - 3-5 topics (grouped by conceptual area)
 - Each topic has 2-4 lessons with clear learning objectives
-- Each lesson has 3-5 exercises mixing different question types
-- Each lesson includes referenceContent (support material unlockable after struggle)
+- Each lesson has 3-5 exercises that test understanding of the lesson's referenceContent
+- Each lesson's referenceContent MUST be a DIRECT EXCERPT from the source content above (the actual text passage the learner reads before attempting exercises)
 - Include a final assessment covering all topics
 
 QUESTION TYPES: gap-fill, matching, cloze, short-answer, sentence-rewrite, reordering, mcq
@@ -178,8 +211,9 @@ Return ONLY a valid JSON object with this exact structure:
         "question": string,
         "type": string,
         "answer": string,
-        "explanation": string,
-        "difficulty": number (1-5)
+        "explanation": string (required — 2-3 sentences explaining why the answer is correct),
+        "difficulty": number (1-5),
+        "options": string[] (required for mcq type — exactly 4 options)
       }],
       "referenceContent": string
     }]
@@ -198,73 +232,73 @@ Do NOT include any markdown code fences, explanations, or text outside the JSON.
  * Returns { courseDraft, error }.
  */
 async function callAICourse(promptText, retries = 2) {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000);
+  // Try endpoints in order: configured API first, then OpenCode serve fallback
+  const endpoints = [
+    { url: 'http://localhost:3001/api/ai/chat/completions', model: 'agnes-2.0-flash' },
+    { url: 'http://127.0.0.1:4010/v1/chat/completions', model: 'opencode/deepseek-v4-flash-free' },
+  ];
 
-    let aiResponse;
-    try {
-      const fetchRes = await fetch('http://localhost:3001/api/ai/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'agnes-2.0-flash',
-          messages: [
-            { role: 'system', content: 'You are an expert course designer for an English learning platform. Analyze any content and create structured learning materials with domain-relevant English language exercises. Return ONLY valid JSON, no markdown fences, no other text.' },
-            { role: 'user', content: promptText },
-          ],
-          max_tokens: 8000,
-          temperature: 0.7,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!fetchRes.ok) throw new Error(`AI proxy returned HTTP ${fetchRes.status}`);
-      const data = await fetchRes.json();
-      aiResponse = data.choices?.[0]?.message?.content?.trim() || null;
-    } catch (e) {
-      clearTimeout(timeout);
-      console.warn(`[courses] AI call attempt ${attempt + 1} failed:`, e.message);
-      if (attempt < retries) continue;
-      const errMsg = `AI structuring failed: ${e.message}`;
-      if (e.message?.includes('ECONNREFUSED') || e.code === 'ECONNREFUSED') {
-        return { error: `${errMsg} — is the backend server running on port 3001?` };
+  for (const ep of endpoints) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120000);
+
+      let aiResponse;
+      try {
+        const fetchRes = await fetch(ep.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: ep.model,
+            messages: [
+              { role: 'system', content: 'You are an expert course designer for an English learning platform. Analyze any content and create structured learning materials with domain-relevant English language exercises. Return ONLY valid JSON, no markdown fences, no other text.' },
+              { role: 'user', content: promptText },
+            ],
+            max_tokens: 8000,
+            temperature: 0.7,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!fetchRes.ok) throw new Error(`AI proxy returned HTTP ${fetchRes.status}`);
+        const data = await fetchRes.json();
+        aiResponse = data.choices?.[0]?.message?.content?.trim() || null;
+      } catch (e) {
+        clearTimeout(timeout);
+        console.warn(`[courses] AI call ${ep.url} attempt ${attempt + 1} failed:`, e.message);
+        if (attempt < retries) continue;
+        break; // Try next endpoint
       }
-      return { error: errMsg };
-    }
 
-    if (!aiResponse) {
-      if (attempt < retries) continue;
-      return { error: 'AI returned empty response' };
-    }
-
-    // Parse JSON using drillGenerator.js pattern
-    const courseDraft = parseJSONResponse(aiResponse);
-    if (!courseDraft) {
-      if (attempt < retries) {
-        // Stricter prompt on retry
-        promptText = promptText.replace('Return ONLY a JSON object:', 'Return ONLY valid JSON. NO markdown fences. NO extra text. ONLY the raw JSON object:');
-        continue;
+      if (!aiResponse) {
+        if (attempt < retries) continue;
+        break;
       }
-      return { error: 'AI returned invalid JSON structure' };
-    }
 
-    // Validate using server-side course structure validator
-    const validation = validateCourseDraft(courseDraft);
-    if (!validation.valid) {
-      console.warn(`[courses] Validation attempt ${attempt + 1} failed:`, validation.errors.join('; '));
-      if (attempt < retries) {
-        // Stricter prompt on retry — inject specific validation errors
-        promptText = `You are an expert course designer. The previous attempt had validation errors: ${validation.errors.join('; ')}. Fix these issues in your response.\n\n${promptText}\n\nIMPORTANT: Fix these validation errors: ${validation.errors.join('; ')}`;
-        continue;
+      const courseDraft = parseJSONResponse(aiResponse);
+      if (!courseDraft) {
+        if (attempt < retries) {
+          promptText = promptText.replace('Return ONLY a JSON object:', 'Return ONLY valid JSON. NO markdown fences. NO extra text. ONLY the raw JSON object:');
+          continue;
+        }
+        break;
       }
-      return { error: `AI generated incomplete course structure: ${validation.errors.join('; ')}` };
-    }
 
-    return { courseDraft };
+      const validation = validateCourseDraft(courseDraft);
+      if (!validation.valid) {
+        console.warn(`[courses] Validation attempt ${attempt + 1} failed:`, validation.errors.join('; '));
+        if (attempt < retries) {
+          promptText = `You are an expert course designer. The previous attempt had validation errors: ${validation.errors.join('; ')}. Fix these issues in your response.\n\n${promptText}\n\nIMPORTANT: Fix these validation errors: ${validation.errors.join('; ')}`;
+          continue;
+        }
+        break;
+      }
+
+      return { courseDraft };
+    }
   }
 
-  return { error: 'AI could not structure the PDF into a course. Try a different PDF.' };
+  return { error: 'AI could not structure the PDF into a course. Both AI endpoints failed. Try a different PDF or check your AI configuration.' };
 }
 
 /**
@@ -312,6 +346,98 @@ function categorizeError(e, context = {}) {
   }
   if (context.zeroChars) return { type: 'extract', message: 'Could not read text from this PDF. Try a file with more text content.' };
   return { type: 'quality', message: `Extraction quality too low (requires \u2265500 chars and \u226570% English).` };
+}
+
+/**
+ * deriveCourseTags — Extract domain-relevant tags from course content via keyword analysis.
+ * Overrides AI-generated tags which tend to be biased toward generic English grammar labels.
+ * Returns string[] of 4-8 tags in "category:subcategory" format.
+ */
+function deriveCourseTags(course) {
+  const text = [
+    course.title || '',
+    course.description || '',
+    ...(course.topics || []).flatMap(t => [
+      t.title || '',
+      ...(t.lessons || []).map(l => l.title || ''),
+    ]),
+  ].join(' ').toLowerCase();
+
+  const matches = [];
+
+  // Domain definitions: { name, subtopic, keywords[], tag }
+  const domains = [
+    { name: 'technology', subtopic: 'computing', keywords: ['computer', 'computing', 'software', 'hardware', 'programming', 'algorithm', 'binary', 'cpu', 'data structure', 'database', 'sql', 'network', 'encryption', 'cybersecurity', 'ai', 'machine learning', 'operating system', 'api', 'server', 'cloud', 'internet', 'tcp', 'ip', 'protocol', 'algorithm', 'coding', 'debug', 'architecture', 'bit', 'byte', 'memory', 'storage', 'digital', 'information system', 'ict'], tag: 'technology:computing' },
+    { name: 'technology', subtopic: 'networking', keywords: ['network', 'router', 'switch', 'protocol', 'tcp/ip', 'osi', 'dns', 'ip address', 'firewall', 'lan', 'wan', 'vpn', 'bandwidth', 'packet', 'topology', 'ethernet', 'internet'], tag: 'technology:networking' },
+    { name: 'technology', subtopic: 'programming', keywords: ['programming', 'code', 'coding', 'python', 'java', 'javascript', 'c++', 'html', 'css', 'algorithm', 'function', 'variable', 'loop', 'class', 'object', 'compiler', 'debug', 'syntax'], tag: 'technology:programming' },
+    { name: 'science', subtopic: 'biology', keywords: ['biology', 'cell', 'dna', 'rna', 'gene', 'protein', 'enzyme', 'organism', 'species', 'evolution', 'photosynthesis', 'mitosis', 'meiosis', 'chromosome', 'mutation', 'bacteria', 'virus', 'tissue', 'organ', 'ecology', 'ecosystem'], tag: 'science:biology' },
+    { name: 'science', subtopic: 'chemistry', keywords: ['chemistry', 'chemical', 'atom', 'molecule', 'element', 'compound', 'reaction', 'acid', 'base', 'ph', 'bond', 'electron', 'proton', 'neutron', 'periodic', 'solution', 'concentration', 'oxidation', 'reduction'], tag: 'science:chemistry' },
+    { name: 'science', subtopic: 'physics', keywords: ['physics', 'physical', 'force', 'motion', 'energy', 'velocity', 'acceleration', 'gravity', 'newton', 'quantum', 'wave', 'frequency', 'amplitude', 'electricity', 'magnetism', 'circuit', 'voltage', 'current', 'resistance', 'optics', 'light', 'sound', 'thermodynamics'], tag: 'science:physics' },
+    { name: 'business', subtopic: 'management', keywords: ['leadership', 'strategy', 'organization', 'corporate', 'enterprise', 'stakeholder', 'supply chain', 'logistics', 'project management'], tag: 'business:management' },
+    { name: 'business', subtopic: 'finance', keywords: ['finance', 'financial', 'accounting', 'investment', 'banking', 'budget', 'revenue', 'profit', 'asset', 'liability', 'equity', 'cash flow', 'stock', 'bond', 'market', 'economy', 'economic', 'inflation', 'interest', 'tax', 'audit', 'balance sheet'], tag: 'business:finance' },
+    { name: 'business', subtopic: 'marketing', keywords: ['marketing', 'market', 'brand', 'advertising', 'promotion', 'consumer', 'customer', 'sales', 'social media', 'campaign', 'seo', 'audience', 'engagement'], tag: 'business:marketing' },
+    { name: 'medicine', subtopic: 'anatomy', keywords: ['anatomy', 'physiology', 'body', 'organ', 'tissue', 'muscle', 'bone', 'skeleton', 'heart', 'brain', 'lung', 'liver', 'kidney', 'blood', 'vessel', 'nerve', 'cell', 'hormone', 'gland'], tag: 'medicine:anatomy' },
+    { name: 'medicine', subtopic: 'clinical', keywords: ['disease', 'diagnosis', 'treatment', 'symptom', 'patient', 'clinical', 'surgery', 'drug', 'therapy', 'medication', 'vaccine', 'infection', 'inflammation', 'chronic', 'acute', 'disorder', 'syndrome', 'pathology', 'epidemiology', 'pharmacology'], tag: 'medicine:clinical' },
+    { name: 'history', subtopic: 'world', keywords: ['history', 'historical', 'century', 'era', 'civilization', 'war', 'battle', 'revolution', 'empire', 'kingdom', 'dynasty', 'ancient', 'medieval', 'colonial', 'independence', 'treaty', 'diplomacy', 'archaeology', 'artifact', 'timeline'], tag: 'history:world' },
+    { name: 'literature', subtopic: 'analysis', keywords: ['literature', 'literary', 'poetry', 'poem', 'prose', 'fiction', 'novel', 'drama', 'play', 'essay', 'author', 'narrative', 'theme', 'symbol', 'metaphor', 'character', 'plot', 'genre', 'rhetoric', 'writing', 'creative writing'], tag: 'literature:analysis' },
+    { name: 'mathematics', subtopic: 'general', keywords: ['mathematics', 'math', 'algebra', 'geometry', 'calculus', 'equation', 'theorem', 'probability', 'statistics', 'angle', 'triangle', 'logarithm', 'derivative', 'integral', 'vector', 'matrix', 'proof'], tag: 'mathematics:general' },
+    { name: 'law', subtopic: 'general', keywords: ['law', 'legal', 'contract', 'criminal', 'civil law', 'court', 'legislation', 'regulation', 'justice', 'lawyer', 'attorney', 'judge', 'trial', 'evidence', 'appeal', 'constitution', 'human rights', 'tort', 'jurisdiction', 'statute'], tag: 'law:general' },
+    { name: 'environment', subtopic: 'ecology', keywords: ['environment', 'ecology', 'ecosystem', 'climate', 'pollution', 'conservation', 'renewable', 'sustainability', 'wildlife', 'forest', 'ocean', 'biodiversity', 'species', 'habitat', 'carbon', 'emission', 'green', 'solar', 'wind', 'recycle', 'waste'], tag: 'environment:ecology' },
+    { name: 'engineering', subtopic: 'general', keywords: ['engineering', 'mechanical', 'electrical', 'civil engineering', 'structural', 'aerospace', 'engine', 'design', 'construction', 'manufacturing', 'circuit', 'robot', 'automation', 'material'], tag: 'engineering:general' },
+    { name: 'arts', subtopic: 'visual', keywords: ['art', 'painting', 'sculpture', 'photography', 'film', 'theater', 'dance', 'architecture', 'design', 'visual', 'gallery', 'museum', 'exhibition', 'canvas', 'portrait', 'landscape', 'abstract', 'impressionism'], tag: 'arts:visual' },
+    { name: 'social-sciences', subtopic: 'psychology', keywords: ['psychology', 'psychological', 'behavior', 'cognitive', 'emotion', 'perception', 'personality', 'therapy', 'mental health', 'anxiety', 'depression', 'motivation', 'learning', 'memory', 'brain', 'neuroscience', 'social', 'society'], tag: 'social-sciences:psychology' },
+    { name: 'social-sciences', subtopic: 'sociology', keywords: ['sociology', 'society', 'culture', 'social', 'community', 'population', 'demography', 'inequality', 'class', 'race', 'gender', 'family', 'urban', 'rural', 'globalization', 'institution'], tag: 'social-sciences:sociology' },
+    { name: 'sports', subtopic: 'fitness', keywords: ['sports', 'sport', 'fitness', 'exercise', 'training', 'athlete', 'team', 'game', 'competition', 'physical', 'health', 'nutrition', 'coach', 'workout', 'yoga', 'running', 'swimming', 'football', 'basketball', 'tennis'], tag: 'sports:fitness' },
+    { name: 'languages', subtopic: 'linguistics', keywords: ['linguistics', 'language', 'grammar', 'vocabulary', 'syntax', 'phonetics', 'semantics', 'translation', 'bilingual', 'pronunciation', 'dialect', 'morphology', 'pragmatics', 'discourse'], tag: 'languages:linguistics' },
+    { name: 'philosophy', subtopic: 'ethics', keywords: ['philosophy', 'philosophical', 'ethics', 'ethical', 'moral', 'logic', 'reason', 'argument', 'existence', 'knowledge', 'truth', 'reality', 'consciousness', 'metaphysics', 'epistemology', 'aesthetics', 'virtue'], tag: 'philosophy:ethics' },
+    { name: 'geography', subtopic: 'physical', keywords: ['geography', 'geographical', 'map', 'continent', 'country', 'region', 'climate', 'terrain', 'landform', 'mountain', 'river', 'ocean', 'population', 'urban', 'rural', 'cartography', 'latitude', 'longitude', 'topography'], tag: 'geography:physical' },
+    { name: 'education', subtopic: 'general', keywords: ['education', 'learning', 'teaching', 'study', 'curriculum', 'student', 'teacher', 'school', 'academic', 'classroom', 'pedagogy', 'homework', 'assignment', 'syllabus'], tag: 'education:general' },
+    { name: 'music', subtopic: 'theory', keywords: ['music', 'musical', 'song', 'instrument', 'rhythm', 'melody', 'harmony', 'note', 'scale', 'chord', 'composer', 'orchestra', 'band', 'vocal', 'piano', 'guitar', 'drum', 'genre', 'classical', 'jazz', 'composition'], tag: 'music:theory' },
+    { name: 'media', subtopic: 'journalism', keywords: ['media', 'journalism', 'news', 'broadcast', 'report', 'article', 'press', 'publishing', 'editor', 'interview', 'documentary', 'social media', 'advertising', 'public relations', 'communication'], tag: 'media:journalism' },
+    { name: 'religion', subtopic: 'theology', keywords: ['religion', 'religious', 'theology', 'faith', 'belief', 'worship', 'prayer', 'scripture', 'bible', 'quran', 'spiritual', 'meditation', 'ritual', 'mythology', 'sacred', 'divine'], tag: 'religion:theology' },
+  ];
+
+  for (const domain of domains) {
+    if (domain.keywords.some(kw => {
+      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp('(^|\\s)' + escaped + '($|\\s|[.,!?;:\'"})])', 'i').test(text);
+    })) {
+      matches.push(domain);
+    }
+  }
+
+  // Deduplicate by subtopic, keep highest priority match per subtopic
+  const seen = new Set();
+  const unique = [];
+  for (const m of matches) {
+    const key = `${m.name}:${m.subtopic}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(m);
+    }
+  }
+
+  // Build tag list: up to 3 domain tags + vocab + reading + optional grammar/speaking
+  const tags = [];
+  const domainNames = new Set();
+  for (const m of unique.slice(0, 5)) {
+    tags.push(m.tag);
+    domainNames.add(m.name);
+  }
+
+  // Add skill tags based on domains found
+  tags.push('vocab:subject-specific');
+  tags.push('reading:comprehension');
+
+  // If only education/languages domain (pure English learning), add grammar/writing tags
+  if (domainNames.size === 0 || (domainNames.size === 1 && (domainNames.has('education') || domainNames.has('languages')))) {
+    tags.push('grammar:basics');
+    tags.push('writing:essays');
+  } else {
+    tags.push('writing:technical');
+  }
+
+  return tags.slice(0, 8);
 }
 
 /**
@@ -436,6 +562,9 @@ router.put('/ingest/generate/:extractionId', async (req, res) => {
     }
 
     const courseDraft = result.courseDraft;
+
+    // Override AI tags with domain-aware tag derivation
+    courseDraft.tags = deriveCourseTags(courseDraft);
 
     // Save draft to SQLite
     const draftId = `course-draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -600,8 +729,9 @@ Return ONLY a JSON object:
         "question": string,
         "type": string,
         "answer": string,
-        "explanation": string,
-        "difficulty": number (1-5)
+        "explanation": string (required — 2-3 sentences explaining why the answer is correct),
+        "difficulty": number (1-5),
+        "options": string[] (required for mcq type — exactly 4 options)
       }],
       "referenceContent": string
     }]
@@ -622,6 +752,9 @@ Do NOT include any markdown code fences or text outside the JSON.`;
     }
 
     const courseDraft = result.courseDraft;
+
+    // Override AI tags with domain-aware tag derivation
+    courseDraft.tags = deriveCourseTags(courseDraft);
 
     // Save draft to SQLite
     const db = getDB();

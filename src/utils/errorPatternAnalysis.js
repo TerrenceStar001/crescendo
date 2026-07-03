@@ -165,7 +165,7 @@ export function identifyWeakAreas(bySkill, byType) {
  * 'mcq', 'gap-fill' from subScores, but WEAKNESS_TO_TAG_MAP keys are skill
  * areas like 'Grammar', 'Vocabulary', 'Inference'.
  */
-const QUESTION_TYPE_TO_AREA = {
+export const QUESTION_TYPE_TO_AREA = {
   'gap-fill': 'Grammar',
   'sentence-rewrite': 'Sentence Structure',
   cloze: 'Vocabulary',

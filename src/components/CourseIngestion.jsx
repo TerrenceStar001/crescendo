@@ -133,9 +133,8 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
       if (!res.ok || data.error) {
         setError(data.error || 'AI structuring failed.');
         setErrorType('network');
-        setQualityData(null);
-        setPhase('idle');
-        showToast('AI structuring failed. Try a different PDF.', 'warning');
+        setPhase('quality');
+        showToast('AI structuring failed. You can retry.', 'warning');
         return;
       }
 
@@ -149,7 +148,7 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
     } catch (e) {
       setError('Network error during AI structuring. If the issue persists, try a hard refresh (Ctrl+Shift+R) and upload again.');
       setErrorType('network');
-      setPhase('idle');
+      setPhase('quality');
     }
   }, [extractionId]);
 
@@ -384,17 +383,28 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
 
         {/* Tags */}
         <div className="course__field">
-          <label className="course__field-label">Tags</label>
+          <label className="course__field-label">Tags <span className="course__field-hint">(click to toggle, press Enter to add custom)</span></label>
           <div className="course__tag-editor">
-            {['grammar', 'vocabulary', 'sentence-structure', 'academic', 'articles', 'tenses'].map(tag => (
+            {editTags.map(tag => (
               <button
                 key={tag}
-                className={`course__tag-chip${editTags.includes(tag) ? ' course__tag-chip--active' : ''}`}
+                className="course__tag-chip course__tag-chip--active"
                 onClick={() => handleToggleTag(tag)}
               >
-                {tag}
+                {tag} ✕
               </button>
             ))}
+            <input
+              className="course__tag-input"
+              type="text"
+              placeholder="Add tag..."
+              onKeyDown={e => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  handleToggleTag(e.target.value.trim());
+                  e.target.value = '';
+                }
+              }}
+            />
           </div>
         </div>
 
@@ -583,6 +593,9 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
             </div>
             <button className="course__btn course__btn--primary" onClick={handleDiscard}>
               Try a Different File
+            </button>
+            <button className="course__btn course__btn--secondary" onClick={handleProceedToGeneration} style={{ marginLeft: '8px' }}>
+              Proceed Anyway
             </button>
           </div>
         )}

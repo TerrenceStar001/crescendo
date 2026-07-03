@@ -35,6 +35,8 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
   const [showReference, setShowReference] = useState(false);
   const [lessonComplete, setLessonComplete] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedTermIndex, setSelectedTermIndex] = useState(null);
+  const [reorderState, setReorderState] = useState(null);
 
   const saveTimerRef = useRef(null);
   const feedbackTimerRef = useRef(null);
@@ -52,7 +54,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
   // Shuffle definitions for matching exercise (stable on currentExercise change)
   const shuffledDefs = useMemo(() => {
     if (!currentExercise || currentExercise.type !== 'matching' || !currentExercise.pairs) return [];
-    return [...currentExercise.pairs].sort(() => Math.random() - 0.5);
+    return [...currentExercise.pairs].map(p => p.match).sort(() => Math.random() - 0.5);
   }, [currentExercise]);
 
   // === Load saved progress on mount ===
@@ -117,6 +119,16 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
     };
   }, []);
 
+  // Initialize reorderState when entering a reordering exercise
+  useEffect(() => {
+    if (currentExercise?.type === 'reordering' && currentExercise.correctOrder?.length) {
+      const shuffled = [...currentExercise.correctOrder].sort(() => Math.random() - 0.5);
+      setReorderState(shuffled);
+    } else {
+      setReorderState(null);
+    }
+  }, [currentExercise]);
+
   // === Single active lesson enforcement (D-04) ===
   const checkActiveLesson = useCallback(() => {
     try {
@@ -169,7 +181,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
       }
       case 'short-answer':
       case 'sentence-rewrite': {
-        isCorrect = String(answer).trim().toLowerCase() === String(currentExercise.answer).trim().toLowerCase();
+        isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExercise.answer));
         break;
       }
       case 'matching': {
@@ -200,22 +212,19 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
     setExerciseFeedback({ correct: isCorrect, answer, attempts: currentAttempts });
 
-    // Auto-advance after feedback delay
+    // Auto-advance after feedback delay (longer for wrong answers)
     clearTimeout(feedbackTimerRef.current);
     feedbackTimerRef.current = setTimeout(() => {
       setExerciseFeedback(null);
       setShowReference(false);
-      if (isCorrect) {
-        const nextIdx = currentExerciseIndex + 1;
-        if (nextIdx >= currentLesson.exercises.length) {
-          // Lesson complete
-          setLessonComplete(true);
-        } else {
-          setCurrentExerciseIndex(nextIdx);
-        }
+      const nextIdx = currentExerciseIndex + 1;
+      if (nextIdx >= currentLesson.exercises.length) {
+        setLessonComplete(true);
+      } else {
+        setCurrentExerciseIndex(nextIdx);
       }
       setIsSubmitting(false);
-    }, 1500);
+    }, isCorrect ? 1200 : 2000);
   }, [currentExercise, currentExerciseIndex, currentLesson, answers, isSubmitting]);
 
   // === Hint/reference click ===
@@ -223,6 +232,33 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
     setReferenceUnlocked(true);
     setShowReference(true);
   }, []);
+
+  // === Skip current exercise ===
+  const handleSkipExercise = useCallback(() => {
+    setAnswers(prev => ({
+      ...prev,
+      [currentExercise.question]: { answer: null, correct: false, skipped: true, timestamp: Date.now() },
+    }));
+    setExerciseFeedback({ correct: false });
+    setTimeout(() => {
+      if (currentExerciseIndex < currentLesson.exercises.length - 1) {
+        setCurrentExerciseIndex(prev => prev + 1);
+        setExerciseFeedback(null);
+      } else {
+        setLessonComplete(true);
+        setExerciseFeedback(null);
+      }
+    }, 800);
+  }, [currentExercise, currentExerciseIndex, currentLesson]);
+
+  // === Reveal correct answer ===
+  const handleRevealAnswer = useCallback(() => {
+    setAnswers(prev => ({
+      ...prev,
+      [currentExercise.question]: { answer: null, correct: false, revealed: true, timestamp: Date.now() },
+    }));
+    setExerciseFeedback({ correct: false });
+  }, [currentExercise]);
 
   // === Start lesson ===
   const handleStartLesson = useCallback(() => {
@@ -310,7 +346,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
         case 'gap-fill':
         case 'short-answer':
         case 'sentence-rewrite':
-          isCorrect = String(userAnswer).trim().toLowerCase() === String(exercise.answer).trim().toLowerCase();
+          isCorrect = normalizeAnswer(String(userAnswer)) === normalizeAnswer(String(exercise.answer));
           break;
         case 'matching':
           if (exercise.pairs && typeof userAnswer === 'object') {
@@ -571,38 +607,48 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
               {currentExercise.type === 'matching' && currentExercise.pairs?.length > 0 && (
                 <div className="course__exercise-matching">
-                  <p className="course__exercise-instruction">Match each item with its correct definition.</p>
+                  <p className="course__exercise-instruction">Click a term, then click its matching definition.</p>
                   <div className="course__matching-columns">
                     <div className="course__matching-col">
-                      {currentExercise.pairs.map((pair, pi) => (
-                        <div key={pi} className="course__matching-item">
-                          <span className="course__matching-term">{pair.item}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="course__matching-col">
-                      {shuffledDefs.map((pair, pi) => {
-                        const isSelected = answers[currentExercise.question]?.answer?.[pair.item] === pair.match;
+                      {currentExercise.pairs.map((pair, pi) => {
+                        const currentMatch = answers[currentExercise.question]?.answer || {};
+                        const isPaired = currentMatch[pair.item] !== undefined;
                         return (
                           <button
                             key={pi}
-                            className={`course__matching-def${isSelected ? ' course__matching-def--selected' : ''}`}
+                            className={`course__matching-item${selectedTermIndex === pi ? ' course__matching-item--selected' : ''}${isPaired ? ' course__matching-item--paired' : ''}`}
                             onClick={() => {
-                              // Simple click-to-match: select first unmatched item
-                              const currentMatch = answers[currentExercise.question]?.answer || {};
-                              const newMatch = { ...currentMatch };
-                              // Find if this def is already matched to something
-                              const matchedItem = Object.entries(newMatch).find(([, v]) => v === pair.match);
-                              if (matchedItem) {
-                                delete newMatch[matchedItem[0]];
-                              }
-                              // For simplicity, user clicks def first then term
-                              newMatch[pair.item] = pair.match;
-                              handleExerciseAttempt(currentExercise.question, newMatch);
+                              if (exerciseFeedback) return;
+                              setSelectedTermIndex(selectedTermIndex === pi ? null : pi);
                             }}
                             disabled={exerciseFeedback !== null}
                           >
-                            {pair.match}
+                            {pair.item}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="course__matching-col">
+                      {shuffledDefs.map((def, di) => {
+                        const currentMatch = answers[currentExercise.question]?.answer || {};
+                        const isUsed = Object.values(currentMatch).includes(def);
+                        return (
+                          <button
+                            key={di}
+                            className={`course__matching-def${isUsed ? ' course__matching-def--used' : ''}`}
+                            onClick={() => {
+                              if (exerciseFeedback || selectedTermIndex === null || isUsed) return;
+                              const term = currentExercise.pairs[selectedTermIndex].item;
+                              const newMatch = { ...currentMatch };
+                              // Remove previous match for this term if any
+                              Object.keys(newMatch).forEach(k => { if (newMatch[k] === def) delete newMatch[k]; });
+                              newMatch[term] = def;
+                              handleExerciseAttempt(currentExercise.question, newMatch);
+                              setSelectedTermIndex(null);
+                            }}
+                            disabled={exerciseFeedback !== null}
+                          >
+                            {def}
                           </button>
                         );
                       })}
@@ -653,17 +699,43 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
               {currentExercise.type === 'reordering' && currentExercise.correctOrder?.length > 0 && (
                 <div className="course__exercise-reorder">
-                  <p className="course__exercise-instruction">Arrange the items in the correct order.</p>
+                  <p className="course__exercise-instruction">Arrange the items in the correct order using the ▲ ▼ buttons.</p>
                   <div className="course__reorder-list">
-                    {currentExercise.correctOrder.map((item, ri) => (
-                      <div key={ri} className={`course__reorder-item${answers[currentExercise.question]?.order?.[ri] ? ' course__reorder-item--placed' : ''}`}>
+                    {(reorderState || currentExercise.correctOrder).map((item, ri) => (
+                      <div key={ri} className="course__reorder-item">
+                        <span className="course__reorder-number">{ri + 1}.</span>
                         <span className="course__reorder-text">{item}</span>
+                        <div className="course__reorder-arrows">
+                          <button
+                            className="course__reorder-arrow"
+                            onClick={() => {
+                              if (ri === 0 || exerciseFeedback) return;
+                              const next = [...(reorderState || currentExercise.correctOrder)];
+                              [next[ri - 1], next[ri]] = [next[ri], next[ri - 1]];
+                              setReorderState(next);
+                            }}
+                            disabled={ri === 0 || exerciseFeedback !== null}
+                            aria-label="Move up"
+                          >▲</button>
+                          <button
+                            className="course__reorder-arrow"
+                            onClick={() => {
+                              const list = reorderState || currentExercise.correctOrder;
+                              if (ri >= list.length - 1 || exerciseFeedback) return;
+                              const next = [...list];
+                              [next[ri], next[ri + 1]] = [next[ri + 1], next[ri]];
+                              setReorderState(next);
+                            }}
+                            disabled={ri >= (reorderState || currentExercise.correctOrder).length - 1 || exerciseFeedback !== null}
+                            aria-label="Move down"
+                          >▼</button>
+                        </div>
                       </div>
                     ))}
                   </div>
                   <button
                     className="course__btn course__btn--primary"
-                    onClick={() => handleExerciseAttempt(currentExercise.question, currentExercise.correctOrder)}
+                    onClick={() => handleExerciseAttempt(currentExercise.question, reorderState || currentExercise.correctOrder)}
                     disabled={exerciseFeedback !== null}
                   >
                     Confirm Order
@@ -676,22 +748,39 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 <div className={`course__feedback${exerciseFeedback.correct ? ' course__feedback--correct' : ' course__feedback--incorrect'}`}>
                   <span className="course__feedback-icon">{exerciseFeedback.correct ? '✅' : '❌'}</span>
                   <span className="course__feedback-text">
-                    {exerciseFeedback.correct ? 'Correct!' : `Incorrect${currentExercise.explanation ? '. ' + currentExercise.explanation : ''}`}
+                    {exerciseFeedback.correct ? 'Correct!' : `Not quite — ${currentExercise.explanation || 'Review the reading passage and try again.'}`}
                   </span>
+                  {answers[currentExercise.question]?.revealed && currentExercise.answer && (
+                    <div className="course__feedback-answer">
+                      <strong>Correct answer:</strong> {String(currentExercise.answer)}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Hint button (only if reference exists and not yet unlocked) */}
-              {!referenceUnlocked && currentLesson.referenceContent && (
-                <button className="course__btn course__hint-btn" onClick={handleHintClick}>
-                  💡 Show Hint / Reference
-                </button>
+              {/* Action buttons: Skip, Reveal Answer, Next */}
+              {!exerciseFeedback && (
+                <div className="course__exercise-actions">
+                  <button className="course__btn course__btn--skip" onClick={() => handleSkipExercise()}>
+                    Skip
+                  </button>
+                  <button className="course__btn course__btn--reveal" onClick={() => handleRevealAnswer()}>
+                    Reveal Answer
+                  </button>
+                </div>
+              )}
+              {exerciseFeedback && exerciseFeedback.correct === false && (
+                <div className="course__exercise-actions">
+                  <button className="course__btn course__btn--reveal" onClick={() => handleRevealAnswer()}>
+                    Show Correct Answer
+                  </button>
+                </div>
               )}
 
-              {/* Reference content (unlocked on struggle or hint click) */}
-              {(referenceUnlocked || exerciseFeedback?.correct === false) && currentLesson.referenceContent && (
-                <div className="course__reference">
-                  <span className="course__reference-label">📖 Reference</span>
+              {/* Reading passage — shown by default as the lesson's reading material */}
+              {currentLesson.referenceContent && (
+                <div className="course__reference course__reference--visible">
+                  <span className="course__reference-label">📖 Reading Passage</span>
                   <div className="course__reference-text">{currentLesson.referenceContent}</div>
                 </div>
               )}
@@ -805,21 +894,22 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
   // === Phase: Complete ===
   if (phase === 'complete') {
+    const passed = finalAssessmentPassed;
     return (
       <div className="course__player">
         <div className="course__complete">
-          <div className="course__complete-icon course__complete-icon--large">{finalAssessmentPassed ? '🎉' : '📊'}</div>
+          <div className="course__complete-icon course__complete-icon--large">{passed ? '🎉' : '📊'}</div>
           <h2 className="course__complete-title">
-            {finalAssessmentPassed ? 'Congratulations!' : 'Assessment Complete'}
+            {passed ? 'Congratulations!' : 'Course Completed — Needs Improvement'}
           </h2>
           <p className="course__complete-text">
-            {finalAssessmentPassed
+            {passed
               ? 'You passed the final assessment and completed this course!'
-              : 'You completed all lessons and the final assessment.'}
+              : 'You finished all lessons but the final assessment needs more practice.'}
           </p>
           <div className="course__complete-score">
             <span className="course__complete-score-label">Final Score:</span>
-            <span className={`course__complete-score-value${finalAssessmentPassed ? ' course__complete-score--pass' : ' course__complete-score--fail'}`}>
+            <span className={`course__complete-score-value${passed ? ' course__complete-score--pass' : ' course__complete-score--fail'}`}>
               {finalAssessmentScore}%
             </span>
             <span className="course__complete-score-threshold">
@@ -827,6 +917,11 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
             </span>
           </div>
           <div className="course__overview-actions">
+            {!passed && (
+              <button className="course__btn course__btn--secondary" onClick={handleFinalAssessmentRetry} style={{ marginRight: '8px' }}>
+                Retry Assessment
+              </button>
+            )}
             <button className="course__btn course__btn--primary" onClick={onBack}>
               Back to Catalog
             </button>

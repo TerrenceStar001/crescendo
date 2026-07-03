@@ -55,6 +55,10 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 - [ ] **COURSE-02**: Auto-generated courses from user practice sessions have sufficient quality and quantity of content
 - [ ] **COURSE-03**: Catalog has useful seed courses available immediately (DSE + general English)
 - [ ] **COURSE-04**: Generated course content is sufficiently deep and well-structured for meaningful learning
+- [ ] **COURSE-05**: Failed uploads and generation show clear error messages to the user (no silent catch blocks)
+- [ ] **COURSE-06**: Infrastructure fixes — body size limits match between client and server, storage sync between IndexedDB and SQLite
+- [ ] **COURSE-07**: Course quality indicators — badges show draft/reviewed/seed quality level in the catalog
+- [ ] **COURSE-08**: Post-course tracking — track user score improvement after completing courses
 
 ### Out of Scope
 

@@ -32,6 +32,7 @@ import ListeningModule from './components/ListeningModule';
 import SpeakingModule from './components/SpeakingModule';
 import corpusIndex from './utils/corpusIndex';
 import { WEAKNESS_TO_TAG_MAP } from './utils/courseSchema';
+import { QUESTION_TYPE_TO_AREA } from './utils/errorPatternAnalysis';
 import './App.css';
 
 const CanvasView = lazy(() => import('./components/CanvasView'));
@@ -268,20 +269,39 @@ function CrescendoApp() {
               }
             }
 
-            // Group weak sub-topics by their parent skill area (skip question types)
+            // Group weak sub-topics by their parent skill area (translate question types)
             const areaWeaknesses = new Map();
             for (const wa of weakAreas) {
+              let areaKey = null;
+              let matchedTag = null;
+
+              // Try direct sub-topic match first
               const normalizedKey = wa.area.replace(/[- ]/g, '').toLowerCase();
-              const tag = subTopicToTag[normalizedKey];
-              if (!tag) {
-                console.warn(`[course-seed] skipping ${wa.area}: not a recognized skill sub-topic`);
+              const directTag = subTopicToTag[normalizedKey];
+              if (directTag) {
+                areaKey = subTopicToArea[normalizedKey];
+                matchedTag = directTag;
+              }
+
+              // Fallback: translate question type to skill area
+              if (!areaKey && QUESTION_TYPE_TO_AREA[wa.area]) {
+                const skillAreaName = QUESTION_TYPE_TO_AREA[wa.area];
+                const skillKey = skillAreaName.replace(/[- ]/g, '').toLowerCase();
+                const skillTag = subTopicToTag[skillKey];
+                if (skillTag) {
+                  areaKey = skillAreaName;
+                  matchedTag = skillTag;
+                }
+              }
+
+              if (!areaKey) {
+                console.warn(`[course-seed] skipping ${wa.area}: not a recognized skill sub-topic or question type`);
                 continue;
               }
-              const areaKey = subTopicToArea[normalizedKey];
               if (!areaWeaknesses.has(areaKey)) {
                 areaWeaknesses.set(areaKey, { tags: new Set(), sources: [] });
               }
-              areaWeaknesses.get(areaKey).tags.add(tag);
+              areaWeaknesses.get(areaKey).tags.add(matchedTag);
               areaWeaknesses.get(areaKey).sources.push(wa.area);
             }
 

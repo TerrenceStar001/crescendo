@@ -16,6 +16,84 @@ const ACTIVE_LESSON_KEY = 'crescendo-course-active-lesson';
 const COURSE_CACHE_PREFIX = 'crescendo-course-cache:';
 const IMPROVEMENT_KEY = 'crescendo-course-improvements';
 
+const AREA_LABELS = {
+  reading: 'Reading',
+  writing: 'Writing',
+  grammar: 'Grammar',
+  vocab: 'Vocabulary',
+  'sentence-structure': 'Sentence Structure',
+  listening: 'Listening',
+  speaking: 'Speaking',
+};
+
+function capitalize(w) {
+  return w.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function generateOfflineCourse(weaknessTags) {
+  const subTopics = weaknessTags.slice(0, 3).map(t => t.split(':')[1] || t).map(w => w.replace(/-/g, ' '));
+  const areaKey = weaknessTags[0]?.split(':')[0] || 'english';
+  const areaLabel = AREA_LABELS[areaKey] || capitalize(areaKey.replace(/-/g, ' '));
+
+  let title;
+  if (subTopics.length === 1) {
+    title = `${areaLabel}: ${capitalize(subTopics[0])}`;
+  } else {
+    const joined = subTopics.length === 2 ? `${subTopics[0]} & ${subTopics[1]}` : `${subTopics.slice(0, -1).join(', ')} & ${subTopics[subTopics.length - 1]}`;
+    title = `${areaLabel}: ${joined}`;
+  }
+
+  const area = areaLabel.toLowerCase();
+  const difficulty = 'beginner';
+  const id = `course-offline-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  const topics = weaknessTags.slice(0, 3).map((tag, ti) => {
+    const area = tag.split(':')[1] || tag;
+    return {
+      title: `Focus on ${area.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+      learningObjectives: [`Practice and improve your ${area.replace(/-/g, ' ')} skills`],
+      lessons: [
+        {
+          title: `Introduction to ${area.replace(/-/g, ' ')}`,
+          exercises: [
+            { question: `Identify the correct ${area.replace(/-/g, ' ')} in this sentence: "She ___ to school every day."`, type: 'gap-fill', answer: 'goes', explanation: `This tests your understanding of ${area.replace(/-/g, ' ')} in context.`, difficulty: 2 },
+            { question: `Which option best demonstrates ${area.replace(/-/g, ' ')}?`, type: 'mcq', answer: 'A', explanation: 'Review the key principles for this topic.', difficulty: 2, options: ['Option A is correct', 'Option B', 'Option C', 'Option D'] },
+            { question: `Rewrite the sentence to improve ${area.replace(/-/g, ' ')}: "The book was read by John."`, type: 'sentence-rewrite', answer: 'John read the book.', explanation: 'Active voice often strengthens your writing.', difficulty: 3 },
+          ],
+          referenceContent: `${area.replace(/-/g, ' ')} is an important skill for DSE English. Practice regularly and review the examples provided in each exercise. Focus on understanding the patterns and rules that govern this area of English.`,
+        },
+        {
+          title: `${area.replace(/-/g, ' ')} Practice`,
+          exercises: [
+            { question: `Match the term with its correct definition related to ${area.replace(/-/g, ' ')}.`, type: 'matching', answer: 'A-1,B-2,C-3', explanation: 'Understanding terminology is key.', difficulty: 3 },
+            { question: `Fill in the blanks with appropriate ${area.replace(/-/g, ' ')}: "Neither the cat ___ the dog ___(+verb) outside."`, type: 'cloze', answer: 'nor, was', explanation: 'Subject-verb agreement with paired conjunctions.', difficulty: 4 },
+          ],
+          referenceContent: `Keep practicing ${area.replace(/-/g, ' ')} until the patterns feel natural.`,
+        },
+        {
+          title: `${area.replace(/-/g, ' ')} Mastery`,
+          exercises: [
+            { question: `Reorder the words to form a correct sentence about ${area.replace(/-/g, ' ')}: "important / is / practice / Regular / for / mastery"`, type: 'reordering', answer: 'Regular practice is important for mastery.', explanation: 'Sentence structure matters.', difficulty: 2 },
+            { question: `Explain how ${area.replace(/-/g, ' ')} affects meaning in this sentence: "He almost failed the exam." vs "He failed almost the exam."`, type: 'short-answer', answer: 'Word placement changes meaning — "almost" modifies different parts.', explanation: 'Word order can completely change your intended meaning.', difficulty: 4 },
+          ],
+          referenceContent: `Mastery comes from consistent practice. Review your mistakes and learn from them.`,
+        },
+      ],
+    };
+  });
+
+  return {
+    id,
+    title,
+    description: `Build your ${area} skills with focused practice on ${subTopics.map(s => capitalize(s)).join(', ')}.`,
+    tags: weaknessTags, difficulty, topics, published: false, source: 'auto-generated', createdAt: new Date().toISOString(),
+    finalAssessment: {
+      title: 'Final Assessment',
+      exercises: topics.slice(0, 2).flatMap((t, ti) => t.lessons.slice(0, 1).flatMap(l => l.exercises.slice(0, 2))),
+    },
+  };
+}
+
 export default function useCourses() {
   const { getItem, setItem, updateItem, DSE_KEYS } = useIndexedDB();
 
@@ -333,32 +411,108 @@ export default function useCourses() {
 
   /**
    * autoGenerateCourse: Calls backend to auto-generate a course from weakness tags.
+   * Falls back to frontend AI call when backend is unavailable.
    * @param {string[]} weaknessTags - Course tags to target
    * @param {string[]} completedCourseIds - IDs of courses already completed
-   * @param {Function} callAI - AI call function (not used directly — calls backend endpoint)
+   * @param {Function} callAI - AI call function
    * @returns {Object|null} The generated course draft or null
    */
   const autoGenerateCourse = useCallback(async (weaknessTags, completedCourseIds, callAI) => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
       const res = await fetch('/api/courses/auto-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ weaknessTags, completedCourseIds }),
+        signal: controller.signal,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error(`backend returned ${res.status}`);
       const data = await res.json();
       if (data.draftId && data.course) {
-        // Double-validate the generated course before saving (T-06-15)
         const validation = validateCourse(data.course);
         if (!validation.valid) {
           console.warn('[autoGenerateCourse] Validation failed:', validation.errors);
           return null;
         }
-        // Save the generated course to IndexedDB
         await saveCourse(data.course);
         return data.course;
       }
-      return null;
+    } catch { /* backend unavailable — fall through to frontend AI */ }
+
+    // Frontend fallback: generate course via callAI directly
+    try {
+      const aiPrompt = `You are an English course designer. Generate a structured course targeting these weakness areas. Each lesson must include a reading passage (referenceContent) that the learner reads before attempting exercises.
+
+WEAKNESS TAGS: ${JSON.stringify(weaknessTags)}
+
+STRUCTURE:
+- 3-5 topics (grouped by skill area)
+- Each topic has 2-4 lessons
+- Each lesson has a "referenceContent" field containing an actual readable passage about the topic (this is the reading material the learner studies)
+- Each lesson has 3-5 exercises that test understanding of the lesson's referenceContent
+- Exercise types: gap-fill, matching, cloze, short-answer, sentence-rewrite, reordering, mcq
+- Final assessment mixes all exercise types
+
+IMPORTANT: The referenceContent must be a self-contained reading passage. Exercises must be answerable after reading only the lesson's referenceContent. Do NOT reference external texts, paragraph numbers, or page numbers.
+
+Return ONLY a JSON object with no markdown fences:
+{
+  "title": string,
+  "description": string,
+  "tags": string[],
+  "difficulty": "beginner" | "intermediate" | "advanced",
+  "topics": [{
+    "title": string,
+    "learningObjectives": string[],
+    "lessons": [{
+      "title": string,
+      "exercises": [{
+        "question": string,
+        "type": string,
+        "answer": string,
+        "explanation": string,
+        "difficulty": number (1-5)
+      }],
+      "referenceContent": string
+    }]
+  }],
+  "finalAssessment": {
+    "title": string,
+    "exercises": [{ ... same shape ... }]
+  }
+}`;
+      const text = await Promise.race([
+        callAI(aiPrompt, { maxTokens: 4096, temperature: 0.3 }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 120000)),
+      ]);
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}');
+      if (jsonStart === -1 || jsonEnd === -1) return null;
+      const courseDraft = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      const draftId = `course-auto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const course = { ...courseDraft, id: draftId, tags: courseDraft.tags || weaknessTags, published: false };
+
+      const validation = validateCourse(course);
+      if (!validation.valid) {
+        console.warn('[autoGenerateCourse] Frontend validation failed:', validation.errors);
+        return null;
+      }
+      await saveCourse(course);
+      return course;
+    } catch { /* AI unavailable — fall through to offline generation */ }
+
+    // Offline fallback: create a simple course from tags without AI
+    try {
+      const course = generateOfflineCourse(weaknessTags);
+      const validation = validateCourse(course);
+      if (!validation.valid) {
+        console.warn('[autoGenerateCourse] Offline validation failed:', validation.errors);
+        return null;
+      }
+      await saveCourse(course);
+      return course;
     } catch {
       return null;
     }

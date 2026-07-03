@@ -42,12 +42,9 @@ export default function CourseOverview({ course, onBack, onStart, callAI }) {
     if (!topic) return false;
     const topicLessonCount = topic.lessons.length;
     if (topicLessonCount === 0) return true;
-    // Count completed lessons in this topic
+    // Count completed lessons in this topic using global lesson indices
     let completedInTopic = 0;
-    for (let i = 0; i < topicIndex; i++) {
-      completedInTopic -= course.topics[i].lessons.length;
-    }
-    // Use a simpler approach: compute lesson global indices
+    // Compute lesson global indices
     const topicStartIndex = course.topics.slice(0, topicIndex).reduce((s, t) => s + t.lessons.length, 0);
     for (let li = 0; li < topic.lessons.length; li++) {
       if (progress.completedLessons.includes(topicStartIndex + li)) {

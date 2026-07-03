@@ -8917,6 +8917,13 @@ html[data-theme="dark"] .course__exercise-type--mcq { background: #bf360c33; col
   border-radius: var(--radius-sm);
 }
 
+.course__reference--visible {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
 .course__reference-label {
   font-size: var(--font-xs);
   font-weight: 600;
@@ -8929,6 +8936,7 @@ html[data-theme="dark"] .course__exercise-type--mcq { background: #bf360c33; col
   font-size: var(--font-sm);
   color: var(--color-text-secondary);
   line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 /* --- Final Assessment --- */

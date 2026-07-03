@@ -226,7 +226,7 @@ Plans:
 | 5. IELTS-First Grading Pipeline | 0/3 | Planned | - |
 | 6. Courses Feature | 4/4 | ✓ | 2026-06-23 |
 | 7. PDF Ingestion Pipeline Fix | 3/3 | Complete   | 2026-07-01 |
-| 8. Auto-Generation Reliability & Quality | 0/4 | Planned | - |
+| 8. Auto-Generation Reliability & Quality | 4/4 | Ready | - |
 | 9. Seed Catalog & Quality Features | 0/0 | Not started | - |
 
 
