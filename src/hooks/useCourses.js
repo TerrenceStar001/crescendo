@@ -54,7 +54,8 @@ export default function useCourses() {
       }
       await setItem(COURSE_KEYS.DEFINITIONS, updated);
       return true;
-    } catch {
+    } catch (e) {
+      console.error('[useCourses] saveCourse failed:', e.message);
       return false;
     }
   }, [getCourses, setItem, COURSE_KEYS.DEFINITIONS]);
@@ -509,7 +510,8 @@ Return ONLY a JSON object with no markdown fences:
       }
 
       return null;
-    } catch {
+    } catch (e) {
+      console.error('[useCourses] checkAndRegenerateCourse failed:', e.message);
       return null;
     }
   }, [getCompletedCourses, autoGenerateCourse]);
