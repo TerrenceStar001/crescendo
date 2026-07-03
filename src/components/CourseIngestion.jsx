@@ -112,6 +112,7 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
         setPhase('review');
       }
     } catch (e) {
+      console.error('[CourseIngestion] Upload failed:', e.message);
       setError('Network error. Please check your connection and try again.');
       setErrorType('network');
       setPhase('idle');
@@ -124,10 +125,14 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
   const handleProceedToGeneration = useCallback(async () => {
     if (!extractionId) return;
     setPhase('generating');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
     try {
       const res = await fetch(`/api/courses/ingest/generate/${extractionId}`, {
         method: 'PUT',
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
 
       if (!res.ok || data.error) {
@@ -146,7 +151,12 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
       setExpandedTopics({});
       setPhase('review');
     } catch (e) {
-      setError('Network error during AI structuring. If the issue persists, try a hard refresh (Ctrl+Shift+R) and upload again.');
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') {
+        setError('AI structuring timed out. The server is taking too long. Try a shorter PDF or check your connection.');
+      } else {
+        setError('Network error during AI structuring. If the issue persists, try a hard refresh (Ctrl+Shift+R) and upload again.');
+      }
       setErrorType('network');
       setPhase('quality');
     }
@@ -220,6 +230,7 @@ export default function CourseIngestion({ callAI, onSave, onBack }) {
 
       setPhase('done');
     } catch (e) {
+      console.error('[CourseIngestion] Publish failed:', e.message);
       setError('Failed to save course. Please try again.');
       setPhase('review');
     }
