@@ -19,7 +19,7 @@
 
 ### Milestone v1.1 (Active)
 
-- [ ] **Phase 7: PDF Ingestion Pipeline Fix** — Reliable PDF upload, text extraction, chunking, and AI structuring with clear error feedback
+- [x] **Phase 7: PDF Ingestion Pipeline Fix** — Reliable PDF upload, text extraction, chunking, and AI structuring with clear error feedback (completed 2026-07-01)
 - [ ] **Phase 8: Auto-Generation Reliability & Quality** — Fix timeout cascade, lower AI temperature, add semantic validation for deep, correct content
 - [ ] **Phase 9: Seed Catalog & Quality Features** — 8-10 seed courses, quality badges, and post-course score improvement tracking
 
@@ -166,23 +166,38 @@ Plans:
 4. User gets clear error message when upload exceeds 10MB body size limit (client and server limits match)
 5. Course ingested through the pipeline is consistently available in both IndexedDB and SQLite (dual storage sync works)
 
-**Plans:** TBD
+**Plans:** 3/3 plans complete
 **UI hint**: yes
+
+Plans:
+- [x] 07-01-PLAN.md — Backend Foundation: server limit, PDF extraction overhaul (positional sort, pdf2md, OCR preprocessing, heading detection), quality gate, error propagation, sync endpoint (Wave 1)
+- [x] 07-02-PLAN.md — Frontend UI: quality preview screen, EnhancedErrorBanner, toast notifications, CSS for all new components (Wave 2)
+- [x] 07-03-PLAN.md — Integration & Sync: IndexedDB sync methods, Refresh Courses button in catalog view, App.jsx wiring (Wave 2)
 
 ### Phase 8: Auto-Generation Reliability & Quality
 
-**Goal:** AI-generated courses from user practice complete without timeout, have deep content with validated answers, and are flagged when quality is insufficient.
+**Goal:** Fix the broken auto-generation pipeline so AI-generated courses complete reliably without timeout, have deep content with validated answers, and are explicitly blocked (not silently replaced with hollow templates) when quality is insufficient.
 
 **Depends on:** Phase 7 (stable PDF pipeline ensures AI doesn't receive garbage input)
 **Requirements:** COURSE-02, COURSE-04
 
 **Success Criteria** (what must be TRUE):
-1. User can generate a course from a practice session that completes without timeout (frontend timeout extended to 30s, matching useAI.js patterns)
-2. Generated courses have semantically valid exercises — MCQ correct answer ∈ options, gap-fill answers ≤10 words, matching pairs have item+match
-3. Generated course content is deep enough for meaningful learning (not template-like) — uses temperature 0.3, max_tokens 8192, adequate timeout configuration
-4. Courses with invalid content are blocked from saving with quality warnings explaining what's wrong
+1. Generated courses have semantically valid exercises — MCQ answer ∈ options, gap-fill answer in referenceContent, explanations ≥40 chars, referenceContent ≥150 words, ≥3 exercises/lesson
+2. All course generation uses temperature 0.3 and max_tokens 32768 for deep, structured content
+3. Retry loop injects both structural AND semantic errors into prompt (max 3 attempts)
+4. No hollow template fallback — all AI failures show explicit error with "Retry" and "Try Simpler Content" options
+5. Global loading state shows progress (floating panel), navigation guard, success toast, and error states
+6. Post-task enrollment triggers course generation (not catalog filter)
+7. PDF generation has AbortController timeout (120s) matching backend timeout
+8. All silent catch blocks replaced with explicit error logging and user-visible states
 
-**Plans:** TBD
+**Plans:** 4 plans in 2 waves
+
+Plans:
+- [ ] 10-01-PLAN.md — Validation Engine + Hyper-Parameter Alignment (Wave 1)
+- [ ] 10-02-PLAN.md — Global Loading State + App Wiring + Seed Fix (Wave 1)
+- [ ] 10-03-PLAN.md — No Hollow Templates + Explicit Failure + Catch Remediation + JSON Robustness (Wave 2)
+- [ ] 10-04-PLAN.md — PDF Timeout + PostTask Enrollment + Catch Remediation (Wave 2)
 
 ### Phase 9: Seed Catalog & Quality Features
 
@@ -210,6 +225,8 @@ Plans:
 | 4. Writing Module DSE Authenticity | 4/4 | ✓ | 2026-06-23 |
 | 5. IELTS-First Grading Pipeline | 0/3 | Planned | - |
 | 6. Courses Feature | 4/4 | ✓ | 2026-06-23 |
-| 7. PDF Ingestion Pipeline Fix | 0/0 | Not started | - |
-| 8. Auto-Generation Reliability & Quality | 0/0 | Not started | - |
+| 7. PDF Ingestion Pipeline Fix | 3/3 | Complete   | 2026-07-01 |
+| 8. Auto-Generation Reliability & Quality | 0/4 | Planned | - |
 | 9. Seed Catalog & Quality Features | 0/0 | Not started | - |
+
+
