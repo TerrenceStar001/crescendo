@@ -422,10 +422,41 @@ Return ONLY a JSON object with no markdown fences:
         callAI(aiPrompt, { maxTokens: 4096, temperature: 0.3 }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 120000)),
       ]);
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) return { course: null, error: 'Failed to parse AI response.' };
-      const courseDraft = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      function extractJSON(text) {
+        if (!text || typeof text !== 'string') return null;
+        const trimmed = text.trim();
+
+        // Strategy 1: Find first { and last }, try parse
+        const firstBrace = trimmed.indexOf('{');
+        const lastBrace = trimmed.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          try { return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)); } catch { /* continue */ }
+        }
+
+        // Strategy 2: Brace-depth tracking
+        if (firstBrace !== -1) {
+          let depth = 0;
+          for (let i = firstBrace; i < trimmed.length; i++) {
+            if (trimmed[i] === '{') depth++;
+            else if (trimmed[i] === '}') {
+              depth--;
+              if (depth === 0) {
+                try { return JSON.parse(trimmed.slice(firstBrace, i + 1)); } catch { /* continue */ }
+              }
+            }
+          }
+        }
+
+        // Strategy 3: Try full string parse
+        try { return JSON.parse(trimmed); } catch { /* continue */ }
+
+        return null;
+      }
+
+      const courseDraft = extractJSON(text);
+      if (!courseDraft) {
+        return { course: null, error: 'Failed to parse AI response. The AI returned invalid JSON.' };
+      }
       const draftId = `course-auto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const course = { ...courseDraft, id: draftId, tags: courseDraft.tags || weaknessTags, published: false };
 
