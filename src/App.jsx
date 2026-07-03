@@ -13,6 +13,7 @@ import CourseIngestion from './components/CourseIngestion';
 import CommandPalette from './components/CommandPalette';
 import SettingsPage from './components/SettingsPage';
 import { ViewProvider, useView } from './context/ViewContext';
+import { CourseGenerationProvider } from './context/CourseGenerationContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import SkillRing from './components/SkillRing';
@@ -226,7 +227,9 @@ function CrescendoApp() {
           // Refresh courses list
           refreshCourses();
         }
-      } catch { /* silent */ }
+      } catch (e) {
+        console.error('[course-regeneration] error:', e.message);
+      }
     }, 3000);
 
     return () => clearTimeout(timer);
@@ -239,12 +242,12 @@ function CrescendoApp() {
         // Group weak areas individually — one course per weak area
         const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
         if (weakAreas.length === 0) {
-          console.warn('[course-seed] getWeakAreas returned empty — no subScores below 60. Profile:', skillAnalytics?.profile);
+          console.log('[course-seed] getWeakAreas returned empty — no subScores below 60. Profile:', skillAnalytics?.profile);
           return;
         }
 
         seedAttemptedRef.current = true;
-        console.warn('[course-seed] weak areas found:', weakAreas.length);
+        console.log('[course-seed] weak areas found:', weakAreas.length);
         const timer = setTimeout(async () => {
           try {
             const existingCourses = await getCoursesFn();
@@ -295,7 +298,7 @@ function CrescendoApp() {
               }
 
               if (!areaKey) {
-                console.warn(`[course-seed] skipping ${wa.area}: not a recognized skill sub-topic or question type`);
+                console.log(`[course-seed] skipping ${wa.area}: not a recognized skill sub-topic or question type`);
                 continue;
               }
               if (!areaWeaknesses.has(areaKey)) {
@@ -305,23 +308,25 @@ function CrescendoApp() {
               areaWeaknesses.get(areaKey).sources.push(wa.area);
             }
 
-            console.warn(`[course-seed] ${weakAreas.length} weak areas → ${areaWeaknesses.size} skill-area courses`);
+            console.log(`[course-seed] ${weakAreas.length} weak areas → ${areaWeaknesses.size} skill-area courses`);
 
             for (const [areaKey, { tags, sources }] of areaWeaknesses) {
               const tagsArray = [...tags].sort();
               const tagKey = tagsArray.join('|');
               if (existingTagSets.has(tagKey)) {
-                console.warn(`[course-seed] skipping ${sources.join(', ')}: course with these tags already exists`);
+                console.log(`[course-seed] skipping ${sources.join(', ')}: course with these tags already exists`);
                 continue;
               }
               existingTagSets.add(tagKey);
-              console.warn(`[course-seed] generating course for ${sources.join(', ')}:`, tagsArray);
-              const result = await autoGenerateCourseFn(tagsArray, [], callAI);
-              console.warn(`[course-seed] ${sources[0]} result:`, result ? 'success' : 'failed (null)');
+              console.log(`[course-seed] generating course for ${sources.join(', ')}:`, tagsArray);
+              const completedCourses = await getCompletedCoursesFn();
+              const completedIds = completedCourses.map(c => c.id);
+              const result = await autoGenerateCourseFn(tagsArray, completedIds, callAI);
+              console.log(`[course-seed] ${sources[0]} result:`, result ? 'success' : 'failed (null)');
             }
             refreshCourses();
           } catch (e) {
-            console.warn('[course-seed] error:', e.message);
+            console.error('[course-seed] error:', e.message);
           }
         }, 1000);
 
@@ -831,6 +836,7 @@ function CrescendoApp() {
   // Welcome screen for empty state
   if (!activeNote && notes.length === 0 && viewMode === 'list') {
     return (
+      <CourseGenerationProvider autoGenerateCourseFn={autoGenerateCourseFn} callAI={callAI}>
       <div className={`app${focusMode ? ' app--focus' : ''}`}>
         <SidebarNav
           onOpenDaily={handleOpenDaily}
@@ -900,6 +906,7 @@ function CrescendoApp() {
           />
         )}
       </div>
+      </CourseGenerationProvider>
     );
   }
 
@@ -944,6 +951,7 @@ function CrescendoApp() {
   }
 
   return (
+    <CourseGenerationProvider autoGenerateCourseFn={autoGenerateCourseFn} callAI={callAI}>
     <div className={`app${focusMode ? ' app--focus' : ''}`}>
       <SidebarNav
         onOpenDaily={handleOpenDaily}
@@ -1348,6 +1356,7 @@ function CrescendoApp() {
         </div>
       )}
     </div>
+    </CourseGenerationProvider>
   );
 }
 
