@@ -1,13 +1,91 @@
 [
   {
+    "id": "wp-partA-article-001",
+    "part": "A",
+    "type": "article",
+    "title": "Benefits of Exercise for Students",
+    "context": "Your school magazine is publishing a special issue on healthy living.",
+    "task": "Write a short article for the school magazine explaining why exercise is important for students and how they can incorporate physical activity into their daily routine.",
+    "wordLimit": {
+      "min": 200,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Explain how exercise improves concentration and grades",
+      "Discuss mental health benefits of physical activity",
+      "Suggest simple exercises during study breaks",
+      "Recommend joining school sports teams",
+      "Encourage readers to start small and stay consistent"
+    ],
+    "instructions": "Give your article a title. Write as a senior student sharing advice.",
+    "difficulty": "easy",
+    "source": "curated",
+    "topicDomain": "health"
+  },
+  {
+    "id": "wp-partA-article-002",
+    "part": "A",
+    "type": "article",
+    "title": "How Social Media Affects Teenagers",
+    "context": "Your school's English Society is publishing a newsletter about the impact of social media on young people.",
+    "task": "Write a short article discussing both the positive and negative effects of social media on teenagers.",
+    "wordLimit": {
+      "min": 200,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Acknowledge that most teenagers use social media daily",
+      "Discuss positive aspects: staying connected, learning opportunities",
+      "Address negative aspects: cyberbullying, comparison, screen time",
+      "Suggest healthy usage habits",
+      "Conclude with a balanced perspective"
+    ],
+    "instructions": "Give your article an engaging title. Write in a formal but accessible style.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partA-blog-001",
+    "part": "A",
+    "type": "blog",
+    "title": "Review of a Local Restaurant",
+    "context": "You visited a newly opened restaurant in your neighbourhood last weekend.",
+    "task": "Write a blog post sharing your dining experience. Describe the atmosphere, food quality, service, and whether you would recommend it to others.",
+    "wordLimit": {
+      "min": 200,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Describe the restaurant's location and decor",
+      "Comment on the food and presentation",
+      "Describe the service and staff attitude",
+      "Mention the price and value for money",
+      "Give your overall rating and recommendation"
+    ],
+    "instructions": "Write as a blog post with a catchy title. Use informal language.",
+    "difficulty": "easy",
+    "source": "curated",
+    "topicDomain": "media"
+  },
+  {
     "id": "wp-partA-email-001",
     "part": "A",
     "type": "letter",
     "title": "School Exchange Programme Inquiry",
     "context": "You are a Form 6 student at Hong Kong Heights Secondary School. Your school is organising acultural exchange programme with a school in the UK.",
     "task": "Write an email to the UK school's programme coordinator asking for details about the exchange. You should introduce yourself, express interest, and ask about accommodation, daily schedule, and costs.",
-    "wordLimit": { "min": 180, "max": 250 },
-    "suggestedPoints": ["Introduce yourself and your school", "Express enthusiasm for the programme", "Ask about accommodation arrangements", "Inquire about daily schedule", "Ask about programme costs and what is included"],
+    "wordLimit": {
+      "min": 180,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Introduce yourself and your school",
+      "Express enthusiasm for the programme",
+      "Ask about accommodation arrangements",
+      "Inquire about daily schedule",
+      "Ask about programme costs and what is included"
+    ],
     "instructions": "Sign your email with the name Chris Wong. Do not write any addresses.",
     "difficulty": "easy",
     "source": "curated",
@@ -20,54 +98,21 @@
     "title": "Complaint About Smartphone Purchase",
     "context": "You recently bought a smartphone from an online store, but it arrived with defects.",
     "task": "Write a formal letter of complaint to the customer service manager. Describe the problem, explain how it affects you, and state what you expect the company to do.",
-    "wordLimit": { "min": 180, "max": 250 },
-    "suggestedPoints": ["Describe when and where you bought the phone", "Explain the defects (screen flickering, battery overheating)", "State that this is unacceptable for a new device", "Request a replacement or full refund", "Set a reasonable deadline for response"],
+    "wordLimit": {
+      "min": 180,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Describe when and where you bought the phone",
+      "Explain the defects (screen flickering, battery overheating)",
+      "State that this is unacceptable for a new device",
+      "Request a replacement or full refund",
+      "Set a reasonable deadline for response"
+    ],
     "instructions": "Sign your letter with the name Chris Wong. Do not write any addresses.",
     "difficulty": "medium",
     "source": "curated",
     "topicDomain": "technology"
-  },
-  {
-    "id": "wp-partA-blog-001",
-    "part": "A",
-    "type": "blog",
-    "title": "Review of a Local Restaurant",
-    "context": "You visited a newly opened restaurant in your neighbourhood last weekend.",
-    "task": "Write a blog post sharing your dining experience. Describe the atmosphere, food quality, service, and whether you would recommend it to others.",
-    "wordLimit": { "min": 200, "max": 250 },
-    "suggestedPoints": ["Describe the restaurant's location and decor", "Comment on the food and presentation", "Describe the service and staff attitude", "Mention the price and value for money", "Give your overall rating and recommendation"],
-    "instructions": "Write as a blog post with a catchy title. Use informal language.",
-    "difficulty": "easy",
-    "source": "curated",
-    "topicDomain": "media"
-  },
-  {
-    "id": "wp-partA-speech-001",
-    "part": "A",
-    "type": "speech",
-    "title": "Speech on Reducing Plastic Waste",
-    "context": "Your school's Green Club has asked you to give a short speech during morning assembly about reducing plastic waste on campus.",
-    "task": "Write a speech encouraging your fellow students to reduce plastic waste. Explain why it matters and suggest practical steps everyone can take.",
-    "wordLimit": { "min": 200, "max": 250 },
-    "suggestedPoints": ["Open with a striking fact about plastic pollution", "Explain how plastic waste affects Hong Kong's marine environment", "Suggest bringing reusable bottles and containers", "Propose a plastic-free day each month", "End with a call to action"],
-    "instructions": "Start with 'Good morning, Principal, teachers, and fellow students.' Do not write your name.",
-    "difficulty": "medium",
-    "source": "curated",
-    "topicDomain": "environment"
-  },
-  {
-    "id": "wp-partA-article-001",
-    "part": "A",
-    "type": "article",
-    "title": "Benefits of Exercise for Students",
-    "context": "Your school magazine is publishing a special issue on healthy living.",
-    "task": "Write a short article for the school magazine explaining why exercise is important for students and how they can incorporate physical activity into their daily routine.",
-    "wordLimit": { "min": 200, "max": 250 },
-    "suggestedPoints": ["Explain how exercise improves concentration and grades", "Discuss mental health benefits of physical activity", "Suggest simple exercises during study breaks", "Recommend joining school sports teams", "Encourage readers to start small and stay consistent"],
-    "instructions": "Give your article a title. Write as a senior student sharing advice.",
-    "difficulty": "easy",
-    "source": "curated",
-    "topicDomain": "health"
   },
   {
     "id": "wp-partA-letter-002",
@@ -76,40 +121,21 @@
     "title": "Volunteer Application Letter",
     "context": "You saw an advertisement for summer volunteer positions at the Hong Kong Youth Arts Festival.",
     "task": "Write a letter applying for the volunteer position. Explain why you are interested, what skills you can contribute, and your relevant experience.",
-    "wordLimit": { "min": 200, "max": 250 },
-    "suggestedPoints": ["State which position you are applying for", "Explain your interest in arts and culture", "Describe any relevant experience (school clubs, previous volunteering)", "Highlight your teamwork and communication skills", "Express enthusiasm and willingness to learn"],
+    "wordLimit": {
+      "min": 200,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "State which position you are applying for",
+      "Explain your interest in arts and culture",
+      "Describe any relevant experience (school clubs, previous volunteering)",
+      "Highlight your teamwork and communication skills",
+      "Express enthusiasm and willingness to learn"
+    ],
     "instructions": "Sign your letter with the name Chris Wong. Address it to the Volunteer Coordinator.",
     "difficulty": "medium",
     "source": "curated",
     "topicDomain": "culture"
-  },
-  {
-    "id": "wp-partA-speech-002",
-    "part": "A",
-    "type": "speech",
-    "title": "The Importance of Digital Literacy",
-    "context": "Your class has been asked to prepare a short presentation for a school assembly on digital literacy.",
-    "task": "Write a speech explaining why digital literacy is important in today's world and how students can improve their digital skills.",
-    "wordLimit": { "min": 200, "max": 250 },
-    "suggestedPoints": ["Define digital literacy beyond just using social media", "Explain how digital skills are essential for future careers", "Discuss online safety and responsible internet use", "Suggest resources for learning coding and digital tools", "Encourage students to use technology creatively"],
-    "instructions": "Start with 'Good morning, everyone.' Do not write your name.",
-    "difficulty": "hard",
-    "source": "curated",
-    "topicDomain": "technology"
-  },
-  {
-    "id": "wp-partA-article-002",
-    "part": "A",
-    "type": "article",
-    "title": "How Social Media Affects Teenagers",
-    "context": "Your school's English Society is publishing a newsletter about the impact of social media on young people.",
-    "task": "Write a short article discussing both the positive and negative effects of social media on teenagers.",
-    "wordLimit": { "min": 200, "max": 250 },
-    "suggestedPoints": ["Acknowledge that most teenagers use social media daily", "Discuss positive aspects: staying connected, learning opportunities", "Address negative aspects: cyberbullying, comparison, screen time", "Suggest healthy usage habits", "Conclude with a balanced perspective"],
-    "instructions": "Give your article an engaging title. Write in a formal but accessible style.",
-    "difficulty": "hard",
-    "source": "curated",
-    "topicDomain": "social issues"
   },
   {
     "id": "wp-partA-letter-003",
@@ -118,12 +144,67 @@
     "title": "Letter to Editor About Public Transport",
     "context": "You have noticed that public transport in your district has become increasingly unreliable.",
     "task": "Write a letter to the editor of the South China Morning Post expressing your concerns about public transport and suggesting improvements.",
-    "wordLimit": { "min": 200, "max": 250 },
-    "suggestedPoints": ["Describe specific problems (delays, overcrowding, maintenance)", "Explain how these issues affect residents' daily lives", "Suggest concrete improvements (more buses, better scheduling)", "Acknowledge any recent positive changes", "End with a constructive call for action"],
+    "wordLimit": {
+      "min": 200,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Describe specific problems (delays, overcrowding, maintenance)",
+      "Explain how these issues affect residents' daily lives",
+      "Suggest concrete improvements (more buses, better scheduling)",
+      "Acknowledge any recent positive changes",
+      "End with a constructive call for action"
+    ],
     "instructions": "Sign your letter with the name Chris Wong. Address it to The Editor.",
     "difficulty": "medium",
     "source": "curated",
     "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partA-speech-001",
+    "part": "A",
+    "type": "speech",
+    "title": "Speech on Reducing Plastic Waste",
+    "context": "Your school's Green Club has asked you to give a short speech during morning assembly about reducing plastic waste on campus.",
+    "task": "Write a speech encouraging your fellow students to reduce plastic waste. Explain why it matters and suggest practical steps everyone can take.",
+    "wordLimit": {
+      "min": 200,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Open with a striking fact about plastic pollution",
+      "Explain how plastic waste affects Hong Kong's marine environment",
+      "Suggest bringing reusable bottles and containers",
+      "Propose a plastic-free day each month",
+      "End with a call to action"
+    ],
+    "instructions": "Start with 'Good morning, Principal, teachers, and fellow students.' Do not write your name.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "environment"
+  },
+  {
+    "id": "wp-partA-speech-002",
+    "part": "A",
+    "type": "speech",
+    "title": "The Importance of Digital Literacy",
+    "context": "Your class has been asked to prepare a short presentation for a school assembly on digital literacy.",
+    "task": "Write a speech explaining why digital literacy is important in today's world and how students can improve their digital skills.",
+    "wordLimit": {
+      "min": 200,
+      "max": 250
+    },
+    "suggestedPoints": [
+      "Define digital literacy beyond just using social media",
+      "Explain how digital skills are essential for future careers",
+      "Discuss online safety and responsible internet use",
+      "Suggest resources for learning coding and digital tools",
+      "Encourage students to use technology creatively"
+    ],
+    "instructions": "Start with 'Good morning, everyone.' Do not write your name.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "technology"
   },
   {
     "id": "wp-partB-article-001",
@@ -132,110 +213,21 @@
     "title": "Should Hong Kong Ban Single-Use Plastics?",
     "context": "You are a reporter for the Hong Kong Post, a student newspaper. The government is considering a ban on single-use plastics, and your editor has asked you to write a feature article exploring both sides of the debate.",
     "task": "Write an article discussing the arguments for and against banning single-use plastics in Hong Kong. Consider environmental, economic, and social perspectives, and state your own view.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Describe the current plastic waste problem in Hong Kong", "Present environmental arguments for a ban", "Discuss economic concerns for businesses and consumers", "Consider alternatives and their feasibility", "State your own reasoned position"],
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Describe the current plastic waste problem in Hong Kong",
+      "Present environmental arguments for a ban",
+      "Discuss economic concerns for businesses and consumers",
+      "Consider alternatives and their feasibility",
+      "State your own reasoned position"
+    ],
     "instructions": "Give your article a headline. Write as a student journalist.",
     "difficulty": "hard",
     "source": "curated",
     "topicDomain": "environment"
-  },
-  {
-    "id": "wp-partB-letter-001",
-    "part": "B",
-    "type": "letter",
-    "title": "Proposal for School Mental Health Programme",
-    "context": "As the Chairperson of the Student Council, you believe that your school needs a more comprehensive mental health support system for students.",
-    "task": "Write a formal letter to the Principal proposing a school mental health programme. Explain why it is needed, what it should include, and how it could be implemented.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Highlight the growing mental health challenges students face", "Propose specific initiatives (counselling, peer support, workshops)", "Explain how the programme would benefit the school community", "Suggest how to implement it with minimal disruption", "Offer to assist with planning and promotion"],
-    "instructions": "Sign your letter as Chris Wong, Chairperson of the Student Council. Use formal language.",
-    "difficulty": "medium",
-    "source": "curated",
-    "topicDomain": "health"
-  },
-  {
-    "id": "wp-partB-speech-001",
-    "part": "B",
-    "type": "speech",
-    "title": "The Value of Learning a Third Language",
-    "context": "You have been invited to speak at the Hong Kong Youth Language Forum about multilingual education in Hong Kong schools.",
-    "task": "Write a speech arguing that Hong Kong students should be encouraged to learn a third language beyond English and Cantonese. Discuss the academic, professional, and cultural benefits.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Open with your personal experience of learning a language", "Explain cognitive benefits of multilingualism", "Discuss career advantages in Hong Kong's global economy", "Address practical challenges and how to overcome them", "Call on schools to offer more language options"],
-    "instructions": "Open your speech with an engaging hook. Write for an audience of educators and students. Do not use real personal details.",
-    "difficulty": "medium",
-    "source": "curated",
-    "topicDomain": "education"
-  },
-  {
-    "id": "wp-partB-report-001",
-    "part": "B",
-    "type": "report",
-    "title": "Report on Campus Recycling Initiative",
-    "context": "The Green Committee of your school launched a campus recycling initiative three months ago. As the committee secretary, you have been asked to evaluate its effectiveness.",
-    "task": "Write a report evaluating the recycling initiative. Include data on participation rates, challenges encountered, and recommendations for improvement.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Summarise the initiative's objectives and timeline", "Present participation data and observed trends", "Identify challenges (contamination, lack of awareness)", "Compare with similar programmes in other Hong Kong schools", "Make specific recommendations for improvement"],
-    "instructions": "Write a formal report with sections and headings. Sign as Chris Wong, Green Committee Secretary.",
-    "difficulty": "hard",
-    "source": "curated",
-    "topicDomain": "environment"
-  },
-  {
-    "id": "wp-partB-story-001",
-    "part": "B",
-    "type": "story",
-    "title": "One Small Act of Kindness",
-    "context": "Your school magazine is running a short story competition on the theme 'One Small Act of Kindness Can Change a Life.'",
-    "task": "Write a story based on this theme. Your story should have a clear plot, setting, and characters, and convey how a simple act of kindness had a significant impact.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Establish the setting and introduce the main character", "Describe the situation that calls for kindness", "Show the act of kindness and the immediate reaction", "Reveal the longer-term impact on the characters involved", "End with a meaningful reflection"],
-    "instructions": "Give your story a title. Use descriptive language to bring the narrative to life.",
-    "difficulty": "hard",
-    "source": "curated",
-    "topicDomain": "social issues"
-  },
-  {
-    "id": "wp-partB-blog-001",
-    "part": "B",
-    "type": "blog",
-    "title": "A Week Without My Smartphone",
-    "context": "You recently challenged yourself to spend one week without your smartphone. Your friend has invited you to write a guest blog post on their lifestyle blog about the experience.",
-    "task": "Write a blog post describing your week without a smartphone. Reflect on what you learned, what you struggled with, and whether you would recommend the challenge to others.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Describe how you felt before starting the challenge", "Share specific moments of difficulty and discovery", "Explain changes in your daily routine", "Reflect on your relationship with technology", "Give honest advice to readers considering the challenge"],
-    "instructions": "Write in a conversational, engaging style. Give your post a catchy title.",
-    "difficulty": "medium",
-    "source": "curated",
-    "topicDomain": "technology"
-  },
-  {
-    "id": "wp-partB-review-001",
-    "part": "B",
-    "type": "review",
-    "title": "Review of an Online Learning Platform",
-    "context": "Your school is considering subscribing to an online learning platform for exam revision. As the senior prefect, you have been asked to try the platform and write a review.",
-    "task": "Write a review of an online learning platform of your choice. Evaluate its content quality, ease of use, value for money, and suitability for DSE preparation.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Describe the platform's features and content", "Assess the quality of learning materials for DSE subjects", "Evaluate the user interface and mobile accessibility", "Compare the cost with the educational value provided", "Give a clear recommendation and rating"],
-    "instructions": "Write a balanced, well-structured review. Give it a title and a star rating (1-5).",
-    "difficulty": "medium",
-    "source": "curated",
-    "topicDomain": "education"
-  },
-  {
-    "id": "wp-partB-proposal-001",
-    "part": "B",
-    "type": "proposal",
-    "title": "Proposal for a School Entrepreneurship Club",
-    "context": "You believe your school should establish an Entrepreneurship Club to help students develop business and leadership skills.",
-    "task": "Write a proposal to the Principal outlining a plan for a new Entrepreneurship Club. Explain the club's objectives, activities, resource needs, and expected benefits.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Explain why entrepreneurship education matters for students", "Propose specific club activities (workshops, competitions, mentorship)", "Outline resource requirements (space, budget, teacher supervision)", "Describe how the club would be organised", "Highlight expected benefits for students and the school"],
-    "instructions": "Format your proposal with clear sections. Use persuasive but professional language.",
-    "difficulty": "hard",
-    "source": "curated",
-    "topicDomain": "career"
   },
   {
     "id": "wp-partB-article-002",
@@ -244,12 +236,113 @@
     "title": "The Rise of E-Sports in Hong Kong",
     "context": "Your school's English newspaper is featuring a series on emerging trends in youth culture. The editor has asked you to write about the growing popularity of e-sports among Hong Kong youth.",
     "task": "Write an article discussing the rise of e-sports in Hong Kong. Consider its impact on young people, the debate over whether it should be considered a sport, and its potential as a career path.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Describe how e-sports have grown in popularity in Hong Kong", "Present arguments for recognising e-sports as legitimate competition", "Discuss concerns about screen time and sedentary lifestyles", "Explore career opportunities in the e-sports industry", "Offer a balanced conclusion"],
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Describe how e-sports have grown in popularity in Hong Kong",
+      "Present arguments for recognising e-sports as legitimate competition",
+      "Discuss concerns about screen time and sedentary lifestyles",
+      "Explore career opportunities in the e-sports industry",
+      "Offer a balanced conclusion"
+    ],
     "instructions": "Give your article an engaging headline. Write for a student audience.",
     "difficulty": "medium",
     "source": "curated",
     "topicDomain": "sports"
+  },
+  {
+    "id": "wp-partB-blog-001",
+    "part": "B",
+    "type": "blog",
+    "title": "A Week Without My Smartphone",
+    "context": "You recently challenged yourself to spend one week without your smartphone. Your friend has invited you to write a guest blog post on their lifestyle blog about the experience.",
+    "task": "Write a blog post describing your week without a smartphone. Reflect on what you learned, what you struggled with, and whether you would recommend the challenge to others.",
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Describe how you felt before starting the challenge",
+      "Share specific moments of difficulty and discovery",
+      "Explain changes in your daily routine",
+      "Reflect on your relationship with technology",
+      "Give honest advice to readers considering the challenge"
+    ],
+    "instructions": "Write in a conversational, engaging style. Give your post a catchy title.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "technology"
+  },
+  {
+    "id": "wp-partB-letter-001",
+    "part": "B",
+    "type": "letter",
+    "title": "Proposal for School Mental Health Programme",
+    "context": "As the Chairperson of the Student Council, you believe that your school needs a more comprehensive mental health support system for students.",
+    "task": "Write a formal letter to the Principal proposing a school mental health programme. Explain why it is needed, what it should include, and how it could be implemented.",
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Highlight the growing mental health challenges students face",
+      "Propose specific initiatives (counselling, peer support, workshops)",
+      "Explain how the programme would benefit the school community",
+      "Suggest how to implement it with minimal disruption",
+      "Offer to assist with planning and promotion"
+    ],
+    "instructions": "Sign your letter as Chris Wong, Chairperson of the Student Council. Use formal language.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "health"
+  },
+  {
+    "id": "wp-partB-proposal-001",
+    "part": "B",
+    "type": "proposal",
+    "title": "Proposal for a School Entrepreneurship Club",
+    "context": "You believe your school should establish an Entrepreneurship Club to help students develop business and leadership skills.",
+    "task": "Write a proposal to the Principal outlining a plan for a new Entrepreneurship Club. Explain the club's objectives, activities, resource needs, and expected benefits.",
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Explain why entrepreneurship education matters for students",
+      "Propose specific club activities (workshops, competitions, mentorship)",
+      "Outline resource requirements (space, budget, teacher supervision)",
+      "Describe how the club would be organised",
+      "Highlight expected benefits for students and the school"
+    ],
+    "instructions": "Format your proposal with clear sections. Use persuasive but professional language.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "career"
+  },
+  {
+    "id": "wp-partB-report-001",
+    "part": "B",
+    "type": "report",
+    "title": "Report on Campus Recycling Initiative",
+    "context": "The Green Committee of your school launched a campus recycling initiative three months ago. As the committee secretary, you have been asked to evaluate its effectiveness.",
+    "task": "Write a report evaluating the recycling initiative. Include data on participation rates, challenges encountered, and recommendations for improvement.",
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Summarise the initiative's objectives and timeline",
+      "Present participation data and observed trends",
+      "Identify challenges (contamination, lack of awareness)",
+      "Compare with similar programmes in other Hong Kong schools",
+      "Make specific recommendations for improvement"
+    ],
+    "instructions": "Write a formal report with sections and headings. Sign as Chris Wong, Green Committee Secretary.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "environment"
   },
   {
     "id": "wp-partB-report-002",
@@ -258,12 +351,90 @@
     "title": "Survey Results: Student Stress Levels Before Exams",
     "context": "The Student Council conducted a survey on student stress levels during the examination period. As the council's vice-chairperson, you need to present the findings.",
     "task": "Write a report analysing the survey results on student stress before exams. Identify the main causes of stress, the coping strategies students use, and recommend ways the school can provide better support.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Summarise the survey methodology and sample size", "Present key findings on stress causes (academic pressure, time management)", "Analyse coping strategies students currently use", "Identify gaps in school support services", "Recommend concrete actions the school should take"],
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Summarise the survey methodology and sample size",
+      "Present key findings on stress causes (academic pressure, time management)",
+      "Analyse coping strategies students currently use",
+      "Identify gaps in school support services",
+      "Recommend concrete actions the school should take"
+    ],
     "instructions": "Use formal report format with section headings. Present data clearly.",
     "difficulty": "hard",
     "source": "curated",
     "topicDomain": "health"
+  },
+  {
+    "id": "wp-partB-review-001",
+    "part": "B",
+    "type": "review",
+    "title": "Review of an Online Learning Platform",
+    "context": "Your school is considering subscribing to an online learning platform for exam revision. As the senior prefect, you have been asked to try the platform and write a review.",
+    "task": "Write a review of an online learning platform of your choice. Evaluate its content quality, ease of use, value for money, and suitability for DSE preparation.",
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Describe the platform's features and content",
+      "Assess the quality of learning materials for DSE subjects",
+      "Evaluate the user interface and mobile accessibility",
+      "Compare the cost with the educational value provided",
+      "Give a clear recommendation and rating"
+    ],
+    "instructions": "Write a balanced, well-structured review. Give it a title and a star rating (1-5).",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-speech-001",
+    "part": "B",
+    "type": "speech",
+    "title": "The Value of Learning a Third Language",
+    "context": "You have been invited to speak at the Hong Kong Youth Language Forum about multilingual education in Hong Kong schools.",
+    "task": "Write a speech arguing that Hong Kong students should be encouraged to learn a third language beyond English and Cantonese. Discuss the academic, professional, and cultural benefits.",
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Open with your personal experience of learning a language",
+      "Explain cognitive benefits of multilingualism",
+      "Discuss career advantages in Hong Kong's global economy",
+      "Address practical challenges and how to overcome them",
+      "Call on schools to offer more language options"
+    ],
+    "instructions": "Open your speech with an engaging hook. Write for an audience of educators and students. Do not use real personal details.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-story-001",
+    "part": "B",
+    "type": "story",
+    "title": "One Small Act of Kindness",
+    "context": "Your school magazine is running a short story competition on the theme 'One Small Act of Kindness Can Change a Life.'",
+    "task": "Write a story based on this theme. Your story should have a clear plot, setting, and characters, and convey how a simple act of kindness had a significant impact.",
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Establish the setting and introduce the main character",
+      "Describe the situation that calls for kindness",
+      "Show the act of kindness and the immediate reaction",
+      "Reveal the longer-term impact on the characters involved",
+      "End with a meaningful reflection"
+    ],
+    "instructions": "Give your story a title. Use descriptive language to bring the narrative to life.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "social issues"
   },
   {
     "id": "wp-partB-story-002",
@@ -272,11 +443,680 @@
     "title": "The Last Traditional Shop on the Street",
     "context": "A local literary magazine is running a writing competition on the theme of Hong Kong's disappearing traditional culture.",
     "task": "Write a short story about the last traditional shop on a street that is being transformed by modern development. Explore themes of change, memory, and belonging.",
-    "wordLimit": { "min": 380, "max": 450 },
-    "suggestedPoints": ["Establish the setting and describe the traditional shop vividly", "Introduce the shop owner and their connection to the community", "Show the contrast between old and new Hong Kong", "Develop a conflict or turning point", "End with a moment of reflection or resolution"],
+    "wordLimit": {
+      "min": 380,
+      "max": 450
+    },
+    "suggestedPoints": [
+      "Establish the setting and describe the traditional shop vividly",
+      "Introduce the shop owner and their connection to the community",
+      "Show the contrast between old and new Hong Kong",
+      "Develop a conflict or turning point",
+      "End with a moment of reflection or resolution"
+    ],
     "instructions": "Give your story a title. Use sensory details to bring the setting to life.",
     "difficulty": "hard",
     "source": "curated",
     "topicDomain": "culture"
+  },
+  {
+    "id": "wp-partA-notice-001",
+    "part": "A",
+    "type": "notice",
+    "title": "School Sports Day Announcement",
+    "context": "You are a member of the Sports Committee at your school. The school is holding its annual Sports Day next Friday.",
+    "task": "Write a notice to all students informing them about the Sports Day. Include the date, venue, events available, and registration details.",
+    "wordLimit": { "min": 180, "max": 250 },
+    "suggestedPoints": [
+      "State the date, time and venue of Sports Day",
+      "List at least three events available",
+      "Explain how students can register",
+      "Mention any important rules or requirements",
+      "Include a deadline for registration"
+    ],
+    "instructions": "Write a formal notice. Include a heading, date, and your name as Secretary of the Sports Committee.",
+    "difficulty": "easy",
+    "source": "curated",
+    "topicDomain": "sports"
+  },
+  {
+    "id": "wp-partA-memo-001",
+    "part": "A",
+    "type": "memo",
+    "title": "Class Trip Planning Memo",
+    "context": "You are the class representative of Form 5B. Your homeroom teacher has asked you to circulate a memo to collect suggestions for the upcoming class trip.",
+    "task": "Write a memo to your classmates asking for their suggestions for the class trip. Include the purpose of the trip, deadline for suggestions, and what kind of information you need.",
+    "wordLimit": { "min": 180, "max": 250 },
+    "suggestedPoints": [
+      "State the purpose of the memo clearly",
+      "Mention the proposed date and destination for the trip",
+      "Ask for suggestions on activities, food, and transportation",
+      "Set a clear deadline for responses",
+      "Provide your contact information for replies"
+    ],
+    "instructions": "Write as a memo. Use 'To:', 'From:', 'Date:', and 'Subject:' headers. Sign as the Class Representative.",
+    "difficulty": "easy",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partA-form-001",
+    "part": "A",
+    "type": "form",
+    "title": "Library Membership Application",
+    "context": "You want to join the Hong Kong Public Library's student membership programme. You need to complete an application form.",
+    "task": "Complete the application form for the Hong Kong Public Library student membership. Fill in your personal details, student information, and select your preferred library branch.",
+    "wordLimit": { "min": 180, "max": 250 },
+    "suggestedPoints": [
+      "Provide complete personal details (name, date of birth, contact)",
+      "State your school name and student status",
+      "Choose a library branch and justify your choice",
+      "Indicate your reading interests and preferred book categories",
+      "Confirm your agreement to library rules and regulations"
+    ],
+    "instructions": "Complete the form as if you are a real student. Use your own name or 'Chris Wong'. Sign at the bottom.",
+    "difficulty": "easy",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partA-diary-001",
+    "part": "A",
+    "type": "diary",
+    "title": "First Day at a New School",
+    "context": "You have just transferred to a new secondary school in Hong Kong. Write about your first day.",
+    "task": "Write a diary entry about your experiences on the first day at your new school. Describe what happened, how you felt, and what you learned from the experience.",
+    "wordLimit": { "min": 180, "max": 250 },
+    "suggestedPoints": [
+      "Describe your feelings before arriving at the new school",
+      "Record at least two specific events that happened during the day",
+      "Mention someone you met and how the interaction went",
+      "Reflect on how the day compared to your expectations",
+      "Express your hopes or worries about fitting in"
+    ],
+    "instructions": "Write as a personal diary entry with a date at the top. Use first-person narrative and an informal, reflective tone.",
+    "difficulty": "easy",
+    "source": "curated",
+    "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partA-email-002",
+    "part": "A",
+    "type": "email",
+    "title": "Requesting a School Exchange Visit",
+    "context": "You are the president of the English Society at your school. You want to arrange an exchange visit with a school in Singapore to improve students' English skills.",
+    "task": "Write an email to the English Department head of a partner school in Singapore proposing an exchange visit. Explain the purpose, suggest dates, and outline what you hope to achieve.",
+    "wordLimit": { "min": 180, "max": 250 },
+    "suggestedPoints": [
+      "Introduce yourself and your school",
+      "Explain the purpose of the exchange visit",
+      "Suggest specific dates or a time frame",
+      "Outline proposed activities (cultural tours, joint classes, etc.)",
+      "Request a response and offer to discuss further"
+    ],
+    "instructions": "Write a formal email. Use 'Dear [Name]' and 'Yours sincerely,'. Sign as Chris Wong, President of the English Society.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partA-letter-004",
+    "part": "A",
+    "type": "letter",
+    "title": "Letter to the Editor — Traffic Congestion",
+    "context": "Traffic congestion on the M1 highway during rush hours has become a serious problem in your district.",
+    "task": "Write a letter to the editor of the South China Morning Post commenting on the traffic problem and suggesting possible solutions.",
+    "wordLimit": { "min": 200, "max": 250 },
+    "suggestedPoints": [
+      "Describe the current traffic situation in your district",
+      "Explain the impact on residents' daily lives",
+      "Propose at least two practical solutions",
+      "Acknowledge any efforts the government has already made",
+      "End with a call for collective action"
+    ],
+    "instructions": "Write a formal letter to the editor. Sign as Chris Wong. Do not write any addresses.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partB-article-003",
+    "part": "B",
+    "type": "article",
+    "title": "Is AI a Threat or a Tool for Students?",
+    "context": "Your school newspaper is running a series on technology and education. The editor has asked you to write an article exploring how artificial intelligence is affecting students' learning.",
+    "task": "Write an article discussing whether AI is a threat to students' learning or a valuable tool. Consider both sides of the argument and state your own view.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe how AI tools are being used by students today",
+      "Present arguments that AI enhances learning",
+      "Present arguments that AI undermines learning",
+      "Discuss the importance of responsible use",
+      "State your own balanced position"
+    ],
+    "instructions": "Give your article a compelling headline. Write for a student audience with a mix of formal and accessible language.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "technology"
+  },
+  {
+    "id": "wp-partB-article-004",
+    "part": "B",
+    "type": "article",
+    "title": "The Decline of Traditional Markets in Hong Kong",
+    "context": "Your local district magazine is publishing an issue on the changing landscape of Hong Kong. The editor has asked you to write about the impact of supermarkets and online shopping on traditional wet markets.",
+    "task": "Write an article discussing why traditional markets are declining and whether this is a loss worth mourning or a natural evolution of commerce.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the role of traditional markets in Hong Kong culture",
+      "Explain the factors contributing to their decline",
+      "Discuss the benefits of modern alternatives",
+      "Argue for preserving cultural heritage",
+      "Offer a conclusion that balances tradition and progress"
+    ],
+    "instructions": "Give your article a catchy title. Write in a tone suitable for a community magazine.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "culture"
+  },
+  {
+    "id": "wp-partB-blog-002",
+    "part": "B",
+    "type": "blog",
+    "title": "My Experience Volunteering at a Nursing Home",
+    "context": "You recently volunteered at a nursing home in your district for a weekend. Your friend's community blog is looking for personal stories about volunteering.",
+    "task": "Write a blog post sharing your experience volunteering at a nursing home. Describe what you did, how it made you feel, and what you learned about elderly care in Hong Kong.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Set the scene — describe the nursing home and your first impressions",
+      "Share a specific moment or interaction that stood out",
+      "Reflect on what you learned about the elderly",
+      "Discuss the broader issue of elderly care in Hong Kong",
+      "Encourage readers to consider volunteering"
+    ],
+    "instructions": "Write in a warm, personal tone. End with a call to action for readers to get involved.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partB-blog-003",
+    "part": "B",
+    "type": "blog",
+    "title": "Surviving the DSE Pressure Cooker",
+    "context": "You are a Form 6 student who has just completed your mock exams. A youth lifestyle website is asking students to write about managing exam stress.",
+    "task": "Write a blog post sharing your strategies for dealing with DSE exam pressure. Be honest about the challenges and offer practical advice to younger students.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the pressure of DSE preparation from your perspective",
+      "Share at least three specific coping strategies you've used",
+      "Discuss the importance of balancing study and rest",
+      "Address the mental health aspect of exam preparation",
+      "End with encouragement for students yet to face the exams"
+    ],
+    "instructions": "Write in a relatable, conversational tone. Use headings to break up your post.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "health"
+  },
+  {
+    "id": "wp-partB-letter-002",
+    "part": "B",
+    "type": "letter",
+    "title": "Letter to the Chief Executive on Youth Unemployment",
+    "context": "You are the chairperson of a youth advocacy group. You want to write to the Chief Executive of the HKSAR expressing concern about rising youth unemployment in Hong Kong.",
+    "task": "Write a formal letter to the Chief Executive outlining the youth unemployment problem, its causes, and specific policy recommendations to address it.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "State the current youth unemployment situation with data",
+      "Identify key causes (skills mismatch, economic factors, etc.)",
+      "Propose specific policy interventions",
+      "Reference successful models from other countries",
+      "Request a meeting to discuss further"
+    ],
+    "instructions": "Write in a formal, respectful but firm tone. Sign as Chairperson of the Youth Advocacy Group.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partB-proposal-002",
+    "part": "B",
+    "type": "proposal",
+    "title": "Proposal for a Peer Tutoring Programme",
+    "context": "You believe your school should establish a peer tutoring programme where senior students help junior students with academic subjects.",
+    "task": "Write a proposal to the Principal recommending the establishment of a peer tutoring programme. Outline the benefits, structure, and implementation plan.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Explain the academic challenges students face",
+      "Describe how peer tutoring would work in practice",
+      "Outline the benefits for both tutors and tutees",
+      "Propose a pilot programme structure",
+      "Address potential concerns (scheduling, training)"
+    ],
+    "instructions": "Use clear headings for each section. Maintain a persuasive but professional tone.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-report-003",
+    "part": "B",
+    "type": "report",
+    "title": "Report on Student Sleep Habits",
+    "context": "The Student Council conducted a survey on student sleep habits and found that 70% of students get less than six hours of sleep per night. You have been asked to write a report on the findings.",
+    "task": "Write a report presenting the survey findings on student sleep habits, analysing the causes, and recommending actions the school should take.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Summarise the survey methodology and key findings",
+      "Analyse the main causes of sleep deprivation among students",
+      "Discuss the impact on academic performance and health",
+      "Compare with sleep research recommendations for teenagers",
+      "Recommend specific interventions the school can implement"
+    ],
+    "instructions": "Use formal report format with clear section headings. Include relevant statistics and data.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "health"
+  },
+  {
+    "id": "wp-partB-speech-003",
+    "part": "B",
+    "type": "speech",
+    "title": "The Power of Reading in the Digital Age",
+    "context": "You have been invited to speak at your school's annual Reading Week assembly on the importance of reading books in an era dominated by social media and short-form content.",
+    "task": "Write a speech arguing for the continued importance of reading books, especially among young people in Hong Kong's digital age.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Open with a compelling hook about reading habits",
+      "Discuss the benefits of deep reading vs. skimming",
+      "Address the challenge of competing digital distractions",
+      "Share personal or observed examples of reading's impact",
+      "End with an inspiring call to make reading a daily habit"
+    ],
+    "instructions": "Write for oral delivery — use rhetorical devices, direct address, and a persuasive tone. Do not sign your name.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-speech-004",
+    "part": "B",
+    "type": "speech",
+    "title": "Why Hong Kong Needs More Green Spaces",
+    "context": "You are speaking at a youth environmental forum about urban planning and the need for more parks and green spaces in Hong Kong.",
+    "task": "Write a speech arguing for increased investment in green spaces in Hong Kong's urban landscape.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the current state of green spaces in Hong Kong",
+      "Explain the environmental benefits (air quality, heat island effect)",
+      "Discuss the mental health benefits for residents",
+      "Address the challenge of limited land",
+      "Propose creative solutions (rooftop gardens, vertical parks)"
+    ],
+    "instructions": "Use a passionate but measured tone. Include rhetorical questions and direct appeals to the audience.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "environment"
+  },
+  {
+    "id": "wp-partB-story-003",
+    "part": "B",
+    "type": "story",
+    "title": "The Last Tram Ride",
+    "context": "A local literary magazine is running a writing competition on the theme of 'changes in Hong Kong.'",
+    "task": "Write a short story about a character experiencing a meaningful moment on the last ride of a Hong Kong tram before it is decommissioned for an upgrade.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Establish the setting — describe the tram and its atmosphere",
+      "Introduce the protagonist and their connection to the tram",
+      "Show interactions with other passengers during the ride",
+      "Build to a moment of reflection or revelation",
+      "End with a resonant image or thought"
+    ],
+    "instructions": "Give your story a title. Use vivid sensory details and a reflective tone.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "culture"
+  },
+  {
+    "id": "wp-partB-review-002",
+    "part": "B",
+    "type": "review",
+    "title": "Review of a Local DSE Prep Course",
+    "context": "Your school's alumni magazine is asking former students to review educational resources that helped them prepare for the DSE.",
+    "task": "Write a review of a DSE preparation course or resource you used. Evaluate its effectiveness, value for money, and suitability for different types of students.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the course/resource and what it covers",
+      "Evaluate the quality of teaching and materials",
+      "Discuss who would benefit most from it",
+      "Compare it with other options available",
+      "Give a clear recommendation with justification"
+    ],
+    "instructions": "Write a balanced, professional review. Include a star rating (1-5) and a clear verdict.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-article-005",
+    "part": "B",
+    "type": "article",
+    "title": "The NEET Generation in Hong Kong",
+    "context": "Your school newspaper is publishing a special edition on youth issues in Hong Kong. The editor has asked you to write about the growing number of young people who are Not in Education, Employment, or Training (NEET).",
+    "task": "Write an article examining the phenomenon of NEET youth in Hong Kong, exploring the causes and potential solutions.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Define what NEET means and its prevalence in Hong Kong",
+      "Explore the social and economic factors behind the trend",
+      "Discuss the impact on individuals and society",
+      "Examine government and community responses",
+      "Offer your perspective on what more can be done"
+    ],
+    "instructions": "Give your article a provocative headline. Write for a general audience with a balance of facts and opinion.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partB-proposal-003",
+    "part": "B",
+    "type": "proposal",
+    "title": "Proposal for a Mental Health Awareness Week",
+    "context": "Following a survey showing increasing stress levels among students, the Student Union has asked you to propose a Mental Health Awareness Week for your school.",
+    "task": "Write a proposal to the school administration outlining a plan for a Mental Health Awareness Week, including activities, speakers, and expected outcomes.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Explain why mental health awareness is needed in schools",
+      "Propose specific activities (workshops, talks, peer support)",
+      "Suggest potential speakers or partners",
+      "Outline a realistic timetable for the week",
+      "Address budget and resource considerations"
+    ],
+    "instructions": "Use clear headings and a professional tone. Make a compelling case for the proposal's importance.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "health"
+  },
+  {
+    "id": "wp-partB-speech-005",
+    "part": "B",
+    "type": "speech",
+    "title": "Why We Should Learn Cantonese History",
+    "context": "You have been asked to give a speech at a Chinese Cultural Heritage Day event at your school about the importance of understanding local history.",
+    "task": "Write a speech arguing that Hong Kong students should learn more about Cantonese and local history to strengthen their cultural identity.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Open with a personal anecdote about discovering local history",
+      "Explain why local history is often overlooked in education",
+      "Discuss the value of cultural identity for young people",
+      "Address the concern that it takes time away from core subjects",
+      "Call on the school and government to integrate local history into the curriculum"
+    ],
+    "instructions": "Write for a mixed audience of students, teachers, and community members. Use an engaging, persuasive tone.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "culture"
+  },
+  {
+    "id": "wp-partB-story-004",
+    "part": "B",
+    "type": "story",
+    "title": "The Forgotten Letter",
+    "context": "A local literary magazine is running a competition on the theme 'Messages That Changed Everything.'",
+    "task": "Write a short story about a character who discovers a forgotten letter that reveals a family secret and changes their understanding of their past.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Set the scene — describe where the letter is found",
+      "Introduce the protagonist and their family dynamics",
+      "Reveal the content of the letter gradually",
+      "Show the emotional impact on the protagonist",
+      "End with a resolution that leaves room for reflection"
+    ],
+    "instructions": "Give your story a title. Use a suspenseful tone that builds to an emotional climax.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "family"
+  },
+  {
+    "id": "wp-partB-report-004",
+    "part": "B",
+    "type": "report",
+    "title": "Report on the Impact of Short-Form Video Apps on Students",
+    "context": "The school library committee has commissioned a report on how short-form video apps (TikTok, Instagram Reels, YouTube Shorts) are affecting students' study habits and attention spans.",
+    "task": "Write a report analysing the impact of short-form video apps on students' learning and behaviour, based on surveys and research findings.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Summarise current usage patterns among students",
+      "Present research findings on attention span and study habits",
+      "Discuss both positive and negative effects",
+      "Compare with findings from other studies",
+      "Recommend guidelines for healthy digital consumption"
+    ],
+    "instructions": "Write a formal report with clear sections. Use data and citations where appropriate.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "technology"
+  },
+  {
+    "id": "wp-partB-article-006",
+    "part": "B",
+    "type": "article",
+    "title": "The Case for Mandatory Financial Literacy in Schools",
+    "context": "Your school's alumni magazine is running a series on education reform. The editor has asked you to write an article advocating for financial literacy education in secondary schools.",
+    "task": "Write an article arguing that Hong Kong secondary schools should make financial literacy a mandatory part of the curriculum.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the current gap in financial education",
+      "Explain why financial literacy matters for young people",
+      "Discuss what topics should be covered (budgeting, investing, debt)",
+      "Address potential objections (curriculum overload)",
+      "Conclude with a strong call for curriculum reform"
+    ],
+    "instructions": "Give your article a thought-provoking headline. Write for an adult audience of parents and educators.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-speech-006",
+    "part": "B",
+    "type": "speech",
+    "title": "Why We Need to Protect Our Food Heritage",
+    "context": "You are speaking at a community forum on cultural preservation in Hong Kong about the threat facing traditional food shops and recipes.",
+    "task": "Write a speech arguing for the preservation of Hong Kong's food heritage in the face of modernisation and gentrification.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Open with a vivid description of a traditional food experience",
+      "Explain what is being lost (shops, recipes, techniques)",
+      "Discuss the cultural and social value of food heritage",
+      "Propose specific preservation measures",
+      "End with an emotional appeal to the community"
+    ],
+    "instructions": "Write for a mixed audience of residents and policymakers. Use evocative language and rhetorical devices.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "culture"
+  },
+  {
+    "id": "wp-partB-review-003",
+    "part": "B",
+    "type": "review",
+    "title": "Review of a Hong Kong Cultural Festival",
+    "context": "You attended the Hong Kong Arts Festival last weekend. A local lifestyle website is asking readers to review cultural events.",
+    "task": "Write a review of a cultural event or festival you attended. Evaluate the quality of the programme, accessibility, and overall experience.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the event and its significance",
+      "Evaluate the quality of performances or exhibitions",
+      "Discuss the organisation and attendee experience",
+      "Compare with similar events locally or internationally",
+      "Give a clear recommendation and rating"
+    ],
+    "instructions": "Write a balanced review with both praise and constructive criticism. Include a star rating.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "culture"
+  },
+  {
+    "id": "wp-partB-blog-004",
+    "part": "B",
+    "type": "blog",
+    "title": "Living on a Budget as a DSE Student",
+    "context": "You are a DSE student who has learned to manage your finances carefully. A youth finance blog is asking students to share their money management tips.",
+    "task": "Write a blog post sharing your experience of living on a budget as a secondary student and offering practical money-saving tips for your peers.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe your monthly budget and income sources",
+      "Share specific strategies for saving money",
+      "Discuss the challenges of balancing study and part-time work",
+      "Offer advice on distinguishing wants from needs",
+      "End with encouragement for financially conscious living"
+    ],
+    "instructions": "Write in a friendly, relatable tone. Use bullet points or numbered lists for tips.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "career"
+  },
+  {
+    "id": "wp-partB-letter-003",
+    "part": "B",
+    "type": "letter",
+    "title": "Letter to a Friend About Choosing a University Major",
+    "context": "Your friend is struggling to decide which university major to pursue. You have recently gone through the application process and want to share your experience.",
+    "task": "Write a letter to your friend offering advice on choosing a university major. Share your own experience, discuss factors to consider, and encourage them to make their own decision.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Acknowledge your friend's dilemma with empathy",
+      "Share your own decision-making process",
+      "Discuss factors to consider (passion, career prospects, skills)",
+      "Advise on how to research different majors",
+      "Encourage them to trust their instincts"
+    ],
+    "instructions": "Write in a warm, supportive tone appropriate for a letter to a close friend.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-article-007",
+    "part": "B",
+    "type": "article",
+    "title": "The Hidden Cost of Fast Fashion",
+    "context": "Your school's environmental club is publishing a newsletter on sustainable living. The editor has asked you to write about the environmental impact of fast fashion.",
+    "task": "Write an article exposing the environmental and social costs of fast fashion and advocating for more sustainable clothing choices.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the rise of fast fashion and its appeal to young people",
+      "Explain the environmental impact (water pollution, waste)",
+      "Discuss the labour conditions in garment factories",
+      "Propose sustainable alternatives (thrifting, capsule wardrobes)",
+      "Conclude with a call for conscious consumerism"
+    ],
+    "instructions": "Give your article a striking headline. Write for a young, socially-conscious audience.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "environment"
+  },
+  {
+    "id": "wp-partB-report-005",
+    "part": "B",
+    "type": "report",
+    "title": "Report on the Effectiveness of Online Learning",
+    "context": "The school board has asked you to write a report evaluating the effectiveness of online learning during the recent pandemic period.",
+    "task": "Write a report assessing how well online learning worked for students, teachers, and the school community, and making recommendations for future hybrid models.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Summarise the online learning experience during the pandemic",
+      "Present student and teacher feedback",
+      "Analyse the strengths and weaknesses of online delivery",
+      "Compare with traditional classroom learning",
+      "Recommend a hybrid model for future use"
+    ],
+    "instructions": "Write a formal report with clear sections. Use an objective, analytical tone.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "education"
+  },
+  {
+    "id": "wp-partB-speech-007",
+    "part": "B",
+    "type": "speech",
+    "title": "The Courage to Be Different",
+    "context": "You have been invited to speak at your school's graduation ceremony on the theme of embracing individuality in a conformist society.",
+    "task": "Write a graduation speech encouraging students to stay true to themselves and pursue their unique passions, even when it means going against the crowd.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Open with a personal story about standing out",
+      "Discuss the pressure to conform in Hong Kong's competitive culture",
+      "Share examples of people who succeeded by being different",
+      "Address the fear of failure and judgment",
+      "End with an inspiring call to embrace individuality"
+    ],
+    "instructions": "Write for a graduation audience. Use an uplifting, motivational tone with rhetorical devices.",
+    "difficulty": "medium",
+    "source": "curated",
+    "topicDomain": "social issues"
+  },
+  {
+    "id": "wp-partB-story-005",
+    "part": "B",
+    "type": "story",
+    "title": "The Last Page of the Diary",
+    "context": "A school literary magazine is running a competition on the theme 'Stories in Small Things.'",
+    "task": "Write a short story about a student who finds their grandmother's old diary and discovers a hidden chapter that changes their understanding of their family.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the discovery of the diary in an unexpected place",
+      "Show the student's initial curiosity turning to deeper interest",
+      "Reveal a pivotal entry that changes everything",
+      "Explore the emotional impact on the student",
+      "End with a moment of connection across generations"
+    ],
+    "instructions": "Give your story a title. Use a reflective, intimate tone with strong emotional resonance.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "family"
+  },
+  {
+    "id": "wp-partB-proposal-004",
+    "part": "B",
+    "type": "proposal",
+    "title": "Proposal for a School Mental Health First Aid Training",
+    "context": "After several students experienced anxiety attacks during exam season, the Student Welfare Committee has asked you to propose a Mental Health First Aid training programme.",
+    "task": "Write a proposal to the school administration recommending a Mental Health First Aid training programme for students and staff.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Explain the growing mental health crisis among youth",
+      "Describe what Mental Health First Aid training involves",
+      "Outline the benefits for students and staff",
+      "Propose a pilot programme with timeline and budget",
+      "Address potential concerns and provide reassurance"
+    ],
+    "instructions": "Use a professional, evidence-based tone. Cite relevant statistics and research.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "health"
+  },
+  {
+    "id": "wp-partB-article-008",
+    "part": "B",
+    "type": "article",
+    "title": "The Gig Economy and Young Workers in Hong Kong",
+    "context": "Your school's economics club is publishing a journal on contemporary economic issues. The editor has asked you to write about the rise of gig economy jobs among young people.",
+    "task": "Write an article examining the gig economy's impact on young workers in Hong Kong, weighing the flexibility against the lack of job security.",
+    "wordLimit": { "min": 380, "max": 450 },
+    "suggestedPoints": [
+      "Describe the growth of gig economy jobs in Hong Kong",
+      "Discuss the appeal of flexibility for young workers",
+      "Analyse the drawbacks (lack of benefits, job insecurity)",
+      "Compare with traditional employment",
+      "Offer a balanced conclusion on the future of work"
+    ],
+    "instructions": "Give your article an engaging headline. Write for an educated general audience.",
+    "difficulty": "hard",
+    "source": "curated",
+    "topicDomain": "career"
   }
 ]

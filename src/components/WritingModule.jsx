@@ -408,6 +408,19 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       if (part === 'A') {
         setCorrectionPartAResult(parsed);
         setPhase('correctionPartA');
+        // Record session to skill analytics
+        if (skillAnalytics && parsed?.overall) {
+          skillAnalytics.recordSession({
+            skill: 'writing',
+            type: practiceMode === 'both' ? 'exam' : 'practice',
+            score: parsed.overall.total || 0,
+            totalQuestions: parsed.overall.maxTotal || 21,
+            percentage: partPct,
+            dseLevel: dseLevel,
+            wordCount: getEssayPlainText(partA.essay).split(/\s+/).filter(Boolean).length,
+            completedAt: new Date().toISOString(),
+          });
+        }
         // Schedule note generation for Part A only mode
         if (practiceMode !== 'both' && dsePapers?.generateWritingNotes && createNote) {
           notesGenDataRef.current = {
@@ -456,6 +469,20 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           combined,
         });
         clearSessionStorage();
+        // Record combined session to skill analytics
+        if (skillAnalytics && combined?.overall) {
+          const totalWords = getEssayPlainText(partA.essay).split(/\s+/).filter(Boolean).length + getEssayPlainText(partB.essay).split(/\s+/).filter(Boolean).length;
+          skillAnalytics.recordSession({
+            skill: 'writing',
+            type: 'exam',
+            score: combined.overall.total || 0,
+            totalQuestions: combined.overall.maxTotal || 21,
+            percentage: combined.overall.percentage || 0,
+            dseLevel: combined.overall.dseLevel || '—',
+            wordCount: totalWords,
+            completedAt: new Date().toISOString(),
+          });
+        }
         // Schedule note generation for combined results
         if (dsePapers?.generateWritingNotes && createNote) {
           notesGenDataRef.current = {
@@ -549,6 +576,19 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       parsed.overall = { ...parsed.overall, total: partTotal, maxTotal: 21, percentage: partPct, dseLevel };
       setCustomCorrectionResult(parsed);
       saveCustomSessionToHistory(parsed, plainText, essayHtml);
+      // Record custom session to skill analytics
+      if (skillAnalytics && parsed?.overall) {
+        skillAnalytics.recordSession({
+          skill: 'writing',
+          type: 'custom',
+          score: partTotal,
+          totalQuestions: 21,
+          percentage: partPct,
+          dseLevel,
+          wordCount: plainText.split(/\s+/).filter(Boolean).length,
+          completedAt: new Date().toISOString(),
+        });
+      }
       setPhase('correctionCustom');
     } catch (e) {
       console.error('Custom correction failed:', e);

@@ -3,6 +3,99 @@ import { useIndexedDB } from '../hooks/useIndexedDB';
 import { normalizeAnswer } from '../utils/answerChecking';
 
 /**
+ * parseReferenceContent — Renders markdown-like content from lesson referenceContent.
+ * Supports: ## headers, ### subheaders, **bold**, ----- separators,
+ * 1. ordered lists, - dash lists, ➔ arrows, and plain paragraphs.
+ */
+function parseReferenceContent(content) {
+  if (!content) return null;
+  const lines = content.split('\n');
+  const elements = [];
+  let inOrderedList = false;
+  let inDashList = false;
+
+  function flushLists() {
+    if (inOrderedList) { elements.push(<li key={`close-ol-${elements.length}`} className="course__reference-close-li" />); inOrderedList = false; }
+    if (inDashList) { elements.push(<li key={`close-dl-${elements.length}`} className="course__reference-close-li" />); inDashList = false; }
+  }
+
+  function parseInline(text) {
+    // Split on **bold** markers
+    const parts = text.split(/\*\*(.+?)\*\*/g);
+    return parts.map((part, i) => {
+      if (i % 2 === 1) return <strong key={i}>{parseInline(part)}</strong>;
+      // Split on ➔ arrows
+      const arrowParts = part.split(/➔/);
+      if (arrowParts.length > 1) {
+        return (
+          <span key={i}>
+            {arrowParts.map((ap, j) => (
+              <React.Fragment key={j}>
+                {j > 0 && <span className="course__reference-arrow">➔</span>}
+                {parseInline(ap)}
+              </React.Fragment>
+            ))}
+          </span>
+        );
+      }
+      return <React.Fragment key={i}>{part}</React.Fragment>;
+    });
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Horizontal rule
+    if (/^-{3,}$/.test(line.trim())) {
+      flushLists();
+      elements.push(<hr key={i} className="course__reference-hr" />);
+      continue;
+    }
+
+    // Headers
+    if (line.startsWith('### ')) {
+      flushLists();
+      elements.push(<h3 key={i} className="course__reference-h3">{parseInline(line.slice(4))}</h3>);
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      flushLists();
+      elements.push(<h2 key={i} className="course__reference-h2">{parseInline(line.slice(3))}</h2>);
+      continue;
+    }
+
+    // Ordered list item
+    const olMatch = line.match(/^(\d+)\.\s(.+)/);
+    if (olMatch) {
+      if (!inOrderedList) { flushLists(); inOrderedList = true; elements.push(<ol key={`ol-start-${i}`} className="course__reference-ol" />); }
+      elements.push(<li key={i} className="course__reference-li">{parseInline(olMatch[2])}</li>);
+      continue;
+    }
+
+    // Dash list item
+    if (line.match(/^- (.+)/)) {
+      if (!inDashList) { flushLists(); inDashList = true; elements.push(<ul key={`ul-start-${i}`} className="course__reference-ul" />); }
+      const dashContent = line.replace(/^- /, '');
+      elements.push(<li key={i} className="course__reference-li">{parseInline(dashContent)}</li>);
+      continue;
+    }
+
+    // Empty line — close any open lists, skip
+    if (line.trim() === '') {
+      flushLists();
+      continue;
+    }
+
+    // Regular paragraph
+    flushLists();
+    elements.push(<p key={i} className="course__reference-p">{parseInline(line)}</p>);
+  }
+
+  flushLists();
+  return elements;
+}
+
+/**
  * CoursePlayer — Exercise-first lesson delivery engine.
  *
  * State machine phases (D-40):
@@ -16,7 +109,8 @@ import { normalizeAnswer } from '../utils/answerChecking';
  */
 export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrackImprovement }) {
   const { getItem, setItem, DSE_KEYS } = useIndexedDB();
-  const COURSE_PROGRESS_KEY = `${DSE_KEYS.COURSE_PROGRESS}:${course.id}`;
+  const courseId = course?.id;
+  const COURSE_PROGRESS_KEY = `${DSE_KEYS.COURSE_PROGRESS}:${courseId}`;
 
   // === State machine ===
   const [phase, setPhase] = useState('overview');
@@ -42,12 +136,13 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
   const [generatingExercises, setGeneratingExercises] = useState(false);
 
   const saveTimerRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // === Derived data ===
-  const currentTopic = course.topics[currentTopicIndex];
-  const currentLesson = currentTopic?.lessons[currentLessonIndex];
+  const currentTopic = course?.topics?.[currentTopicIndex];
+  const currentLesson = currentTopic?.lessons?.[currentLessonIndex];
   const allLessonsCount = useMemo(() => {
-    return course.topics.reduce((sum, t) => sum + t.lessons.length, 0);
+    return course?.topics?.reduce((sum, t) => sum + t.lessons.length, 0) || 0;
   }, [course]);
   const completedLessonCount = completedLessons.length;
   const progressPct = allLessonsCount > 0 ? Math.round((completedLessonCount / allLessonsCount) * 100) : 0;
@@ -67,6 +162,19 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
     return [...currentExerciseFromSet.pairs].map(p => p.match).sort(() => Math.random() - 0.5);
   }, [currentExerciseFromSet]);
 
+  // Initialize reorder state syncronously (avoid showing pre-sorted order)
+  const initialReorderState = useMemo(() => {
+    if (currentExerciseFromSet?.type === 'reordering' && currentExerciseFromSet.correctOrder?.length) {
+      const arr = [...currentExerciseFromSet.correctOrder];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+    return null;
+  }, [currentExerciseFromSet]);
+
   // Generate exercises for current lesson when it changes
   const generationAttemptedRef = useRef(false);
   // Reset generation state when lesson changes
@@ -76,12 +184,14 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
     setCurrentExerciseIndex(0);
     setAnswers({});
     setExerciseFeedback(null);
+    setReorderState(null);
   }, [currentLesson?.title]);
 
   useEffect(() => {
     if (!currentLesson || !callAI || !dsePapers?.generateCourseExercises) return;
     if (generationAttemptedRef.current) return;
     generationAttemptedRef.current = true;
+    let cancelled = false;
 
     const types = ['mcq', 'gap-fill', 'short-answer'];
     if (currentLesson.exercises?.some(e => e.type === 'matching')) types.push('matching');
@@ -95,6 +205,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
       types,
       callAI
     ).then(exercises => {
+      if (cancelled) return;
       if (exercises && exercises.length >= 3) {
         setGeneratedExercises(exercises);
         console.log('[course] AI generated', exercises.length, 'exercises for', currentLesson.title);
@@ -102,10 +213,14 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
         console.warn('[course] AI returned', exercises?.length || 0, 'exercises — falling back to seed');
       }
     }).catch(e => {
+      if (cancelled) return;
       console.warn('[course] AI exercise generation failed:', e.message, '— using seed exercises');
     }).finally(() => {
+      if (cancelled) return;
       setGeneratingExercises(false);
     });
+
+    return () => { cancelled = true; };
   }, [currentLesson?.title, callAI, dsePapers?.generateCourseExercises]);
 
   // Regenerate exercises on demand
@@ -212,16 +327,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
     };
   }, []);
 
-  // Initialize reorderState when entering a reordering exercise
-  useEffect(() => {
-    if (currentExerciseFromSet?.type === 'reordering' && currentExerciseFromSet.correctOrder?.length) {
-      const shuffled = [...currentExerciseFromSet.correctOrder].sort(() => Math.random() - 0.5);
-      setReorderState(shuffled);
-    } else {
-      setReorderState(null);
-    }
-  }, [currentExerciseFromSet]);
-
   // === Single active lesson enforcement (D-04) ===
   const checkActiveLesson = useCallback(() => {
     try {
@@ -274,7 +379,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
         break;
       }
       case 'matching': {
-        if (currentExerciseFromSet.pairs && typeof answer === 'object') {
+        if (currentExerciseFromSet.pairs && typeof answer === 'object' && answer !== null && Object.keys(answer).length > 0) {
           isCorrect = currentExerciseFromSet.pairs.every(p => answer[p.item] === p.match);
         }
         break;
@@ -311,21 +416,27 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
   // === Skip current exercise ===
   const handleSkipExercise = useCallback(() => {
     if (!currentExerciseFromSet) return;
-    setAnswers(prev => ({
-      ...prev,
-      [currentExerciseFromSet.question]: { answer: null, correct: false, skipped: true, timestamp: Date.now() },
-    }));
+    const question = currentExerciseFromSet.question;
+    if (answers[question]?.skipped) return;
+    setAnswers(prev => {
+      if (prev[question]?.skipped) return prev;
+      return {
+        ...prev,
+        [question]: { answer: null, correct: false, skipped: true, timestamp: Date.now() },
+      };
+    });
     setExerciseFeedback({ correct: false });
     setTimeout(() => {
-      if (currentExerciseIndex < lessonExercises.length - 1) {
-        setCurrentExerciseIndex(prev => prev + 1);
-        setExerciseFeedback(null);
-      } else {
+      setCurrentExerciseIndex(prev => {
+        if (prev < lessonExercises.length - 1) return prev + 1;
+        return prev;
+      });
+      setExerciseFeedback(null);
+      if (currentExerciseIndex >= lessonExercises.length - 1) {
         setLessonComplete(true);
-        setExerciseFeedback(null);
       }
     }, 800);
-  }, [currentExerciseFromSet, currentExerciseIndex, currentLesson]);
+  }, [currentExerciseFromSet, currentExerciseIndex, currentLesson, answers]);
 
   // === Next exercise (manual advance) ===
   const handleNextExercise = useCallback(() => {
@@ -460,7 +571,23 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
   const handleFinalAssessmentRetry = useCallback(() => {
     setFinalAssessmentAnswers({});
     setExerciseFeedback(null);
+    setFinalAssessmentAttempts(0);
+    setPhase('final-assessment');
   }, []);
+
+  // === Guard: invalid course data ===
+  if (!courseId || !course?.topics?.length) {
+    return (
+      <div className="course__player">
+        <div className="course__player-header">
+          <button className="course__btn" onClick={onBack}>← Back to Catalog</button>
+        </div>
+        <div className="course__empty-message" style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          <p>Course data not available.</p>
+        </div>
+      </div>
+    );
+  }
 
   // === Phase: Overview ===
   if (phase === 'overview') {
@@ -495,6 +622,11 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
                 <div
                   className="course__progress-bar-fill"
                   style={{ width: `${progressPct}%` }}
+                  role="progressbar"
+                  aria-valuenow={progressPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Course progress"
                 />
               </div>
             </div>
@@ -557,8 +689,9 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
   if (phase === 'lesson') {
     // Lesson complete screen
     if (lessonComplete) {
-      const correctCount = Object.values(answers).filter(a => a.correct).length;
-      const totalCount = Object.keys(answers).length;
+      const attemptedEntries = Object.values(answers).filter(a => !a.skipped);
+      const correctCount = attemptedEntries.filter(a => a.correct).length;
+      const totalCount = attemptedEntries.length;
       const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
 
       return (
@@ -602,7 +735,9 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
       );
     }
 
-    const refWordCount = currentLesson.referenceContent?.trim().split(/\s+/).length || 0;
+    const refWordCount = currentLesson.referenceContent?.trim()
+      ? currentLesson.referenceContent.trim().split(/\s+/).length
+      : 0;
 
     return (
       <div className="course__player">
@@ -612,6 +747,11 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
             <div
               className="course__progress-strip-fill"
               style={{ width: `${progressPct}%` }}
+              role="progressbar"
+              aria-valuenow={progressPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Lesson progress"
             />
           </div>
           <div className="course__progress-strip-info">
@@ -655,11 +795,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
                         handleExerciseAttempt(currentExerciseFromSet.question, e.target.value);
                       }
                     }}
-                    onBlur={e => {
-                      if (e.target.value.trim()) {
-                        handleExerciseAttempt(currentExerciseFromSet.question, e.target.value);
-                      }
-                    }}
                     disabled={exerciseFeedback !== null}
                   />
                 </div>
@@ -668,23 +803,18 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
               {(currentExerciseFromSet.type === 'short-answer' || currentExerciseFromSet.type === 'sentence-rewrite') && (
                 <div className="course__exercise-input-group">
                   <textarea
+                    ref={textareaRef}
                     className="course__exercise-textarea"
                     placeholder={currentExerciseFromSet.type === 'sentence-rewrite' ? 'Rewrite the sentence...' : 'Type your answer...'}
                     rows={3}
                     defaultValue=""
-                    onBlur={e => {
-                      if (e.target.value.trim()) {
-                        handleExerciseAttempt(currentExerciseFromSet.question, e.target.value);
-                      }
-                    }}
                     disabled={exerciseFeedback !== null}
                   />
                   <button
                     className="course__btn course__btn--primary"
                     onClick={() => {
-                      const textarea = document.querySelector('.course__exercise-textarea');
-                      if (textarea && textarea.value.trim()) {
-                        handleExerciseAttempt(currentExerciseFromSet.question, textarea.value);
+                      if (textareaRef.current?.value.trim()) {
+                        handleExerciseAttempt(currentExerciseFromSet.question, textareaRef.current.value);
                       }
                     }}
                     disabled={exerciseFeedback !== null}
@@ -778,8 +908,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
                             placeholder="..."
                             defaultValue=""
                             onBlur={e => {
-                              const currentVal = answers[currentExerciseFromSet.question]?.answer || {};
-                              currentVal[bi] = e.target.value;
+                              const currentVal = { ...(answers[currentExerciseFromSet.question]?.answer || {}), [bi]: e.target.value };
                               handleExerciseAttempt(currentExerciseFromSet.question, currentVal);
                             }}
                             disabled={exerciseFeedback !== null}
@@ -808,7 +937,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
                 <div className="course__exercise-reorder">
                   <p className="course__exercise-instruction">Arrange the items in the correct order using the ▲ ▼ buttons.</p>
                   <div className="course__reorder-list">
-                    {(reorderState || currentExerciseFromSet.correctOrder).map((item, ri) => (
+                    {(reorderState ?? initialReorderState).map((item, ri) => (
                       <div key={ri} className="course__reorder-item">
                         <span className="course__reorder-number">{ri + 1}.</span>
                         <span className="course__reorder-text">{item}</span>
@@ -817,7 +946,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
                             className="course__reorder-arrow"
                             onClick={() => {
                               if (ri === 0 || exerciseFeedback) return;
-                              const next = [...(reorderState || currentExerciseFromSet.correctOrder)];
+                              const next = [...(reorderState ?? initialReorderState)];
                               [next[ri - 1], next[ri]] = [next[ri], next[ri - 1]];
                               setReorderState(next);
                             }}
@@ -827,13 +956,13 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
                           <button
                             className="course__reorder-arrow"
                             onClick={() => {
-                              const list = reorderState || currentExerciseFromSet.correctOrder;
+                              const list = reorderState ?? initialReorderState;
                               if (ri >= list.length - 1 || exerciseFeedback) return;
                               const next = [...list];
                               [next[ri], next[ri + 1]] = [next[ri + 1], next[ri]];
                               setReorderState(next);
                             }}
-                            disabled={ri >= (reorderState || currentExerciseFromSet.correctOrder).length - 1 || exerciseFeedback !== null}
+                            disabled={ri >= (reorderState ?? initialReorderState).length - 1 || exerciseFeedback !== null}
                             aria-label="Move down"
                           >▼</button>
                         </div>
@@ -842,7 +971,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
                   </div>
                   <button
                     className="course__btn course__btn--primary"
-                    onClick={() => handleExerciseAttempt(currentExerciseFromSet.question, reorderState || currentExerciseFromSet.correctOrder)}
+                    onClick={() => handleExerciseAttempt(currentExerciseFromSet.question, reorderState ?? initialReorderState)}
                     disabled={exerciseFeedback !== null}
                   >
                     Confirm Order
@@ -852,7 +981,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
 
               {/* Feedback display */}
               {exerciseFeedback && (
-                <div className={`course__feedback${exerciseFeedback.correct ? ' course__feedback--correct' : ' course__feedback--incorrect'}`}>
+                <div className={`course__feedback${exerciseFeedback.correct ? ' course__feedback--correct' : ' course__feedback--incorrect'}`} aria-live="polite">
                   <span className="course__feedback-icon">{exerciseFeedback.correct ? '✅' : '❌'}</span>
                   <span className="course__feedback-text">
                     {exerciseFeedback.correct ? 'Correct!' : `Not quite — ${currentExerciseFromSet?.explanation || 'Review the reading passage and try again.'}`}
@@ -923,7 +1052,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
               </button>
               {showReference && (
                 <div className="course__reference-content">
-                  <div className="course__reference-text">{currentLesson.referenceContent}</div>
+                  {parseReferenceContent(currentLesson.referenceContent)}
                 </div>
               )}
             </div>
@@ -960,6 +1089,11 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
               <div
                 className="course__progress-strip-fill"
                 style={{ width: `${progressPct}%` }}
+                role="progressbar"
+                aria-valuenow={progressPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Assessment progress"
               />
             </div>
             <div className="course__progress-strip-info">
@@ -1024,7 +1158,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
 
           {exerciseFeedback?.finalAssessment && !exerciseFeedback.correct ? (
             <div className="course__final-result">
-              <div className="course__feedback course__feedback--incorrect">
+              <div className="course__feedback course__feedback--incorrect" aria-live="polite">
                 <span className="course__feedback-icon">❌</span>
                 <span className="course__feedback-text">
                   You scored {exerciseFeedback.score}%. A minimum of 60% is required.

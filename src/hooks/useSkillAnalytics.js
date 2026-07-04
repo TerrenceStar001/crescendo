@@ -13,8 +13,6 @@ function createEmptyProfile() {
     writing: { overall: 0, dseLevel: '1', subScores: {}, totalSessions: 0, averageWordCount: 0, lastSessionDate: null },
     listening: { overall: 0, dseLevel: '1', subScores: {}, totalSessions: 0, totalQuestions: 0, correctAnswers: 0, lastSessionDate: null },
     speaking: { overall: 0, dseLevel: '1', subScores: {}, totalSessions: 0, lastSessionDate: null },
-    vocabularyMastery: { totalWordsLearned: 0, wordsByDifficulty: { basic: 0, intermediate: 0, advanced: 0 }, recentlyMistaken: [], recentlyMastered: [] },
-    grammarMastery: { weakAreas: [], strongAreas: [], commonErrors: [] },
     _initialized: true,
   };
 }
@@ -38,7 +36,14 @@ export default function useSkillAnalytics() {
       getItem(DSE_KEYS.PROFILE),
       getItem(DSE_KEYS.SESSIONS),
     ]).then(([savedProfile, savedSessions]) => {
-      if (savedProfile?._initialized) setProfile(savedProfile);
+      if (savedProfile?._initialized) {
+      const levels = {};
+      for (const sk of ['reading', 'writing', 'listening', 'speaking']) {
+        levels[sk] = savedProfile[sk]?.dseLevel || '1';
+      }
+      savedProfile._overallDse = computeOverallDseLevel(levels);
+      setProfile(savedProfile);
+    }
       if (Array.isArray(savedSessions)) setSessions(savedSessions);
       setIsLoaded(true);
     });
@@ -152,8 +157,9 @@ export default function useSkillAnalytics() {
 
   const getWeakAreas = useCallback(() => {
     const areas = [];
-    for (const [skill, data] of Object.entries(profile)) {
-      if (data?.subScores && typeof data === 'object' && skill !== '_overallDse' && skill !== 'vocabularyMastery' && skill !== 'grammarMastery') {
+    for (const skill of ['reading', 'writing', 'listening', 'speaking']) {
+      const data = profile[skill];
+      if (data?.subScores) {
         for (const [sub, score] of Object.entries(data.subScores)) {
           if (score < 60) areas.push({ skill, area: sub, score, severity: score < 40 ? 'critical' : 'weak' });
         }
@@ -175,7 +181,7 @@ export default function useSkillAnalytics() {
     speaking: profile.speaking?.dseLevel || '1',
   };
 
-  const recommendations = useCallback(() => generateRecommendations(profile), [profile])();
+  const recommendations = useMemo(() => generateRecommendations(profile), [profile]);
   const streak = computeStreak(sessions);
 
   const getSessionCount = useCallback((skill) => {

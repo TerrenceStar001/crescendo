@@ -1014,6 +1014,74 @@ function shuffleArray(arr) {
   return a;
 }
 
+// ─── Shared Quality Check Functions (exported for use by courseSchema.js) ───
+
+export function isVerbatimRecall(question, answer, source) {
+  const ans = String(answer).toLowerCase().trim();
+  if (ans.length < 4 || ans.length > 120) return false;
+  const src = source.toLowerCase();
+  if (!src.includes(ans)) return false;
+  const shortWords = ans.split(/\s+/);
+  if (shortWords.length === 1 && src.includes(ans)) return true;
+  if (shortWords.length <= 4 && src.includes(ans)) return true;
+  return false;
+}
+
+export function estimateBloomDepth(stem) {
+  const s = stem.toLowerCase();
+  const recall = ['what is', 'what does', 'define', 'list', 'name', 'identify', 'when did', 'who wrote', 'according to', 'how many', 'what year', 'fill in the blank with'];
+  const deep = ['compare', 'contrast', 'distinguish', 'differentiate', 'evaluate', 'judge', 'which is better', 'what is wrong', 'identify the problem', 'which strategy', 'diagnose', 'why does', 'what would happen', 'which best', 'most likely', 'which of the following best', 'choose the best'];
+  for (const v of deep) if (s.includes(v)) return 4;
+  for (const v of recall) if (s.startsWith(v) || s.includes(' ' + v) || s.includes(v)) return 1;
+  return 3;
+}
+
+export function isFormulaQuestion(stem, answer) {
+  const s = stem.toLowerCase();
+  const prescriptiveCount = /how\s+(many|much)\s.*\b(should|typically|usually|must|does|do)\b/.test(s);
+  if (prescriptiveCount) return true;
+  if (/^\d+\s*[-–—to]+\s*\d+$/.test(String(answer).trim())) return true;
+  if (/^\d+$/.test(String(answer).trim()) && parseInt(answer) > 1) return true;
+  const entityCount = /\b(how many|how much)\b/.test(s);
+  const structureEntity = /\b(sentences?|paragraphs?|words?|steps?|points?|stages?|phases?|parts?|sections?|marks?)\b/.test(s);
+  const prescriptive = /\b(should|typically|usually|must|always|every)\b/.test(s);
+  if (entityCount && structureEntity && prescriptive) return true;
+  return false;
+}
+
+export function checkDistractors(options) {
+  if (!Array.isArray(options) || options.length < 3) return ['need 4 options for MCQ'];
+  const issues = [];
+  const lens = options.map(o => String(o).length);
+  const avgLen = lens.reduce((a, b) => a + b, 0) / lens.length;
+  if (Math.max(...lens) > avgLen * 2.2) issues.push('one option is much longer than others — correct answer stands out');
+  if (Math.min(...lens) < avgLen * 0.35) issues.push('one option is much shorter than others');
+  return issues;
+}
+
+export function validateExercise(e, source) {
+  const issues = [];
+  if (!e.question || e.question.length < 15) issues.push('question too short (< 15 chars)');
+  if (e.explanation && e.explanation.length < 35) issues.push('explanation too short (< 35 chars)');
+  if (e.type === 'mcq' && e.answer && isVerbatimRecall(e.question, e.answer, source)) {
+    issues.push('answer is a direct quote from source — rewrite to require reasoning, not recall');
+  }
+  if (isFormulaQuestion(e.question, e.answer)) {
+    issues.push('question tests a memorized rule/formula (count, range, or prescription) — rewrite to require diagnosing/analyzing, not recalling a number');
+  }
+  const bloom = estimateBloomDepth(e.question || '');
+  if (bloom <= 1) issues.push('question only tests recall (definitions, facts) — rewrite to require application, analysis, or evaluation');
+  if (e.options) issues.push(...checkDistractors(e.options));
+  return { passed: issues.length === 0, issues };
+}
+
+export function buildFeedback(failedItems) {
+  return failedItems.map((e, i) => {
+    const qShort = (e.question || '').substring(0, 60);
+    return `Exercise ${i + 1} ("${qShort}..."):\n- ` + (e._issues || ['unknown issue']).join('\n- ');
+  }).join('\n\n');
+}
+
 export default function useDSEPapers() {
   const { getItem, setItem } = useIndexedDB();
   const [isLoading, setIsLoading] = useState(false);
@@ -1791,74 +1859,7 @@ Return as a JSON array of exactly 3 objects:
       }
     }).join(', ');
 
-    // Check if answer text appears verbatim in source (shallow recall signal)
-    const isVerbatimRecall = (question, answer, source) => {
-      const ans = String(answer).toLowerCase().trim();
-      if (ans.length < 4 || ans.length > 120) return false;
-      const src = source.toLowerCase();
-      if (!src.includes(ans)) return false;
-      const shortWords = ans.split(/\s+/);
-      if (shortWords.length === 1 && src.includes(ans)) return true;
-      if (shortWords.length <= 4 && src.includes(ans)) return true;
-      return false;
-    };
-
-    // Heuristic Bloom's level estimator
-    const estimateBloomDepth = (stem) => {
-      const s = stem.toLowerCase();
-      const recall = ['what is', 'what does', 'define', 'list', 'name', 'identify', 'when did', 'who wrote', 'according to', 'how many', 'what year', 'fill in the blank with'];
-      const deep = ['compare', 'contrast', 'distinguish', 'differentiate', 'evaluate', 'judge', 'which is better', 'what is wrong', 'identify the problem', 'which strategy', 'diagnose', 'why does', 'what would happen', 'which best', 'most likely', 'which of the following best', 'choose the best'];
-      for (const v of deep) if (s.includes(v)) return 4;
-      for (const v of recall) if (s.startsWith(v) || s.includes(' ' + v) || s.includes(v)) return 1;
-      return 3;
-    };
-
-    // Detect formula questions — test memorized rules/counts, not understanding
-    const isFormulaQuestion = (stem, answer) => {
-      const s = stem.toLowerCase();
-      // "How many/much X should/does/typically/must Y" → counting prescription
-      const prescriptiveCount = /how\s+(many|much)\s.*\b(should|typically|usually|must|does|do)\b/.test(s);
-      if (prescriptiveCount) return true;
-      // Answer is a numeric range → signals "memorize this number"
-      if (/^\d+\s*[-–—to]+\s*\d+$/.test(String(answer).trim())) return true;
-      // Answer is a plain number > 1 → signals count-memorization
-      if (/^\d+$/.test(String(answer).trim()) && parseInt(answer) > 1) return true;
-      // Stem asks about sentence/paragraph/word/structure counts prescriptively
-      const entityCount = /\b(how many|how much)\b/.test(s);
-      const structureEntity = /\b(sentences?|paragraphs?|words?|steps?|points?|stages?|phases?|parts?|sections?|marks?)\b/.test(s);
-      const prescriptive = /\b(should|typically|usually|must|always|every)\b/.test(s);
-      if (entityCount && structureEntity && prescriptive) return true;
-      return false;
-    };
-
-    // Check distractor quality
-    const checkDistractors = (options) => {
-      if (!Array.isArray(options) || options.length < 3) return ['need 4 options for MCQ'];
-      const issues = [];
-      const lens = options.map(o => String(o).length);
-      const avgLen = lens.reduce((a, b) => a + b, 0) / lens.length;
-      if (Math.max(...lens) > avgLen * 2.2) issues.push('one option is much longer than others — correct answer stands out');
-      if (Math.min(...lens) < avgLen * 0.35) issues.push('one option is much shorter than others');
-      return issues;
-    };
-
-    // Full exercise validation
-    const validateExercise = (e, source) => {
-      const issues = [];
-      if (!e.question || e.question.length < 15) issues.push('question too short (< 15 chars)');
-      if (e.explanation && e.explanation.length < 35) issues.push('explanation too short (< 35 chars)');
-      if (e.type === 'mcq' && e.answer && isVerbatimRecall(e.question, e.answer, source)) {
-        issues.push('answer is a direct quote from source — rewrite to require reasoning, not recall');
-      }
-      if (isFormulaQuestion(e.question, e.answer)) {
-        issues.push('question tests a memorized rule/formula (count, range, or prescription) — rewrite to require diagnosing/analyzing, not recalling a number');
-      }
-      const bloom = estimateBloomDepth(e.question || '');
-      if (bloom <= 1) issues.push('question only tests recall (definitions, facts) — rewrite to require application, analysis, or evaluation');
-      if (e.options) issues.push(...checkDistractors(e.options));
-      return { passed: issues.length === 0, issues };
-    };
-
+    // Use module-level quality check functions (imported via closure)
     const buildFeedback = (failedItems) => {
       return failedItems.map((e, i) => {
         const qShort = (e.question || '').substring(0, 60);
@@ -1954,7 +1955,7 @@ Instead, give the student a concrete example of student work and ask them to dia
         const prompt = buildPrompt(feedback);
         const raw = await callAI(prompt, {
           system: 'You are a DSE English examiner generating deep comprehension exercises. Return ONLY valid JSON, no extra text.',
-          temperature: 0.6,
+          temperature: 0.3,
           maxTokens: 2500,
         });
         const parsed = parseJSONArray(raw);
@@ -2007,7 +2008,8 @@ scores length must be ${passed.length}.`;
               failed = [...failed, ...shallowFromJudge];
             }
           } catch (e) {
-            // Judge failed silently — use heuristic results as-is
+            console.warn('[exercises] Judge failed, using heuristic depth filter:', e.message);
+            passed = passed.filter(e => (estimateBloomDepth(e.question || '') || 3) >= 2);
           }
         }
 

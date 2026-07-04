@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import SkillRing from './SkillRing';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import SkillTile from './SkillTile';
 import PerformanceChart from './PerformanceChart';
+import SkillsRadar from './SkillsRadar';
 import { computeStreak } from '../utils/dseGrading';
 
 const DEFAULT_SECTIONS = ['overview', 'recommendations', 'gradeHistory', 'weakAreas', 'quickActions'];
@@ -17,23 +18,32 @@ export default function Dashboard({
   });
   const [showCustomize, setShowCustomize] = useState(false);
   const [showAllRecs, setShowAllRecs] = useState(false);
+  const [saveTimeout, setSaveTimeout] = useState(null);
 
-  // Read course improvements from localStorage
-  const improvements = useMemo(() => {
-    try {
-      const raw = localStorage.getItem('crescendo-course-improvements');
-      if (!raw) return {};
-      return JSON.parse(raw);
-    } catch { return {}; }
+  useEffect(() => {
+    if (saveTimeout) {
+      localStorage.setItem('crescendo-dse-dashboard-sections', JSON.stringify(visibleSections));
+      setSaveTimeout(null);
+    }
+  }, [saveTimeout]);
+
+  const persistSections = useCallback((newSections) => {
+    setVisibleSections(newSections);
+    setSaveTimeout(500);
   }, []);
 
   const toggleSection = useCallback((key) => {
-    setVisibleSections(prev =>
+    persistSections(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
-  }, []);
+  }, [persistSections]);
 
   const vis = (key) => visibleSections.includes(key);
+
+  const hasSessions = skillAnalytics?.sessions?.length > 0;
+  const hasNotes = notes?.length > 0;
+  const isLoading = skillAnalytics && !skillAnalytics.isLoaded;
+  const isEmptyState = !isLoading && !hasSessions && !hasNotes;
 
   const skillData = useMemo(() => {
     if (!skillAnalytics) return [];
@@ -60,7 +70,7 @@ export default function Dashboard({
     };
   }, [skillAnalytics]);
 
-  const overallDse = skillAnalytics?.overallDseLevel || '1';
+  const overallDse = skillAnalytics?.overallDseLevel || '—';
   const recommended = skillAnalytics?.recommendations || [];
 
   const weakAreas = useMemo(() => {
@@ -73,31 +83,76 @@ export default function Dashboard({
     return skillAnalytics.streak || { streak: 0, todayActive: false };
   }, [skillAnalytics]);
 
+  const skillTrends = useMemo(() => {
+    if (!skillAnalytics || !gradeHistory.length) return {};
+    const skillKeys = ['reading', 'writing', 'listening', 'speaking'];
+    const trends = {};
+    for (const sk of skillKeys) {
+      const skSessions = gradeHistory.filter(s => s.skill === sk);
+      if (skSessions.length < 2) { trends[sk] = null; continue; }
+      const recent = skSessions.slice(-7);
+      const older = skSessions.slice(-14, -7);
+      if (older.length === 0) { trends[sk] = null; continue; }
+      const recentAvg = recent.reduce((s, x) => s + (x.percentage || 0), 0) / recent.length;
+      const olderAvg = older.reduce((s, x) => s + (x.percentage || 0), 0) / older.length;
+      const diff = Math.round(recentAvg - olderAvg);
+      trends[sk] = diff;
+    }
+    return trends;
+  }, [skillAnalytics, gradeHistory]);
+
+  const nextAction = useMemo(() => {
+    if (!weakAreas.length) return null;
+    const wa = weakAreas[0];
+    return {
+      skill: wa.skill,
+      area: wa.area.replace(/([A-Z])/g, ' $1').trim().toLowerCase(),
+      score: wa.score,
+      action: `Practice ${wa.skill} — focus on ${wa.area.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
+    };
+  }, [weakAreas]);
+
   function Section({ id, title, className, children }) {
     if (!vis(id)) return null;
     return (
       <div className={`dashboard__section${className ? ' ' + className : ''}`}>
         <div className="dashboard__section-header">
           <h2 className="dashboard__section-title">{title}</h2>
-          <button className="dashboard__section-hide" onClick={() => toggleSection(id)} title="Hide section">✕</button>
+          <button className="dashboard__section-hide" onClick={() => toggleSection(id)} title="Hide section" aria-label={`Hide ${title}`}>✕</button>
         </div>
         {children}
       </div>
     );
   }
 
-  if (!notes || notes.length === 0) {
+  if (isEmptyState) {
     return (
       <div className="dashboard">
         <div className="dashboard__empty">
           <h1 className="dashboard__greeting">Welcome to HKDSE English 5**</h1>
-          <p className="dashboard__subtitle">Master Reading, Writing, Listening, and Speaking. Start your journey here.</p>
-          <button className="welcome__cta" onClick={onCreate}>
-            Create Your First Note
-          </button>
+          <p className="dashboard__subtitle">Track your progress across Reading, Writing, Listening, and Speaking. Complete your first practice session to see your dashboard come alive.</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <button className="welcome__cta" onClick={() => onSwitchToModule?.('reading')}>
+              Start Reading Practice
+            </button>
+            <button className="welcome__cta" onClick={onCreate} style={{ background: 'var(--color-surface-soft)', color: 'var(--color-text)' }}>
+              Create Your First Note
+            </button>
+          </div>
           <p className="welcome__hints">
             <kbd>Ctrl+N</kbd> New &middot; <kbd>Ctrl+K</kbd> Command palette &middot; <kbd>?</kbd> Shortcuts
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="dashboard">
+        <div className="dashboard__loading">
+          <div className="dashboard__loading-spinner" />
+          <p>Loading your progress...</p>
         </div>
       </div>
     );
@@ -121,11 +176,11 @@ export default function Dashboard({
           <div className="dashboard__stats-bar">
             <span className="dashboard__stats-item"><strong>{sessionCounts.total}</strong> sessions</span>
             <span className="dashboard__stats-sep" />
-            <span className="dashboard__stats-item"><strong>{notes.length}</strong> notes</span>
+            <span className="dashboard__stats-item"><strong>{notes?.length || 0}</strong> notes</span>
             <span className="dashboard__stats-sep" />
             <span className="dashboard__stats-item">Courses: <strong>{courseCompletionCount}</strong> completed</span>
             <span className="dashboard__stats-sep" />
-            <span className="dashboard__stats-item">Target: <strong>5**</strong></span>
+            <span className="dashboard__stats-item">Streak: <strong>{streakData.streak}d</strong></span>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -135,7 +190,7 @@ export default function Dashboard({
 
       {showCustomize && (
         <div className="dashboard__customize" onClick={() => setShowCustomize(false)}>
-          <div className="dashboard__customize-panel" onClick={e => e.stopPropagation()}>
+          <div className="dashboard__customize-panel" onClick={e => e.stopPropagation()} role="dialog" aria-label="Customize dashboard">
             <h3 className="dashboard__customize-title">Customize Dashboard</h3>
             {DEFAULT_SECTIONS.map(key => (
               <label key={key} className="dashboard__customize-item">
@@ -149,29 +204,41 @@ export default function Dashboard({
 
       <div className="dashboard__grid">
         <Section id="overview" title="📊 Skill Overview">
-          <div className="dse-dashboard__rings">
+          <div className="dse-dashboard__tiles">
             {skillData.map(d => (
-              <SkillRing
+              <SkillTile
                 key={d.skill}
                 skill={d.skill}
                 percentage={d.percentage}
                 dseLevel={d.dseLevel}
+                trend={skillTrends[d.skill]}
                 onClick={() => onSwitchToModule?.(d.module)}
               />
             ))}
           </div>
-          {overallDse === '5**' && (
-            <div className="dse-dashboard__target-reached">
-              🎉 Congratulations! You're at 5** level. Keep practicing to maintain your edge.
-            </div>
-          )}
-          {overallDse !== '5**' && overallDse !== '—' && (
-            <div className="dse-dashboard__target-gap">
-              Target: <strong>5**</strong> &rarr; Current: <strong>{overallDse}</strong>
-              &nbsp;&middot;&nbsp; Keep going!
+          {overallDse !== '—' && overallDse !== '1' && (
+            <div className="dse-dashboard__overall" style={{ textAlign: 'center', marginTop: 12, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+              Overall: <strong>{overallDse}</strong>
             </div>
           )}
         </Section>
+
+        {nextAction && (
+          <Section id="nextAction" title="🎯 Next Action" className="dashboard__section--compact">
+            <div className="dse-dashboard__next-action">
+              <div className="dse-dashboard__next-action-content">
+                <span className="dse-dashboard__next-action-skill">
+                  {nextAction.skill === 'reading' ? '📖' : nextAction.skill === 'writing' ? '✍️' : nextAction.skill === 'listening' ? '🎧' : '🎤'} {nextAction.skill}
+                </span>
+                <span className="dse-dashboard__next-action-text">{nextAction.action}</span>
+                <span className="dse-dashboard__next-action-score">Current: {nextAction.score}%</span>
+              </div>
+              <button className="dse-dashboard__next-action-btn" onClick={() => onSwitchToModule?.(nextAction.skill)}>
+                Practice Now →
+              </button>
+            </div>
+          </Section>
+        )}
 
         {recommended.length > 0 && (
           <Section id="recommendations" title="💡 Recommendations">
@@ -202,11 +269,15 @@ export default function Dashboard({
           </Section>
         )}
 
+        <Section id="radar" title="🕸️ Sub-Skill Breakdown" className="dashboard__section--compact">
+          <SkillsRadar skillData={skillData} sessions={gradeHistory} />
+        </Section>
+
         {weakAreas.length > 0 && (
           <Section id="weakAreas" title="🎯 Areas to Improve">
             <div className="dse-dashboard__weak-list">
               {weakAreas.map((w, i) => (
-                <div key={i} className="dse-dashboard__weak-item" onClick={() => onSwitchToModule?.(w.skill)}>
+                <div key={i} className="dse-dashboard__weak-item" onClick={() => onSwitchToModule?.(w.skill)} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onSwitchToModule?.(w.skill); }}>
                   <span className="dse-dashboard__weak-skill">
                     {w.skill === 'reading' ? '📖' : w.skill === 'writing' ? '✍️' : w.skill === 'listening' ? '🎧' : '🎤'} {w.skill}
                   </span>
@@ -219,33 +290,6 @@ export default function Dashboard({
               ))}
             </div>
           </Section>
-        )}
-
-        {Object.keys(improvements).length > 0 && (
-          <div className="dashboard__section">
-            <div className="dashboard__section-header">
-              <h2 className="dashboard__section-title">📈 Course Improvements</h2>
-              <button className="dashboard__section-hide" onClick={() => {}} title="Course improvement tracking">✕</button>
-            </div>
-            <div className="dse-dashboard__improvements">
-              {Object.entries(improvements).slice(0, 3).map(([courseId, entry]) => {
-                const areas = entry.beforeAnalysis?.filter?.(b => b.percentage < 60) || [];
-                return areas.length > 0 ? (
-                  <div key={courseId} className="dse-dashboard__improvement-item">
-                    <span className="dse-dashboard__improvement-area">
-                      {areas.slice(0, 2).map(a => a.area).join(', ')}
-                    </span>
-                    <span className="dse-dashboard__improvement-detail">
-                      {areas.map(a => `${a.area}: ${a.percentage}%`).join(', ')}
-                    </span>
-                    <span className="dse-dashboard__improvement-date">
-                      {new Date(entry.trackedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                ) : null;
-              })}
-            </div>
-          </div>
         )}
 
         <Section id="quickActions" title="⚡ Quick Actions">
@@ -269,6 +313,10 @@ export default function Dashboard({
             <button className="dashboard__action" onClick={() => onSwitchToModule?.('writing')}>
               <span className="dashboard__action-icon">✍️</span>
               <span className="dashboard__action-label">Writing Prompt</span>
+            </button>
+            <button className="dashboard__action" onClick={() => onSwitchToModule?.('listening')}>
+              <span className="dashboard__action-icon">🎧</span>
+              <span className="dashboard__action-label">Listening Drill</span>
             </button>
             <button className="dashboard__action" onClick={() => onSwitchToModule?.('speaking')}>
               <span className="dashboard__action-icon">🎤</span>

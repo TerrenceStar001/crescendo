@@ -12,7 +12,8 @@
 import { Router } from 'express';
 import { getDB } from '../db/connection.js';
 import { parsePdf } from '../crawlers/pdfParser.js';
-import { semanticValidate } from '../utils/courseSemanticValidator.js';
+import { semanticValidate, buildRetryFeedback } from '../utils/courseSemanticValidator.js';
+import { TUTOR_ENGINE_PROMPT, buildCoursePrompt as buildTutorPrompt } from '../prompts/courseGeneratorPrompt.js';
 
 const router = Router();
 
@@ -165,101 +166,33 @@ function parseJSONResponse(text) {
 }
 
 /**
- * buildCoursePrompt — Build structured AI prompt for course generation.
+ * buildCoursePrompt — Build structured AI prompt for PDF-import course generation.
+ * Uses TUTOR_ENGINE_PROMPT as base with PDF content injected.
  */
 function buildCoursePrompt(sanitizedText, extraInstruction = '') {
-  return `You are an expert course designer for an English language learning platform. Analyze the provided content and create a structured course where each lesson includes a READING PASSAGE followed by comprehension exercises.
+  return `${TUTOR_ENGINE_PROMPT}
 
 CONTENT TO ANALYZE (this is the raw source text from a PDF):
 ${sanitizedText}
 
-INSTRUCTIONS:
-1. Identify the subject domain of the content (e.g., science, technology, business, history, literature, arts, mathematics, law, medicine, environment, social-sciences, engineering, sports, philosophy, music, geography, languages, religion, media, health, military, economics, agriculture, vocational, education, communication, design, culinary, or any other domain)
-2. Split the source content into meaningful sections — one section per lesson
-3. For each lesson, include the actual source text as the "referenceContent" (this is the reading passage the learner will read)
-4. Create exercises that test comprehension of THAT lesson's referenceContent
-5. Exercises must be self-contained — the learner must be able to answer them after reading only the lesson's referenceContent
-6. Do NOT reference paragraph numbers, page numbers, or "the text above" — the referenceContent IS the text
-7. For referenceContent: extract the actual passage from the source text and format it as clean, readable prose. Structure it with proper paragraphs (separate paragraphs with double newlines \\n\\n). Convert bullet symbols (➢, •, →, etc.) into proper Markdown formatting (ordered/unordered lists). Remove PDF extraction artifacts like page numbers, headers, and footers. The referenceContent should be a polished, readable passage — NOT raw scraped text.
-8. Every exercise MUST include an "explanation" field (2-3 sentences minimum). The explanation teaches the learner WHY the answer is correct and WHY common wrong answers are incorrect. This is the primary learning mechanism — never omit it.
-9. For mcq exercises: ALWAYS include an "options" array with exactly 4 string options (one correct, three plausible distractors). Without options, the exercise is unplayable.
-
-COURSE STRUCTURE:
-- 3-5 topics (grouped by conceptual area)
-- Each topic has 2-4 lessons with clear learning objectives
-- Each lesson has 3-5 exercises that test understanding of the lesson's referenceContent
-- Each lesson's referenceContent MUST be a DIRECT EXCERPT from the source content above (the actual text passage the learner reads before attempting exercises)
-- Include a final assessment covering all topics
-
-QUESTION TYPES: gap-fill, matching, cloze, short-answer, sentence-rewrite, reordering, mcq
+ADDITIONAL INSTRUCTIONS:
+1. Split the source content into meaningful sections — one section per lesson
+2. For each lesson, include the actual source text as the "referenceContent" (this is the reading passage the learner will read)
+3. Create exercises that test comprehension of THAT lesson's referenceContent
+4. Exercises must be self-contained — the learner must be able to answer them after reading only the lesson's referenceContent
+5. Do NOT reference paragraph numbers, page numbers, or "the text above" — the referenceContent IS the text
+6. For referenceContent: extract the actual passage from the source text and format it as clean, readable prose. Structure it with proper paragraphs (separate paragraphs with double newlines \\n\\n). Convert bullet symbols (➢, •, →, etc.) into proper Markdown formatting (ordered/unordered lists). Remove PDF extraction artifacts like page numbers, headers, and footers. The referenceContent should be a polished, readable passage — NOT raw scraped text.
+7. Assess difficulty based on actual content complexity:
+   - "beginner" → simple vocabulary, basic concepts, short sentences
+   - "intermediate" → some technical terms, moderate sentence complexity
+   - "advanced" → specialized vocabulary, complex structures, abstract concepts
 
 TAGS:
 Generate 4-8 tags that accurately describe the course's focus. Tags use "category:subcategory" format. Derive tags from the actual content — do NOT use generic or mismatched tags.
 
-Appropriate tag examples across many subject domains (use only what fits your content):
-- science → "science:biology", "science:chemistry", "science:physics", "science:astronomy", "science:geology", "science:ecology", "science:genetics", "science:neuroscience", "science:microbiology", "science:botany", "science:zoology", "science:biochemistry", "vocab:scientific-terminology", "reading:research-methods"
-- technology → "technology:computing", "technology:programming", "technology:networking", "technology:cybersecurity", "technology:data-science", "technology:ai-ml", "technology:software-engineering", "technology:web-dev", "technology:cloud", "technology:robotics", "technology:blockchain", "technology:game-dev", "technology:cryptography", "technology:iot", "vocab:technical-terms"
-- business → "business:management", "business:finance", "business:marketing", "business:accounting", "business:entrepreneurship", "business:economics", "business:housing", "business:supply-chain", "business:real-estate", "business:investment", "business:ecommerce", "business:banking", "business:consulting", "business:project-management", "writing:reports", "writing:proposals", "vocab:business-english"
-- history → "history:world-war", "history:ancient-civilizations", "history:modern-history", "history:medieval", "history:colonial", "history:art-history", "history:military", "history:diplomacy", "history:revolution", "history:archaeology", "history:cultural", "reading:primary-sources", "reading:historiography"
-- literature → "literature:analysis", "literature:poetry", "literature:drama", "literature:fiction", "literature:non-fiction", "literature:criticism", "literature:comparative", "literature:mythology", "literature:creative-writing", "literature:rhetoric", "writing:essays", "vocab:literary-terms"
-- arts → "arts:visual", "arts:music", "arts:theater", "arts:dance", "arts:film", "arts:photography", "arts:architecture", "arts:painting", "arts:sculpture", "arts:graphic-design", "arts:fashion", "arts:animation", "arts:calligraphy", "vocab:aesthetic-terminology"
-- mathematics → "math:algebra", "math:geometry", "math:calculus", "math:statistics", "math:trigonometry", "math:number-theory", "math:probability", "math:linear-algebra", "math:discrete-math", "math:topology", "reading:problem-solving", "reading:proofs"
-- law → "law:contract", "law:criminal", "law:constitutional", "law:human-rights", "law:international", "law:corporate", "law:ip", "law:tort", "law:legal-writing", "vocab:legal-terminology", "writing:argumentation"
-- medicine → "medicine:anatomy", "medicine:physiology", "medicine:pharmacology", "medicine:epidemiology", "medicine:pathology", "medicine:cardiology", "medicine:neurology", "medicine:pediatrics", "medicine:psychiatry", "medicine:oncology", "medicine:public-health", "medicine:immunology", "medicine:nutrition", "vocab:medical-terminology"
-- environment → "environment:climate", "environment:conservation", "environment:ecology", "environment:renewable-energy", "environment:pollution", "environment:sustainability", "environment:forestry", "environment:marine", "environment:agriculture", "reading:scientific-texts"
-- social-sciences → "social:psychology", "social:sociology", "social:anthropology", "social:political-science", "social:geography", "social:linguistics", "social:education", "social:international-relations", "social:behavioral-economics", "vocab:academic-language"
-- engineering → "engineering:mechanical", "engineering:electrical", "engineering:chemical", "engineering:structural", "engineering:aerospace", "engineering:industrial", "engineering:biomedical", "engineering:nuclear", "engineering:computer-engineering", "vocab:engineering-terminology"
-- sports → "sports:fitness", "sports:nutrition", "sports:sports-medicine", "sports:coaching", "sports:team-sports", "sports:athletics", "sports:martial-arts", "sports:swimming", "sports:gymnastics", "sports:yoga", "vocab:sports-terminology"
-- philosophy → "philosophy:ethics", "philosophy:logic", "philosophy:metaphysics", "philosophy:epistemology", "philosophy:aesthetics", "philosophy:political", "philosophy:existentialism", "reading:analytical-texts"
-- music → "music:theory", "music:composition", "music:performance", "music:history", "music:vocal", "music:instrumental", "music:production", "vocab:music-terminology"
-- geography → "geography:physical", "geography:human", "geography:cartography", "geography:urban-planning", "geography:geopolitics", "geography:demography", "geography:climatology", "reading:maps-data"
-- languages → "languages:french", "languages:spanish", "languages:japanese", "languages:latin", "languages:translation", "languages:linguistics", "languages:english-lit", "vocab:language-terminology"
-- religion → "religion:theology", "religion:comparative", "religion:biblical-studies", "religion:world-religions", "religion:spirituality", "reading:sacred-texts"
-- media → "media:journalism", "media:broadcasting", "media:advertising", "media:public-relations", "media:social-media", "media:publishing", "media:digital-media", "writing:journalism"
-- health → "health:public-health", "health:nursing", "health:pharmacy", "health:physiotherapy", "health:counseling", "health:mental-health", "health:dietetics", "vocab:health-terminology"
-- military → "military:strategy", "military:history", "military:defense", "military:security-studies", "military:peacekeeping", "military:intelligence", "reading:tactical-documents"
-- economics → "economics:microeconomics", "economics:macroeconomics", "economics:econometrics", "economics:development", "economics:trade", "economics:monetary-policy", "reading:economic-data"
-- agriculture → "agriculture:farming", "agriculture:horticulture", "agriculture:agronomy", "agriculture:soil-science", "agriculture:irrigation", "vocab:agricultural-terminology"
-- vocational → "vocational:culinary-arts", "vocational:hospitality", "vocational:tourism", "vocational:aviation", "vocational:construction", "vocational:automotive", "vocational:cosmetology", "vocational:electrical"
-- general-english → "grammar:tenses", "grammar:articles", "grammar:prepositions", "grammar:passive-voice", "grammar:conditionals", "grammar:reported-speech", "grammar:modals", "vocab:everyday", "vocab:academic", "vocab:business", "speaking:conversation", "speaking:presentation", "writing:emails", "writing:essays", "writing:reports", "reading:comprehension", "listening:comprehension", "ielts:preparation"
-
-DIFFICULTY:
-Assess difficulty based on actual content complexity:
-- "beginner" → simple vocabulary, basic concepts, short sentences
-- "intermediate" → some technical terms, moderate sentence complexity
-- "advanced" → specialized vocabulary, complex structures, abstract concepts
-
 ${extraInstruction}
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "title": string (clear, descriptive title reflecting the content),
-  "description": string (what learners will gain, 2-3 sentences),
-  "tags": string[] (4-8 tags in "category:subcategory" format, derived from actual content),
-  "difficulty": "beginner" | "intermediate" | "advanced",
-  "topics": [{
-    "title": string,
-    "learningObjectives": string[],
-    "lessons": [{
-      "title": string,
-      "exercises": [{
-        "question": string,
-        "type": string,
-        "answer": string,
-        "explanation": string (required — 2-3 sentences explaining why the answer is correct),
-        "difficulty": number (1-5),
-        "options": string[] (required for mcq type — exactly 4 options)
-      }],
-      "referenceContent": string
-    }]
-  }],
-  "finalAssessment": {
-    "title": string,
-    "exercises": [{ ... same exercise shape ... }]
-  }
-}
-
-Do NOT include any markdown code fences, explanations, or text outside the JSON.`;
+Remember: Return ONLY a valid JSON object. NO markdown fences. NO extra text. NO code blocks. ONLY the raw JSON.`;
 }
 
 /**
@@ -326,17 +259,13 @@ async function callAICourse(promptText, retries = 2) {
       if (allErrors.length > 0) {
         console.warn(`[courses] Validation attempt ${attempt + 1} failed:`, allErrors.join('; '));
         if (attempt < retries) {
-          promptText = `The previous attempt had validation errors:
-${allErrors.join('; ')}
-Specific corrections needed:
-- MCQ answers must be one of the provided options
-- Gap-fill/cloze answers must appear verbatim in the lesson referenceContent
-- Explanations must be at least 40 characters
-- Each lesson needs at least 3 exercises
-- ReferenceContent must be at least 150 words
+          const feedback = buildRetryFeedback(allErrors);
+          promptText = `The previous attempt had validation errors that MUST be fixed:
+
+${feedback}
 
 ${promptText}
-IMPORTANT: Fix these errors: ${allErrors.join('; ')}`;
+CRITICAL: Fix ALL of the above errors exactly as described. Pay special attention to missing structural elements, exercise type requirements, and semantic rules.`;
           continue;
         }
         break;
@@ -750,47 +679,7 @@ router.post('/auto-generate', async (req, res) => {
       }
     }
 
-    const aiPrompt = `You are an expert course designer for an English learning platform. Generate a structured course targeting these weakness areas.
-
-WEAKNESS TAGS: ${JSON.stringify(weaknessTags)}
-${completedContext}
-STRUCTURE:
-- 3-5 topics (grouped by skill area)
-- Each topic has 2-4 lessons
-- Each lesson has 3-5 exercises
-- Exercise types: gap-fill, matching, cloze, short-answer, sentence rewrite, reordering, mcq
-- Include referenceContent for each lesson (unlockable after struggle)
-- Final assessment mixes all exercise types
-
-Return ONLY a JSON object:
-{
-  "title": string,
-  "description": string,
-  "tags": string[],  // 4-8 tags in "category:subcategory" format reflecting the target areas
-  "difficulty": "beginner" | "intermediate" | "advanced",
-  "topics": [{
-    "title": string,
-    "learningObjectives": string[],
-    "lessons": [{
-      "title": string,
-      "exercises": [{
-        "question": string,
-        "type": string,
-        "answer": string,
-        "explanation": string (required — 2-3 sentences explaining why the answer is correct),
-        "difficulty": number (1-5),
-        "options": string[] (required for mcq type — exactly 4 options)
-      }],
-      "referenceContent": string
-    }]
-  }],
-  "finalAssessment": {
-    "title": string,
-    "exercises": [{ ... same exercise shape ... }]
-  }
-}
-
-Do NOT include any markdown code fences or text outside the JSON.`;
+    const aiPrompt = buildTutorPrompt(weaknessTags, completedContext, false);
 
     // Use the same callAICourse helper with retry logic
     const result = await callAICourse(aiPrompt, 2);

@@ -173,8 +173,10 @@ export function dismissRecommendation(tagSet) {
 /**
  * validateCourse: Validates the full course structure.
  * Returns { valid: boolean, errors: string[] }.
+ * @param {object} courseObj
+ * @param {object} [options] - { simplerContent?: boolean, isLegacy?: boolean }
  */
-export function validateCourse(courseObj) {
+export function validateCourse(courseObj, options = {}) {
   const errors = [];
 
   if (!courseObj || typeof courseObj !== 'object') {
@@ -244,9 +246,21 @@ export function validateCourse(courseObj) {
     errors.push(`Course difficulty must be one of: beginner, intermediate, advanced (got "${courseObj.difficulty}")`);
   }
 
-  // Add semantic validation after structural checks
-  const semanticResult = semanticValidate(courseObj);
-  errors.push(...semanticResult.errors);
+  // Validate finalAssessment if present
+  if (courseObj.finalAssessment) {
+    if (!courseObj.finalAssessment.title || typeof courseObj.finalAssessment.title !== 'string') {
+      errors.push('finalAssessment must have a title (string)');
+    }
+    if (!Array.isArray(courseObj.finalAssessment.exercises) || courseObj.finalAssessment.exercises.length === 0) {
+      errors.push('finalAssessment must have at least one exercise');
+    }
+  }
+
+  // Add semantic validation after structural checks (skip for legacy)
+  if (!options.isLegacy) {
+    const semanticResult = semanticValidate(courseObj, options);
+    errors.push(...semanticResult.errors);
+  }
 
   return { valid: errors.length === 0, errors };
 }
@@ -307,14 +321,35 @@ export function validateExercise(exercise, type) {
 /**
  * semanticValidate — Client-side semantic validation for course drafts.
  * Mirrors the server validator in server/utils/courseSemanticValidator.js.
- * All 5 checks are local helpers — only semanticValidate is exported.
+ * CRITICAL: SYNCHRONIZE WITH SERVER COPY — both must implement the same 14 checks.
  * @param {object} courseDraft
+ * @param {object} [options] - { simplerContent?: boolean }
  * @returns {{ valid: boolean, errors: string[] }}
  */
-export function semanticValidate(courseDraft) {
+export function semanticValidate(courseDraft, options = {}) {
+  const config = {
+    minWords: options.simplerContent ? 150 : 250,
+    minExercises: 3,
+    requireStrategyNote: !options.simplerContent,
+    requireTextTypeBlueprint: !options.simplerContent,
+    requireLevelUpContrasts: !options.simplerContent,
+    requireExerciseDiversity: !options.simplerContent,
+    blameDepthMin: options.simplerContent ? 2 : 3,
+    blockVerbatimRecall: !options.simplerContent,
+    blockFormulaQuestion: !options.simplerContent,
+  };
+
   const errors = [];
   if (!courseDraft || typeof courseDraft !== 'object') return { valid: false, errors: ['Course draft must be an object'] };
   if (!Array.isArray(courseDraft.topics)) return { valid: false, errors: ['Course draft must have a topics array'] };
+
+  // Check topic count
+  if (!options.simplerContent && courseDraft.topics.length !== 3) {
+    errors.push(`Course must have exactly 3 topics/sub-topics (found ${courseDraft.topics.length})`);
+  }
+  if (options.simplerContent && courseDraft.topics.length < 1) {
+    errors.push('Course must have at least 1 topic');
+  }
 
   courseDraft.topics.forEach((topic, ti) => {
     if (!topic || typeof topic !== 'object') return;
@@ -325,16 +360,59 @@ export function semanticValidate(courseDraft) {
 
       // Lesson-level checks
       const refContent = lesson.referenceContent;
-      if (refContent && typeof refContent === 'string') {
+      if (!refContent || typeof refContent !== 'string') {
+        errors.push(`Topic ${ti}, Lesson ${li}: referenceContent missing or not a string`);
+      } else {
         const wordCount = refContent.trim().split(/\s+/).length;
-        if (wordCount < 150) {
-          errors.push(`Topic ${ti}, Lesson ${li}: referenceContent too short (${wordCount} words, minimum 150)`);
+        if (wordCount < config.minWords) {
+          errors.push(`Topic ${ti}, Lesson ${li}: referenceContent too short (${wordCount} words, minimum ${config.minWords})`);
         }
       }
 
       const exCount = lesson.exercises?.length || 0;
-      if (exCount < 3) {
-        errors.push(`Topic ${ti}, Lesson ${li}: insufficient exercises (${exCount}, minimum 3)`);
+      if (exCount < config.minExercises) {
+        errors.push(`Topic ${ti}, Lesson ${li}: insufficient exercises (${exCount}, minimum ${config.minExercises})`);
+      }
+
+      // Advanced lesson-level checks
+      if (config.requireStrategyNote) {
+        const text = [lesson.title || '', lesson.referenceContent || '', ...(lesson.exercises || []).map(e => e.question || '')].join(' ');
+        const strategyRegex = /(##?\s*Tutor'?s\s*Strategy\s*Note|\n\s*Tutor'?s\s*Strategy\s*Note:)/i;
+        if (!strategyRegex.test(text)) {
+          errors.push(`Topic ${ti}, Lesson ${li} ("${lesson.title || 'unnamed'}"): missing Tutor's Strategy Note with HKEAA examiner trap pattern`);
+        }
+      }
+
+      if (config.requireTextTypeBlueprint) {
+        const courseTags = courseDraft.tags || [];
+        const isWritingCourse = courseTags.some(t => /^writing:(?:formal-)?(?:letter|report|speech|proposal|article|email|blog|diary)/i.test(t));
+        if (isWritingCourse) {
+          const text = [lesson.title || '', lesson.referenceContent || '', ...(lesson.exercises || []).map(e => e.question || '')].join(' ');
+          const blueprintRegex = /(Text-Type Structural Blueprint|Structural Skeleton|-----+\s*(?:Structure|Format|Skeleton))[\s\S]{10,}(?:->|➔|Paragraph|\d\.|•|- )/i;
+          if (!blueprintRegex.test(text)) {
+            errors.push(`Topic ${ti}, Lesson ${li} ("${lesson.title || 'unnamed'}"): missing Text-Type Structural Blueprint with structural skeleton`);
+          }
+        }
+      }
+
+      if (config.requireLevelUpContrasts) {
+        const text = [lesson.title || '', lesson.referenceContent || '', ...(lesson.exercises || []).map(e => [e.question || '', e.explanation || '']).flat()].join(' ');
+        const contrastRegex = /\*\*Level 3 Baseline:\*\*[\s\S]*?\*\*Level 5\*\* Elite:\*\*/g;
+        const matches = text.match(contrastRegex) || [];
+        if (matches.length < 3) {
+          errors.push(`Topic ${ti}, Lesson ${li} ("${lesson.title || 'unnamed'}"): insufficient Level-Up Contrasts (found ${matches.length}, minimum 3 L3→L5** transformations)`);
+        }
+      }
+
+      if (config.requireExerciseDiversity) {
+        const types = (lesson.exercises || []).map(e => e.type);
+        const mcqCount = types.filter(t => t === 'mcq').length;
+        const gfCount = types.filter(t => t === 'gap-fill').length;
+        const saCount = types.filter(t => t === 'short-answer').length;
+        const otherCount = types.filter(t => !['mcq', 'gap-fill', 'short-answer'].includes(t)).length;
+        if (mcqCount !== 1 || gfCount !== 1 || saCount !== 1 || otherCount > 0) {
+          errors.push(`Topic ${ti}, Lesson ${li} ("${lesson.title || 'unnamed'}"): exercise type mismatch — expected exactly 1 MCQ (found ${mcqCount}), 1 gap-fill (${gfCount}), 1 short-answer (${saCount})${otherCount > 0 ? `, unexpected types: ${otherCount}` : ''}`);
+        }
       }
 
       // Exercise-level checks
@@ -342,14 +420,47 @@ export function semanticValidate(courseDraft) {
         lesson.exercises.forEach((exercise, ei) => {
           if (!exercise || typeof exercise !== 'object') return;
 
+          // MCQ answer in options
           if (exercise.type === 'mcq' && Array.isArray(exercise.options) && exercise.options.length > 0) {
             const opts = exercise.options.map(o => String(o).toLowerCase().trim());
-            const ans = String(exercise.answer || '').toLowerCase().trim();
-            if (ans && !opts.includes(ans)) {
+            const optsStripped = opts.map(o => o.replace(/^[a-d][.)\s]+/, ''));
+            const ansRaw = String(exercise.answer || '').toLowerCase().trim();
+            const ansStripped = ansRaw.replace(/^[a-d][.)\s]+/, '');
+            const letterMatch = /^[a-d]$/.test(ansStripped) && exercise.options.some(o => String(o).toLowerCase().trim().startsWith(ansStripped));
+            const textMatch = opts.includes(ansRaw) || optsStripped.includes(ansRaw) || optsStripped.includes(ansStripped);
+            if (!letterMatch && !textMatch) {
               errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): answer "${exercise.answer}" not found in options [${exercise.options.join(', ')}]`);
             }
           }
 
+          // MCQ option count
+          if (exercise.type === 'mcq' && (!Array.isArray(exercise.options) || exercise.options.length !== 4)) {
+            errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): must have exactly 4 options (found ${exercise.options?.length || 0})`);
+          }
+
+          // MCQ options labelled
+          if (exercise.type === 'mcq' && Array.isArray(exercise.options) && exercise.options.length > 0) {
+            const labelled = exercise.options.every(o => /^[a-d][.)\s]/i.test(String(o).trim()));
+            if (!labelled) {
+              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): options should be labelled A/B/C/D (e.g. "A) option text")`);
+            }
+          }
+
+          // MCQ answer not verbatim
+          if (exercise.type === 'mcq' && config.blockVerbatimRecall && exercise.answer) {
+            const content = lesson.referenceContent;
+            if (content && typeof content === 'string') {
+              const ans = String(exercise.answer || '').toLowerCase().trim();
+              if (ans.length >= 4 && ans.length <= 120 && content.toLowerCase().includes(ans)) {
+                const words = ans.split(/\s+/);
+                if (words.length <= 4) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): answer "${exercise.answer}" is a verbatim quote from reference content — rewrite to require reasoning, not recall`);
+                }
+              }
+            }
+          }
+
+          // Gap-fill answer in referenceContent
           if ((exercise.type === 'gap-fill' || exercise.type === 'cloze') && exercise.answer) {
             const content = lesson.referenceContent;
             if (content && typeof content === 'string') {
@@ -359,9 +470,42 @@ export function semanticValidate(courseDraft) {
             }
           }
 
+          // Explanation length
           const explLen = exercise.explanation?.trim().length || 0;
           if (explLen < 40) {
             errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: explanation too short (${explLen} chars, minimum 40)`);
+          }
+
+          // Bloom's depth
+          if (exercise.question) {
+            const stem = (exercise.question || '').toLowerCase();
+            const recall = ['what is', 'what does', 'define', 'list', 'name', 'identify', 'when did', 'who wrote', 'according to', 'how many', 'what year', 'fill in the blank with'];
+            const deep = ['compare', 'contrast', 'distinguish', 'differentiate', 'evaluate', 'judge', 'which is better', 'what is wrong', 'identify the problem', 'which strategy', 'diagnose', 'why does', 'what would happen', 'which best', 'most likely', 'which of the following best', 'choose the best'];
+            let bloom = 3;
+            for (const v of deep) if (stem.includes(v)) bloom = 4;
+            for (const v of recall) if (stem.startsWith(v) || stem.includes(' ' + v) || stem.includes(v)) bloom = Math.min(bloom, 1);
+            if (bloom < config.blameDepthMin) {
+              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: Bloom's depth ${bloom} (minimum ${config.blameDepthMin}) — exercise tests recall, rewrite to require understanding or application`);
+            }
+          }
+
+          // Formula question detection
+          if (config.blockFormulaQuestion && exercise.question) {
+            const stem = (exercise.question || '').toLowerCase();
+            const answer = String(exercise.answer || '');
+            const prescriptiveCount = /how\s+(many|much)\s.*\b(should|typically|usually|must|does|do)\b/.test(stem);
+            if (prescriptiveCount) {
+              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: formula question detected — "how many X should Y" tests memorised rules, not understanding`);
+            } else if (/^\d+\s*[-–—to]+\s*\d+$/.test(answer.trim())) {
+              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: answer is a numeric range (${answer}) — tests formula recall, not understanding`);
+            } else if (/^\d+$/.test(answer.trim()) && parseInt(answer) > 1) {
+              const entityCount = /\b(how many|how much)\b/.test(stem);
+              const structureEntity = /\b(sentences?|paragraphs?|words?|steps?|points?|stages?|phases?|parts?|sections?|marks?)\b/.test(stem);
+              const prescriptive = /\b(should|typically|usually|must|always|every)\b/.test(stem);
+              if (entityCount && structureEntity && prescriptive) {
+                errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: formula question detected — answer is a number (${answer}) for a prescriptive count, tests formula recall`);
+              }
+            }
           }
         });
       }
@@ -369,4 +513,52 @@ export function semanticValidate(courseDraft) {
   });
 
   return { valid: errors.length === 0, errors };
+}
+
+/**
+ * buildRetryFeedback — Formats validation errors into structured retry feedback for AI.
+ * Groups errors by lesson for clearer correction instructions.
+ * @param {string[]} errors
+ * @returns {string}
+ */
+export function buildRetryFeedback(errors) {
+  if (!errors?.length) return '';
+  const groups = {};
+  for (const err of errors) {
+    const match = err.match(/^Topic (\d+), Lesson (\d+)/);
+    if (match) {
+      const key = `Topic ${match[1]}, Lesson ${match[2]}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(err);
+    } else {
+      if (!groups['_general']) groups['_general'] = [];
+      groups['_general'].push(err);
+    }
+  }
+  const parts = [];
+  for (const [key, errs] of Object.entries(groups)) {
+    if (key === '_general') {
+      parts.push('General:\n  - ' + errs.join('\n  - '));
+    } else {
+      parts.push(`${key}:\n  - ` + errs.map(e => e.replace(/^Topic \d+, Lesson \d+: /, '').replace(/^Topic \d+, Lesson \d+/, '')).join('\n  - '));
+    }
+  }
+  return parts.join('\n\n');
+}
+
+/**
+ * safeMapLegacyCourse — Migration layer for backward compatibility.
+ * Tags existing courses as legacy to skip advanced structural checks.
+ * @param {object} course
+ * @returns {object}
+ */
+export function safeMapLegacyCourse(course) {
+  if (!course) return course;
+  if (course.version >= 2) return course;
+  return {
+    ...course,
+    version: 2,
+    isLegacy: true,
+    tag: course.tag || course.tags?.[0] || 'HKDSE-CORE',
+  };
 }

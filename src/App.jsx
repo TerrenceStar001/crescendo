@@ -32,7 +32,7 @@ import WritingModule from './components/WritingModule';
 import ListeningModule from './components/ListeningModule';
 import SpeakingModule from './components/SpeakingModule';
 import corpusIndex from './utils/corpusIndex';
-import { WEAKNESS_TO_TAG_MAP } from './utils/courseSchema';
+import { WEAKNESS_TO_TAG_MAP, safeMapLegacyCourse } from './utils/courseSchema';
 import { QUESTION_TYPE_TO_AREA } from './utils/errorPatternAnalysis';
 import './App.css';
 
@@ -80,6 +80,7 @@ function CrescendoApp() {
   const [courses, setCourses] = useState([]);
   const [showCourseIngestion, setShowCourseIngestion] = useState(false);
   const [activeCourseId, setActiveCourseId] = useState(null);
+  const [activeCourse, setActiveCourse] = useState(null);
   const [courseView, setCourseView] = useState('catalog'); // 'catalog' | 'overview' | 'player'
   const [enrolledIds, setEnrolledIds] = useState([]);
   const [completedIds, setCompletedIds] = useState([]);
@@ -113,9 +114,11 @@ function CrescendoApp() {
   }, [saveCourseFn, refreshCourses]);
 
   const handleOpenCourse = useCallback((courseId) => {
+    const course = courses.find(c => c.id === courseId);
     setActiveCourseId(courseId);
+    setActiveCourse(course || null);
     setCourseView('overview');
-  }, []);
+  }, [courses]);
 
   const handleStartCourse = useCallback((courseId) => {
     setActiveCourseId(courseId);
@@ -124,6 +127,7 @@ function CrescendoApp() {
 
   const handleBackToCatalog = useCallback(() => {
     setActiveCourseId(null);
+    setActiveCourse(null);
     setCourseView('catalog');
   }, []);
 
@@ -247,6 +251,29 @@ function CrescendoApp() {
 
     return () => clearTimeout(timer);
   }, [skillAnalytics?.sessions?.length, getCompletedCoursesFn, checkAndRegenerateCourseFn, callAI, refreshCourses]);
+
+  // Legacy course migration: stamp existing courses with isLegacy flag
+  const migrationRef = useRef(false);
+  useEffect(() => {
+    if (migrationRef.current) return;
+    migrationRef.current = true;
+    (async () => {
+      try {
+        const existing = await getCoursesFn();
+        let migrated = false;
+        for (const course of existing) {
+          const mapped = safeMapLegacyCourse(course);
+          if (mapped !== course) {
+            await saveCourseFn(mapped);
+            migrated = true;
+          }
+        }
+        if (migrated) refreshCourses();
+      } catch (e) {
+        console.warn('[course-migration] Failed to migrate:', e.message);
+      }
+    })();
+  }, []);
 
   // Seed course loader: import bundled seed courses on first launch
   const seedCoursesRef = useRef(false);
@@ -1132,7 +1159,7 @@ function CrescendoApp() {
             />
           ) : courseView === 'player' && activeCourseId ? (
             <CoursePlayer
-              course={courses.find(c => c.id === activeCourseId) || {}}
+              course={activeCourse || courses.find(c => c.id === activeCourseId) || {}}
               onBack={handleBackToCatalog}
               callAI={callAI}
               dsePapers={dsePapers}
@@ -1140,7 +1167,7 @@ function CrescendoApp() {
             />
           ) : courseView === 'overview' && activeCourseId ? (
             <CourseOverview
-              course={courses.find(c => c.id === activeCourseId) || {}}
+              course={activeCourse || courses.find(c => c.id === activeCourseId) || {}}
               onBack={handleBackToCatalog}
               onStart={handleStartCourse}
               callAI={callAI}

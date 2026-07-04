@@ -8,7 +8,8 @@
  */
 import { useCallback } from 'react';
 import { useIndexedDB } from './useIndexedDB';
-import { calculateCourseRecommendations, validateCourse } from '../utils/courseSchema';
+import { calculateCourseRecommendations, validateCourse, buildRetryFeedback } from '../utils/courseSchema';
+import { buildCoursePrompt as buildTutorPrompt } from '../prompts/courseGeneratorPrompt';
 
 const ENROLLMENT_KEY = 'crescendo-course-enrollments';
 const COMPLETED_KEY = 'crescendo-course-completed';
@@ -371,106 +372,81 @@ export default function useCourses() {
       // Continue to frontend AI fallback
     }
 
-    // Tier 2: Frontend AI call
-    try {
-      const structureDesc = simplerContent
-        ? `- 1 topic (grouped by skill area)\n- Each topic has 1 lesson\n- Each lesson has a "referenceContent" field containing an actual readable passage about the topic (this is the reading material the learner studies)\n- Each lesson has 2 exercises that test understanding of the lesson's referenceContent`
-        : `- 3-5 topics (grouped by skill area)\n- Each topic has 2-4 lessons\n- Each lesson has a "referenceContent" field containing an actual readable passage about the topic (this is the reading material the learner studies)\n- Each lesson has 3-5 exercises that test understanding of the lesson's referenceContent`;
-
-      const simplerNote = simplerContent
-        ? '\n\nCRITICAL: Generate highly concise, straightforward reference passages (150-200 words max) and prioritize highly predictable, standardized question syntax to maximize validation compliance.'
-        : '';
-
-      const aiPrompt = `You are an English course designer. Generate a structured course targeting these weakness areas. Each lesson must include a reading passage (referenceContent) that the learner reads before attempting exercises.
-
-WEAKNESS TAGS: ${JSON.stringify(weaknessTags)}
-
-STRUCTURE:
-${structureDesc}
-- Exercise types: gap-fill, matching, cloze, short-answer, sentence-rewrite, reordering, mcq
-- Final assessment mixes all exercise types
-
-IMPORTANT: The referenceContent must be a self-contained reading passage. Exercises must be answerable after reading only the lesson's referenceContent. Do NOT reference external texts, paragraph numbers, or page numbers.
-
-Return ONLY a JSON object with no markdown fences:
-{
-  "title": string,
-  "description": string,
-  "tags": string[],
-  "difficulty": "beginner" | "intermediate" | "advanced",
-  "topics": [{
-    "title": string,
-    "learningObjectives": string[],
-    "lessons": [{
-      "title": string,
-      "exercises": [{
-        "question": string,
-        "type": string,
-        "answer": string,
-        "explanation": string,
-        "difficulty": number (1-5)
-      }],
-      "referenceContent": string
-    }]
-  }],
-  "finalAssessment": {
-    "title": string,
-    "exercises": [{ ... same shape ... }]
-  }
-}${simplerNote}`;
-      const text = await Promise.race([
-        callAI(aiPrompt, { maxTokens: 4096, temperature: 0.3 }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 120000)),
-      ]);
-      function extractJSON(text) {
-        if (!text || typeof text !== 'string') return null;
-        const trimmed = text.trim();
-
-        // Strategy 1: Find first { and last }, try parse
-        const firstBrace = trimmed.indexOf('{');
-        const lastBrace = trimmed.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace > firstBrace) {
-          try { return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)); } catch { /* continue */ }
-        }
-
-        // Strategy 2: Brace-depth tracking
-        if (firstBrace !== -1) {
-          let depth = 0;
-          for (let i = firstBrace; i < trimmed.length; i++) {
-            if (trimmed[i] === '{') depth++;
-            else if (trimmed[i] === '}') {
-              depth--;
-              if (depth === 0) {
-                try { return JSON.parse(trimmed.slice(firstBrace, i + 1)); } catch { /* continue */ }
-              }
+    // Tier 2: Frontend AI call with retry loop
+    function extractJSON(text) {
+      if (!text || typeof text !== 'string') return null;
+      const trimmed = text.trim();
+      const firstBrace = trimmed.indexOf('{');
+      const lastBrace = trimmed.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        try { return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)); } catch { /* continue */ }
+      }
+      if (firstBrace !== -1) {
+        let depth = 0;
+        for (let i = firstBrace; i < trimmed.length; i++) {
+          if (trimmed[i] === '{') depth++;
+          else if (trimmed[i] === '}') {
+            depth--;
+            if (depth === 0) {
+              try { return JSON.parse(trimmed.slice(firstBrace, i + 1)); } catch { /* continue */ }
             }
           }
         }
-
-        // Strategy 3: Try full string parse
-        try { return JSON.parse(trimmed); } catch { /* continue */ }
-
-        return null;
       }
-
-      const courseDraft = extractJSON(text);
-      if (!courseDraft) {
-        return { course: null, error: 'Failed to parse AI response. The AI returned invalid JSON.' };
-      }
-      const draftId = `course-auto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const course = { ...courseDraft, id: draftId, tags: courseDraft.tags || weaknessTags, published: false };
-
-      const validation = validateCourse(course);
-      if (!validation.valid) {
-        console.warn('[autoGenerateCourse] Frontend validation failed:', validation.errors);
-        return { course: null, error: 'Frontend validation failed. Please try again.' };
-      }
-      await saveCourse(course);
-      return { course, error: null };
-    } catch (e) {
-      console.error('[autoGenerateCourse] Frontend AI failed:', e.message);
-      return { course: null, error: e.message || 'All generation attempts failed. Try again or choose from validated catalog.' };
+      try { return JSON.parse(trimmed); } catch { /* continue */ }
+      return null;
     }
+    const maxRetries = 3;
+    let feedback = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const completedContext = ''; // Frontend doesn't have easy access to completed courses
+        const aiPrompt = buildTutorPrompt(weaknessTags, completedContext, simplerContent);
+
+        // Append retry feedback if this is a retry
+        const prompt = feedback
+          ? `${aiPrompt}\n\nPREVIOUS ATTEMPT HAD THESE ISSUES — fix them:\n${feedback}`
+          : aiPrompt;
+
+        const text = await Promise.race([
+          callAI(prompt, { maxTokens: 8192, temperature: 0.3 }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 120000)),
+        ]);
+
+        const courseDraft = extractJSON(text);
+        if (!courseDraft) {
+          feedback = 'Returned invalid or incomplete JSON. Output must be a valid JSON object with topics, lessons, and exercises.';
+          continue;
+        }
+
+        const draftId = `course-auto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const course = { ...courseDraft, id: draftId, tags: courseDraft.tags || weaknessTags, published: false };
+
+        const validation = validateCourse(course, { simplerContent });
+        if (!validation.valid) {
+          console.warn(`[autoGenerateCourse] Attempt ${attempt + 1} validation failed:`, validation.errors);
+          if (attempt < maxRetries) {
+            feedback = buildRetryFeedback(validation.errors);
+            continue;
+          }
+          // SimplerContent dead-end: return seed fallback suggestion
+          if (simplerContent) {
+            return { course: null, error: 'SIMPLER_CONTENT_FAILED', needsSeedFallback: true };
+          }
+          return { course: null, error: 'Course validation failed after multiple attempts. Try simpler content mode.' };
+        }
+
+        await saveCourse(course);
+        return { course, error: null };
+      } catch (e) {
+        console.error(`[autoGenerateCourse] Attempt ${attempt + 1} failed:`, e.message);
+        if (attempt >= maxRetries) {
+          return { course: null, error: e.message || 'All course generation attempts failed.' };
+        }
+        feedback = `Error: ${e.message}. Please try again with valid output.`;
+      }
+    }
+    return { course: null, error: 'Course generation failed after all attempts.' };
   }, [saveCourse]);
 
   /**
