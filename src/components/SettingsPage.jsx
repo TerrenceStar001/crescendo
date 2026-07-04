@@ -621,6 +621,77 @@ const SettingsPage = React.memo(function SettingsPage({ config, onUpdate, isOpen
                   </span>
                 )}
                 <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '8px 0' }} />
+                <span style={{ fontWeight: 500, fontSize: '0.85rem', display: 'block', marginBottom: 8 }}>DSE Analytics Data</span>
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                  Export or reset your DSE practice analytics (sessions, skill profiles, grade history).
+                </p>
+                <button
+                  onClick={() => {
+                    try {
+                      const db = indexedDB.open('CrescendoDSE', 1);
+                      db.onsuccess = () => {
+                        const store = db.result.transaction('store', 'readonly').objectStore('store');
+                        const req = store.getAll();
+                        req.onsuccess = () => {
+                          const data = req.result || [];
+                          const exportObj = {};
+                          for (const item of data) {
+                            exportObj[item.key] = item.value;
+                          }
+                          const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `crescendo-analytics-${new Date().toISOString().slice(0, 10)}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        };
+                      };
+                    } catch { alert('Unable to export analytics data.'); }
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    background: 'var(--color-accent)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontFamily: 'inherit',
+                    color: '#fff',
+                    fontWeight: 500,
+                  }}
+                >
+                  ⬇ Export Analytics Data
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Reset ALL DSE analytics data (sessions, skill profiles, grade history)? This cannot be undone.')) {
+                      try {
+                        const db = indexedDB.open('CrescendoDSE', 1);
+                        db.onsuccess = () => {
+                          const tx = db.result.transaction('store', 'readwrite');
+                          const store = tx.objectStore('store');
+                          store.clear();
+                          tx.oncomplete = () => window.location.reload();
+                        };
+                      } catch { alert('Unable to reset analytics data.'); }
+                    }
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    background: 'var(--color-error-bg)',
+                    color: 'var(--color-error)',
+                    border: '1px solid transparent',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  🗑 Reset DSE Analytics
+                </button>
+                <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '8px 0' }} />
                 <button
                   onClick={() => {
                     if (window.confirm('Clear ALL notes? This cannot be undone.')) {
