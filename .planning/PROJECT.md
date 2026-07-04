@@ -8,15 +8,11 @@ Crescendo (formerly NodeMind) is a DSE English learning platform that helps Hong
 
 Students can practice authentic DSE-style English exam papers with AI-generated passages and questions, get immediate feedback with detailed analysis, and track their progress across all four skills — all from a single offline-capable web app.
 
-## Current Milestone: v1.1 Courses Quality Polish
+## Current State
 
-**Goal:** Fix and polish the Courses feature so PDF uploads work end-to-end, auto-generated courses have quality content, and the catalog has useful seed courses — making courses genuinely usable for DSE prep.
+**Shipped:** v1.1 Courses Quality Polish (2026-07-04)
 
-**Target features:**
-- Fix PDF upload pipeline (upload → text extraction → AI structuring)
-- Improve auto-generated courses — quality and quantity from user practice
-- Seed the catalog with useful built-in courses (DSE + general English)
-- Fix-first approach — debug existing code before considering rebuilds
+All 9 roadmap phases complete. The Courses feature has been hardened with reliable PDF ingestion, quality auto-generation pipelines, and a seeded catalog with 10 built-in courses. User improvement tracking monitors progress across skill areas after course completion.
 
 ## Requirements
 
@@ -47,18 +43,19 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 - ✓ **READ-07**: Full DSE question type range with correct proportions — Phase 2 ✓
 - ✓ Course Player with exercise-first state machine, reference unlock, final assessment — Phase 6 ✓
 - ✓ Course recommendations from weakness→tag mapping — Phase 6 ✓
-- ✓ PDF ingestion pipeline with AI structuring — Phase 6 ✓ (needs quality fix)
+- ✓ PDF ingestion pipeline with AI structuring — Phase 6 ✓ (quality fix in Phase 7 ✓)
+- ✓ **COURSE-01**: PDF upload pipeline works reliably — file upload, text extraction, and AI structuring produce usable courses end-to-end — Phase 7 ✓
+- ✓ **COURSE-02**: Auto-generated courses from user practice sessions have sufficient quality and quantity of content — Phase 8 ✓
+- ✓ **COURSE-03**: Catalog has useful seed courses available immediately (DSE + general English) — Phase 9 ✓
+- ✓ **COURSE-04**: Generated course content is sufficiently deep and well-structured for meaningful learning — Phase 8 ✓
+- ✓ **COURSE-05**: Failed uploads and generation show clear error messages to the user (no silent catch blocks) — Phase 7 ✓
+- ✓ **COURSE-06**: Infrastructure fixes — body size limits match between client and server, storage sync between IndexedDB and SQLite — Phase 7 ✓
+- ✓ **COURSE-07**: Course quality indicators — badges show draft/reviewed/seed quality level in the catalog — Phase 9 ✓
+- ✓ **COURSE-08**: Post-course tracking — track user score improvement after completing courses — Phase 9 ✓
 
 ### Active
 
-- [ ] **COURSE-01**: PDF upload pipeline works reliably — file upload, text extraction, and AI structuring produce usable courses end-to-end
-- [ ] **COURSE-02**: Auto-generated courses from user practice sessions have sufficient quality and quantity of content
-- [ ] **COURSE-03**: Catalog has useful seed courses available immediately (DSE + general English)
-- [ ] **COURSE-04**: Generated course content is sufficiently deep and well-structured for meaningful learning
-- [ ] **COURSE-05**: Failed uploads and generation show clear error messages to the user (no silent catch blocks)
-- [ ] **COURSE-06**: Infrastructure fixes — body size limits match between client and server, storage sync between IndexedDB and SQLite
-- [ ] **COURSE-07**: Course quality indicators — badges show draft/reviewed/seed quality level in the catalog
-- [ ] **COURSE-08**: Post-course tracking — track user score improvement after completing courses
+*No active requirements — next milestone pending.*
 
 ### Out of Scope
 
@@ -82,6 +79,7 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
   - Question types in order of mark allocation: short answer > cloze > MCQ > matching > TFNG > table/chart > extended response
   - Text types: news reports, feature articles, opinion pieces, autobiographies, novel excerpts, blog posts, webpages, letters to editor, academic texts, forum posts, guides
 - **Technical constraints**: localStorage 5MB limit for notes (primary storage), no test framework, no TypeScript, no routing library, monolithic App.jsx (1071 lines). All JSX/JS — plain JavaScript.
+- **v1.1 results**: 3 phases shipped (7-9), 7 plans executed, 18 commits. PDF ingestion pipeline overhauled with positional-sorted text extraction, quality-first flow, typed error handling. Auto-generation hardened with semantic validation, temperature/token tuning, and explicit failure recovery. Catalog seeded with 10 built-in courses. Quality badges and improvement tracking added.
 
 ## Constraints
 
@@ -96,14 +94,20 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Research HKDSE Paper 1 structure first | Need authoritative reference to calibrate every aspect of generation | Done — 8+ sources analyzed |
-| Keep RAG approach (reference real DSE papers) | Authentic passages are better than fully AI-generated ones; RAG provides structural and thematic grounding | Confirmed |
+| Keep RAG approach (reference real DSE papers) | Authentic passages are better than fully AI-generated ones; RAG provides structural and thematic grounding | ✓ Good |
 | 42 marks per part, aligned to real distribution | User explicitly wants exact DSE format match | — Pending |
-| Notes analysis: marked script + error patterns + drills | User selected "both combined" — needs to be genuinely useful for students | — Pending |
-| 3 phases (Passages → Questions → Notes) | Each area is independently large and testable; splitting avoids monolithic changes | — Pending |
+| Notes analysis: marked script + error patterns + drills | User selected "both combined" — needs to be genuinely useful for students | ✓ Good |
+| 3 phases (Passages → Questions → Notes) | Each area is independently large and testable; splitting avoids monolithic changes | ✓ Good |
+| Phase 7 before Phase 8 | PDF pipeline must produce clean input before AI generation can work reliably | ✓ Good |
+| Phase 8 before Phase 9 | Auto-generation must produce quality content before seeding catalog with examples | ✓ Good |
+| Quality-first PDF ingestion (extract → quality gate → AI) | Prevents garbage-in-garbage-out; user sees quality metrics before AI call | ✓ Good |
+| Temperature 0.3 / max_tokens 32768 globally | Lower temperature reduces hallucination; larger tokens prevent content truncation | ✓ Good |
+| No hollow template fallback | Explicit failure is better than silently saving garbage courses | ✓ Good |
+| Global loading state with floating progress panel | Long AI calls need visual feedback and navigation guard | ✓ Good |
 
 ---
 
-*Last updated: 2026-07-01 after milestone v1.1 start*
+*Last updated: 2026-07-04 after v1.1 milestone*
 
 ## Evolution
 

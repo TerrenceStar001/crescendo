@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Courses Quality Polish
 current_phase: 09
-status: complete
-last_updated: "2026-07-03T12:00:00.000Z"
-last_activity: 2026-07-03
+status: Awaiting next milestone
+last_updated: "2026-07-04T09:40:36.439Z"
+last_activity: 2026-07-04 — Milestone v1.1 completed and archived
 progress:
   total_phases: 9
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
-  percent: 33
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
+  percent: 11
 ---
 
 # Project State
@@ -85,10 +85,24 @@ The Courses feature from Phase 6 has known quality issues that need fixing:
 
 ## Current Position
 
-Phase: 09 (seed-catalog-quality-features) — COMPLETE
-Status: Phase 9 complete — milestone v1.1 all phases done
-Last activity: 2026-07-03
+Phase: Milestone v1.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-04 — Milestone v1.1 completed and archived
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-07-04:
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug | pure-ai-passage-truncated-timeout | investigating |
+| uat_gap | Phase 7 UAT (5 pending scenarios) | testing |
 
 ## Next Steps
 
-1. Consider `/gsd-complete-milestone` to archive v1.1 and plan v1.2
+1. Archive v1.1 milestone via complete-milestone workflow
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
