@@ -17,7 +17,9 @@ import { CourseGenerationProvider } from './context/CourseGenerationContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import SkillRing from './components/SkillRing';
+import SkillTile from './components/SkillTile';
 import PerformanceChart from './components/PerformanceChart';
+import SessionHistory from './components/SessionHistory';
 import TheVoid from './components/TheVoid';
 import ActionBar from './components/ActionBar';
 import useKnowledgeHealth from './hooks/useKnowledgeHealth';
@@ -1095,7 +1097,7 @@ function CrescendoApp() {
             </div>
             <div className="dse-dashboard__rings" style={{ padding: 'var(--space-4)' }}>
               {(['reading', 'writing', 'listening', 'speaking']).map(s => (
-                <SkillRing
+                <SkillTile
                   key={s}
                   skill={s}
                   percentage={skillAnalytics[s]?.overall || 0}
@@ -1110,6 +1112,13 @@ function CrescendoApp() {
                   <h2 className="dashboard__section-title">📈 Grade History</h2>
                 </div>
                 <PerformanceChart sessions={skillAnalytics.getGradeHistory(null, 30)} />
+              </div>
+              <div className="dashboard__section">
+                <div className="dashboard__section-header">
+                  <h2 className="dashboard__section-title">📋 Session History</h2>
+                  <button className="dashboard__section-hide" onClick={() => {}} title="View all sessions">✕</button>
+                </div>
+                <SessionHistory sessions={skillAnalytics.sessions} onBack={() => {}} />
               </div>
             </div>
           </div>

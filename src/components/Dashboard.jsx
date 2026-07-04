@@ -341,6 +341,15 @@ export default function Dashboard({
             )}
           </div>
         </Section>
+
+        <div className="dashboard__section dashboard__section--compact">
+          <div className="dashboard__section-header">
+            <h2 className="dashboard__section-title">📋 Session History</h2>
+          </div>
+          <button className="dashboard__view-history-btn" onClick={() => onSwitchToModule?.('progress')}>
+            View all {sessionCounts.total} sessions →
+          </button>
+        </div>
       </div>
     </div>
   );
