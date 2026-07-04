@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import SkillTile from './SkillTile';
 import PerformanceChart from './PerformanceChart';
 import SkillsRadar from './SkillsRadar';
+import GoalBar from './GoalBar';
 import { computeStreak } from '../utils/dseGrading';
 
 const DEFAULT_SECTIONS = ['overview', 'recommendations', 'gradeHistory', 'weakAreas', 'quickActions'];
@@ -72,6 +73,15 @@ export default function Dashboard({
 
   const overallDse = skillAnalytics?.overallDseLevel || '—';
   const recommended = skillAnalytics?.recommendations || [];
+  const skillLevels = useMemo(() => {
+    if (!skillAnalytics) return {};
+    return {
+      reading: skillAnalytics.reading?.dseLevel || '1',
+      writing: skillAnalytics.writing?.dseLevel || '1',
+      listening: skillAnalytics.listening?.dseLevel || '1',
+      speaking: skillAnalytics.speaking?.dseLevel || '1',
+    };
+  }, [skillAnalytics]);
 
   const weakAreas = useMemo(() => {
     if (!skillAnalytics) return [];
@@ -221,6 +231,7 @@ export default function Dashboard({
               Overall: <strong>{overallDse}</strong>
             </div>
           )}
+          <GoalBar skillLevels={skillLevels} targetLevel="5**" />
         </Section>
 
         {nextAction && (
