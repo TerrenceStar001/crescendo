@@ -2179,13 +2179,24 @@ Grammatical Range & Accuracy (GRA):
 - 1: No more than a few isolated errors; cannot convey meaning
 
 FEEDBACK RULES:
-1. For EACH rubric (TA, CC, LR, GRA): state a STRENGTH (quote exact phrase) and a SPECIFIC WEAKNESS (quote exact phrase) with a concrete suggestion.
+1. FOR EACH rubric (TA, CC, LR, GRA): state a STRENGTH (quote exact phrase) and a SPECIFIC WEAKNESS (quote exact phrase) with a concrete suggestion.
 2. Overall narrativeSummary: Be specific — reference the essay content. Name the text type and judge how well it meets genre conventions. If off-topic, state this clearly.
 3. errors: Every error must include the EXACT original text, a correction, and a clear explanation. Only list ACTUAL errors — never include "no error found" entries or placeholders.
 4. vocabularySuggestions: Map every suggestion to the specific sentence context. Suggest words at least one CEFR level higher. Do NOT suggest C2 vocabulary that sounds unnatural in a DSE context. Avoid redundant collocations.
 5. targetedImprovements: Add 2-3 specific, actionable steps with full examples.
 6. pitfallsAvoided: Only list genuine pitfalls avoided. Ensure these don't contradict your vocabulary suggestions.
 7. goodLanguage: Highlight genuine strong phrases from the essay.
+
+STRUCTURED FEEDBACK FORMAT:
+- Your narrativeSummary must follow: OPENING → FINDINGS → CONCLUSION.
+  Opening: State the purpose of the assessment and your overall position in one sentence. Example: "This assessment evaluates the student's ability to write a [text type] on [topic]. Overall, the response demonstrates [strength] but struggles with [weakness]."
+  Findings: Discuss each rubric area (TA, CC, LR, GRA) in order. For each: state a finding, quote exact text as evidence, explain the grading impact, give a concrete suggestion.
+  Conclusion: Restate the main finding in one sentence and give a brief recommendation.
+- Every feedback comment must follow: FINDING → EVIDENCE → IMPACT → SUGGESTION. Never just state a problem — explain the mechanism. Example: "The student intends to [what they tried], but the phrase '[QUOTE]' shows [what actually happened], which reduces [specific grade criterion]. To fix this, they should [concrete step with example]."
+- Use varied logical connectors naturally: "According to the rubric," "As a result," "This suggests that," "By contrast," "In addition," "Consequently." Avoid mechanical repetition of "also" or "but."
+- Reference precisely: Quote exact text from the student's work. Never say "your writing has issues" — say "In the second paragraph, the phrase '[QUOTE]' demonstrates [specific problem]."
+- Cover ALL parts of the prompt: If the task asks for X, Y, and Z, verify each is addressed. Note which parts are missing or underdeveloped.
+- Keep feedback tightly linked to the task: Do not give generic advice about broad topics — focus on how the student's response meets or fails the specific prompt requirements. Grade based on the actual text, not assumed intent.
 
 Return ONLY valid JSON with this exact schema:
 {
@@ -2220,8 +2231,33 @@ Return ONLY valid JSON with this exact schema:
     const cleaned = rawText.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
     let parsed = null;
     try { parsed = JSON.parse(cleaned); } catch {
-      const m = cleaned.match(/\{[\s\S]*\}/);
-      if (m) { try { parsed = JSON.parse(m[0]); } catch {} }
+      // Try to find a valid JSON object by searching for balanced braces
+      let braceCount = 0;
+      let startIdx = -1;
+      for (let i = 0; i < cleaned.length; i++) {
+        if (cleaned[i] === '{') {
+          if (startIdx === -1) startIdx = i;
+          braceCount++;
+        } else if (cleaned[i] === '}') {
+          braceCount--;
+          if (braceCount === 0 && startIdx !== -1) {
+            try {
+              const candidate = cleaned.slice(startIdx, i + 1);
+              parsed = JSON.parse(candidate);
+              break;
+            } catch {}
+          }
+        }
+      }
+      // Last resort: try to close unclosed braces/strings
+      if (!parsed) {
+        try {
+          const fixed = cleaned.replace(/,\s*([}\]])/g, '$1')
+            .replace(/:\s*"([^"]*)$/gm, ': "$1"}')
+            .replace(/:\s*([0-9]+)$/gm, ': $1}');
+          parsed = JSON.parse(fixed);
+        } catch {}
+      }
     }
     if (!parsed) return null;
 
