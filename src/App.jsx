@@ -74,6 +74,7 @@ function CrescendoApp() {
     getRecommendations: getRecommendationsFn,
     autoGenerateCourse: autoGenerateCourseFn,
     checkAndRegenerateCourse: checkAndRegenerateCourseFn,
+    trackPostCourseImprovement: trackPostCourseImprovementFn,
   } = useCourses();
   const { syncCourses } = useIndexedDB();
   const [courses, setCourses] = useState([]);
@@ -144,6 +145,18 @@ function CrescendoApp() {
     setCourseView('catalog');
     setDseTab('courses');
   }, []);
+
+  // Improvement tracking: capture weak areas when course completes
+  const handleTrackImprovement = useCallback((courseId) => {
+    try {
+      const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
+      if (weakAreas.length > 0) {
+        trackPostCourseImprovementFn(courseId, weakAreas, null);
+      }
+    } catch (e) {
+      console.warn('[improvement] Failed to track:', e.message);
+    }
+  }, [skillAnalytics, trackPostCourseImprovementFn]);
 
   const [courseFilterTags, setCourseFilterTags] = useState(null);
 
@@ -234,6 +247,30 @@ function CrescendoApp() {
 
     return () => clearTimeout(timer);
   }, [skillAnalytics?.sessions?.length, getCompletedCoursesFn, checkAndRegenerateCourseFn, callAI, refreshCourses]);
+
+  // Seed course loader: import bundled seed courses on first launch
+  const seedCoursesRef = useRef(false);
+  useEffect(() => {
+    if (seedCoursesRef.current) return;
+    seedCoursesRef.current = true;
+    (async () => {
+      try {
+        const existing = await getCoursesFn();
+        const seedData = (await import('./assets/bundled-courses.json')).default;
+        const seedIds = new Set(seedData.map(c => c.id));
+        const loadedIds = new Set(existing.map(c => c.id));
+        const missing = seedData.filter(c => !loadedIds.has(c.id));
+        if (missing.length > 0) {
+          for (const course of missing) {
+            await saveCourseFn({ ...course, source: 'seed', quality: 'seed', published: true });
+          }
+          refreshCourses();
+        }
+      } catch (e) {
+        console.warn('[seed-courses] Failed to load seed courses:', e.message);
+      }
+    })();
+  }, []);
 
   // Initial course seed: auto-generate courses from weak areas
   useEffect(() => {
@@ -1099,6 +1136,7 @@ function CrescendoApp() {
               onBack={handleBackToCatalog}
               callAI={callAI}
               dsePapers={dsePapers}
+              onTrackImprovement={handleTrackImprovement}
             />
           ) : courseView === 'overview' && activeCourseId ? (
             <CourseOverview

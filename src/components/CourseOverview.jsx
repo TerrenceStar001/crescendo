@@ -104,8 +104,13 @@ export default function CourseOverview({ course, onBack, onStart, callAI }) {
             {course.difficulty || 'intermediate'}
           </span>
           <span className="course__card-source">
-            {course.source === 'pdf-import' ? '📄 Imported' : '🤖 Auto-generated'}
+            {course.source === 'pdf-import' ? '📄 Imported' : course.source === 'seed' ? '🌱 Seed' : '🤖 Auto-generated'}
           </span>
+          {course.quality && (
+            <span className={`course__badge course__badge--${course.quality}`}>
+              {course.quality === 'seed' ? '🌱' : course.quality === 'reviewed' ? '✓' : '✎'} {course.quality}
+            </span>
+          )}
         </div>
 
         {/* Tags */}

@@ -1,0 +1,618 @@
+[
+  {
+    "id": "seed-paper1-reading-tactics",
+    "title": "Paper 1 Reading — Question Type Tactics",
+    "description": "Stop guessing. Learn exactly how to answer each DSE Reading question type, spot trap patterns, and apply proven strategies that examiners reward.",
+    "tags": ["reading:strategy", "reading:inference", "reading:tfng", "reading:cloze"],
+    "difficulty": "intermediate",
+    "source": "seed",
+    "quality": "seed",
+    "topics": [
+      {
+        "title": "Question Type Identification",
+        "learningObjectives": ["Identify the question type from the stem", "Apply the correct strategy for each type", "Avoid common trap patterns"],
+        "lessons": [
+          {
+            "title": "The 10 DSE Reading Question Types",
+            "referenceContent": "DSE Paper 1 Reading tests 10 distinct question types, each requiring a different approach. Understanding which type you're facing is the first step to answering correctly. Specific factual questions ask for information directly stated in the text — the answer is a single word or short phrase, usually a synonym of a word in the passage. Inference questions ask what the writer implies but does not state directly — keywords include 'suggest,' 'imply,' 'can be inferred,' and 'what does the writer mean by.' True/False/Not Given (TFNG) questions present a statement and ask whether it agrees with, contradicts, or is not mentioned in the text. The key distinction: False means the text says the opposite; Not Given means the text doesn't address it at all. Summary cloze questions require filling blanks in a paragraph that summarizes the text — the 3C Strategy applies here: Copy (word from text needs no change), Change (word can be copied but needs part-of-speech or tense adjustment), or Create (no exact word exists; must infer from context). Pronoun reference questions ask what a pronoun refers to — the antecedent is almost never in the same sentence. Main idea questions ask for the central point of a paragraph or passage — the answer is usually in the topic sentence (first or last sentence). Vocabulary-in-context questions ask for the meaning of a word based on surrounding text — look for synonym or antonym clues. Viewpoint questions ask about the writer's attitude or opinion — look for evaluative language, tone markers, and the overall stance. Word limit questions are unforgiving: if the instruction says 'NO MORE THAN TWO WORDS,' writing three words gets zero marks even if the answer is correct. Figurative language questions ask about irony, metaphor, or symbolic meaning — these are the hardest question type, with less than 10% of candidates getting them right.",
+            "exercises": [
+              {
+                "question": "The question stem says 'What does the writer imply about...?' Which question type is this?",
+                "type": "mcq",
+                "options": ["Specific factual", "Inference", "True/False/Not Given", "Summary cloze"],
+                "answer": "Inference",
+                "explanation": "The word 'imply' signals an inference question — the answer is not directly stated but must be deduced from context."
+              },
+              {
+                "question": "A question asks 'According to the passage, the policy was introduced in...' with the instruction 'Answer in ONE word only.' What should you watch out for?",
+                "type": "mcq",
+                "options": ["The word limit — writing two words gets zero", "It's an inference question", "The answer is Not Given", "You need to paraphrase"],
+                "answer": "The word limit — writing two words gets zero",
+                "explanation": "Word limits are strictly enforced in DSE. Even if your answer is factually correct, exceeding the word limit earns zero marks."
+              },
+              {
+                "question": "In a TFNG question, the text says 'The festival was held in March 2023.' The statement says 'The festival is held every year.' What is the answer?",
+                "type": "mcq",
+                "options": ["True", "False", "Not Given"],
+                "answer": "Not Given",
+                "explanation": "The text states when the festival was held but does not say whether it occurs annually. We cannot confirm or deny the frequency."
+              },
+              {
+                "question": "The summary cloze instruction says the word 'requires modification.' Which of the 3C strategies should you use?",
+                "type": "mcq",
+                "options": ["Copy", "Change", "Create"],
+                "answer": "Change",
+                "explanation": "The 3C Strategy: Copy means using the word exactly as it appears. Change means the word exists but needs adjustment (tense, plural, part of speech). Create means inferring a word not in the text."
+              },
+              {
+                "question": "A question asks 'What does 'she' refer to in paragraph 3?' What strategy should you use?",
+                "type": "mcq",
+                "options": ["Look in the same sentence", "Read the preceding sentences", "Check the next paragraph", "Look for the first noun mentioned"],
+                "answer": "Read the preceding sentences",
+                "explanation": "Pronoun antecedents are almost never in the same sentence. Read the preceding 1-2 sentences to find what the pronoun refers to."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Trap Pattern Recognition",
+        "learningObjectives": ["Identify common trap patterns in DSE questions", "Distinguish between False and Not Given", "Spot keyword deception in MCQ options"],
+        "lessons": [
+          {
+            "title": "The Five Classic DSE Reading Traps",
+            "referenceContent": "DSE Reading questions contain designed traps that catch students who rely on surface-level reading. Trap 1: Exact keyword deception — wrong answer options often contain the exact same words as the question stem or the passage. If you see a word you just read in the text, be suspicious. The correct answer usually uses a synonym, not the same word. Trap 2: Overgeneralization — words like 'always,' 'never,' 'only,' 'all,' and 'none' in statements are frequently False because DSE texts rarely make absolute claims. A statement saying 'All students prefer online learning' is likely False if the text says 'Many students prefer online learning.' Trap 3: Temporal confusion — a statement about the present when the text discusses the past (or vice versa) is Not Given. For example, if the text says 'The company was founded in 2010' and the statement says 'The company is profitable,' the answer is Not Given because profitability is not discussed. Trap 4: Pronoun scope — inference questions often test whether you understand what a pronoun or demonstrative refers to. 'This approach' in a statement might refer to something mentioned three sentences earlier, not the immediately preceding sentence. Trap 5: Partial truth — a statement that is partially correct but adds unsupported information is Not Given. For example, if the text says 'The program reduced crime by 20%' and the statement says 'The program reduced crime and increased employment,' the answer is Not Given because employment is not mentioned, even though the crime reduction part is true.",
+            "exercises": [
+              {
+                "question": "The passage says 'Many researchers believe the theory is promising.' The statement says 'All researchers agree the theory is correct.' Is this True, False, or Not Given?",
+                "type": "mcq",
+                "options": ["True", "False", "Not Given"],
+                "answer": "False",
+                "explanation": "This is Trap 2 (overgeneralization). 'Many' becomes 'All' and 'promising' becomes 'correct' — the statement exaggerates and distorts the original meaning."
+              },
+              {
+                "question": "The passage says 'The study was conducted between 2018 and 2020.' The statement says 'The study is still ongoing.' Is this True, False, or Not Given?",
+                "type": "mcq",
+                "options": ["True", "False", "Not Given"],
+                "answer": "False",
+                "explanation": "The passage gives a specific end date (2020), which contradicts the claim that it is 'still ongoing.' This is a temporal contradiction."
+              },
+              {
+                "question": "The passage says 'The new policy has reduced air pollution by 15%.' The statement says 'The new policy has reduced air pollution and improved traffic flow.' Is this True, False, or Not Given?",
+                "type": "mcq",
+                "options": ["True", "False", "Not Given"],
+                "answer": "Not Given",
+                "explanation": "This is Trap 5 (partial truth). The pollution reduction is supported, but traffic flow improvement is not mentioned. A partially correct statement with unsupported additions is Not Given."
+              },
+              {
+                "question": "The passage says 'Critics argue that the plan lacks sufficient detail.' The statement says 'Critics say the plan is excellent.' What trap pattern is this?",
+                "type": "mcq",
+                "options": ["Exact keyword deception", "Overgeneralization", "Direct contradiction", "Partial truth"],
+                "answer": "Direct contradiction",
+                "explanation": "The passage says critics argue the plan 'lacks sufficient detail' while the statement claims critics say it is 'excellent.' These are opposite positions."
+              },
+              {
+                "question": "In a summary cloze, the blank requires a word about 'environmental protection.' The passage mentions 'green initiatives' but not the exact phrase. Which 3C strategy applies?",
+                "type": "mcq",
+                "options": ["Copy", "Change", "Create"],
+                "answer": "Create",
+                "explanation": "The exact phrase 'environmental protection' does not appear in the text. You must infer the concept from 'green initiatives' and create the appropriate term."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "finalAssessment": {
+      "title": "Reading Tactics Assessment",
+      "exercises": [
+        {
+          "question": "The text says 'Some experts suggest that the approach could be effective.' The statement says 'Experts agree the approach works perfectly.' What is the answer?",
+          "type": "mcq",
+          "options": ["True", "False", "Not Given"],
+          "answer": "False",
+          "explanation": "Trap 2 (overgeneralization): 'Some experts suggest' becomes 'Experts agree' and 'could be effective' becomes 'works perfectly.' Both the scope and certainty are exaggerated."
+        },
+        {
+          "question": "The text says 'The initiative, launched in 2019, has seen mixed results.' The statement says 'The initiative was launched five years ago and has been successful.' What trap patterns are present?",
+          "type": "short-answer",
+          "answer": "Temporal confusion and partial truth — 'mixed results' contradicts 'successful' and 'five years ago' assumes a specific timeframe not stated.",
+          "explanation": "Multiple traps: the temporal reference is ambiguous and the claim of success contradicts 'mixed results.'"
+        },
+        {
+          "question": "In a summary cloze, the passage says 'The government implemented strict regulations.' You need a word meaning 'rules enforced by authority.' Which 3C strategy?",
+          "type": "mcq",
+          "options": ["Copy", "Change", "Create"],
+          "answer": "Create",
+          "explanation": "The exact word is not in the text. 'Strict regulations' provides the context, but you must create the appropriate term based on the meaning described."
+        }
+      ]
+    }
+  },
+  {
+    "id": "seed-paper2-register-genre",
+    "title": "Paper 2 Writing — Register & Genre Mastery",
+    "description": "Learn to calibrate your register and follow genre conventions so your writing matches what examiners expect for each text type.",
+    "tags": ["writing:register", "writing:genre", "writing:formal", "writing:informal"],
+    "difficulty": "intermediate",
+    "source": "seed",
+    "quality": "seed",
+    "topics": [
+      {
+        "title": "Register Calibration",
+        "learningObjectives": ["Identify the required register from a writing prompt", "Adjust vocabulary and sentence structure for formal vs informal contexts", "Avoid register mismatches that lose marks"],
+        "lessons": [
+          {
+            "title": "Understanding Register in DSE Writing",
+            "referenceContent": "Register refers to the level of formality in your writing. DSE examiners assess register as part of the Language and Organization criteria. A register mismatch — using informal language in a formal letter, or overly stiff language in a blog post — is one of the most common reasons students lose marks. The key principle: match the register to the text type and audience. Formal register is required for: letters to officials (principals, government bodies), reports, proposals, and letters to the editor. It features: complete sentences, no contractions (do not instead of don't), formal vocabulary (utilize instead of use, considerable instead of a lot), passive constructions where appropriate, and no slang or colloquialisms. Informal register is required for: personal blogs, diary entries, letters to friends, and some email formats. It features: contractions are acceptable, conversational vocabulary, direct address to the reader, rhetorical questions, and a personal tone. The middle ground — semi-formal — is used for: letters to community organizations, newsletters, and some article formats. It features: clear structure but accessible language, some contractions may be acceptable, professional but not stiff tone. Common register errors: using 'gonna' or 'wanna' in any DSE writing (these are always inappropriate); writing 'Dear Sir/Madam' in a blog post (too formal); using 'I reckon' in a proposal (too informal for academic writing). The HKEAA examiner report consistently flags register mismatch as a reason students cannot score above Level 4.",
+            "exercises": [
+              {
+                "question": "You are writing a formal letter to the Principal requesting a new study room. Which greeting is most appropriate?",
+                "type": "mcq",
+                "options": ["Dear Mr. Smith,", "Hi Principal,", "To whom it may concern,"],
+                "answer": "Dear Mr. Smith,",
+                "explanation": "A formal letter to a specific person uses 'Dear [Title] [Surname],' followed by a comma. 'Hi' is too informal and 'To whom it may concern' is used when the recipient is unknown."
+              },
+              {
+                "question": "Identify the register error: In a proposal to the school board, you write 'Kids are gonna love this program!' What is wrong?",
+                "type": "short-answer",
+                "answer": "'Kids' is too informal for a proposal (use 'students'), 'gonna' is a spoken contraction never appropriate in formal writing, and the exclamation mark is too casual.",
+                "explanation": "Three register errors: informal vocabulary, spoken contraction, and inappropriate punctuation for a formal proposal."
+              },
+              {
+                "question": "You are writing a blog post for fellow students about a school event. Which sentence fits the register?",
+                "type": "mcq",
+                "options": ["The event shall commence at 14:00 hours.", "The event kicks off at 2pm — don't miss it!", "The aforementioned gathering will begin at approximately two in the afternoon."],
+                "answer": "The event kicks off at 2pm — don't miss it!",
+                "explanation": "A blog post for students should be conversational and engaging. 'Kicks off' and 'don't miss it' match the informal register appropriate for the audience."
+              },
+              {
+                "question": "Which word pair correctly demonstrates register difference?",
+                "type": "mcq",
+                "options": ["get → obtain", "run → jog", "see → observe", "tell → inform"],
+                "answer": "get → obtain",
+                "explanation": "'Get' is informal/general; 'obtain' is formal/academic. This pair clearly demonstrates the register shift needed in formal writing."
+              },
+              {
+                "question": "In a letter to the editor about traffic congestion, which sentence maintains appropriate register?",
+                "type": "mcq",
+                "options": ["Traffic is really bad and it's driving me nuts.", "The escalating traffic congestion poses a significant challenge to urban mobility.", "Hey everyone, traffic is crazy today!"],
+                "answer": "The escalating traffic congestion poses a significant challenge to urban mobility.",
+                "explanation": "Letters to the editor require formal register. The second sentence uses sophisticated vocabulary and maintains an objective, professional tone appropriate for the genre."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Text Type Conventions",
+        "learningObjectives": ["Know the structural requirements of each DSE text type", "Apply correct formatting for letters, reports, speeches, and articles", "Avoid format violations that cost marks"],
+        "lessons": [
+          {
+            "title": "Structural Conventions by Text Type",
+            "referenceContent": "Each DSE text type has specific structural conventions that examiners expect. Violating these conventions limits your Organization score regardless of how good your content is. Letters (formal): Must include sender's address (top right or left), date, recipient's address, salutation (Dear Mr./Ms. [Name],), body paragraphs, complimentary close (Yours sincerely, if named recipient / Yours faithfully, if Dear Sir/Madam), and signature. The body should be divided into clear paragraphs, each addressing a specific purpose. Emails: Similar structure but more flexible — no addresses needed, but still requires appropriate greeting and sign-off. Reports: Must include a title, date, recipient (To:), sender (From:), and subject (Subject:). Body must use subheadings to organize sections (Introduction, Findings, Recommendations, Conclusion). Reports use objective, impersonal language and often include bullet points or numbered lists. Speeches: Must include an engaging opening (greeting the audience, hook), clear signposting ('Firstly,' 'Moving on to,' 'In conclusion'), audience engagement ('As you can imagine,' 'Think about it'), and a memorable closing. Speeches are written to be heard, not read — shorter sentences, rhetorical devices, and direct address are expected. Articles/Features: Must have a headline/title, engaging opening paragraph (hook the reader), well-structured body with subheadings optional, and a concluding paragraph. Articles use a mix of formal and accessible language depending on the publication. Proposals: Similar to reports with a title, introduction stating the purpose, body with recommendations supported by reasoning, and a conclusion. Proposals use persuasive language and must address feasibility, cost, and implementation. Blog posts: Casual title, conversational opening, short paragraphs, personal voice, call-to-action at the end (e.g., 'What do you think? Leave a comment below!'). Diaries/Journals: Date at the top, first-person narrative, personal reflections, emotional language, informal tone. The key to mastering text types is not memorizing formats but understanding WHY each format exists — a report uses subheadings because busy officials need to scan it quickly; a speech uses rhetorical questions because it's meant to be heard, not read.",
+            "exercises": [
+              {
+                "question": "You are writing a formal letter to the Education Bureau. Your recipient is 'Dr. Lee.' Which closing should you use?",
+                "type": "mcq",
+                "options": ["Yours faithfully,", "Yours sincerely,", "Best regards,"],
+                "answer": "Yours sincerely,",
+                "explanation": "When you know the recipient's name (Dr. Lee), use 'Yours sincerely.' 'Yours faithfully' is used when the recipient is unknown (Dear Sir/Madam)."
+              },
+              {
+                "question": "Which element is REQUIRED in a report but NOT in a personal email?",
+                "type": "mcq",
+                "options": ["Subheadings", "A greeting", "Paragraph breaks", "A conclusion"],
+                "answer": "Subheadings",
+                "explanation": "Reports require subheadings to organize sections (Introduction, Findings, Recommendations). Personal emails do not need this formal structure."
+              },
+              {
+                "question": "In a speech about reducing screen time, which sentence best demonstrates audience engagement?",
+                "type": "mcq",
+                "options": ["Screen time is a problem.", "How many of you checked your phone before getting out of bed this morning?", "Research shows excessive screen time is harmful."],
+                "answer": "How many of you checked your phone before getting out of bed this morning?",
+                "explanation": "Rhetorical questions directed at the audience are a hallmark of effective speech writing. They engage listeners and make abstract topics personal."
+              },
+              {
+                "question": "A proposal should address which three elements to be considered feasible?",
+                "type": "short-answer",
+                "answer": "Feasibility (can it be done?), cost (what does it cost?), and implementation (how will it be carried out?).",
+                "explanation": "Examiners look for proposals that address practical concerns: whether the idea can work, what resources it requires, and how it would be executed."
+              },
+              {
+                "question": "What is the key difference between how an article and a report use language?",
+                "type": "mcq",
+                "options": ["Articles use personal voice; reports use objective language", "Articles are always informal; reports are always formal", "Reports use rhetorical questions; articles don't", "There is no difference"],
+                "answer": "Articles use personal voice; reports use objective language",
+                "explanation": "Articles aim to engage and persuade readers, often using personal voice and accessible language. Reports must remain objective and impersonal, presenting findings without bias."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "finalAssessment": {
+      "title": "Register & Genre Assessment",
+      "exercises": [
+        {
+          "question": "You are writing a proposal to the school principal about extending library hours. Which opening sentence has the correct register?",
+          "type": "mcq",
+          "options": ["Hey, the library needs to stay open longer!", "I am writing to propose that the school library extend its operating hours to better serve student needs.", "The library thing is kinda important so maybe open it later?"],
+          "answer": "I am writing to propose that the school library extend its operating hours to better serve student needs.",
+          "explanation": "Proposals to authority figures require formal register. This opening clearly states the purpose using professional language appropriate for the text type."
+        },
+        {
+          "question": "Identify the format error: A student writes a formal complaint letter with 'Dear mate, I'm writing to tell you that...' What is wrong?",
+          "type": "short-answer",
+          "answer": "'Dear mate' is too informal for a complaint letter; 'I'm writing to tell you' uses a contraction and informal phrasing. Should use 'Dear Sir/Madam' or the recipient's name, and 'I am writing to complain about.'",
+          "explanation": "Multiple register and format errors: informal greeting, contraction, and casual phrasing all violate formal letter conventions."
+        },
+        {
+          "question": "Which text type requires the use of 'Yours faithfully' as the closing?",
+          "type": "mcq",
+          "options": ["A letter to a friend", "A letter to the editor where the recipient is unknown", "A blog post", "A diary entry"],
+          "answer": "A letter to the editor where the recipient is unknown",
+          "explanation": "'Yours faithfully' is used when the recipient's name is unknown (Dear Sir/Madam). When the recipient is named, 'Yours sincerely' is used."
+        }
+      ]
+    }
+  },
+  {
+    "id": "seed-paper2-paragraph-development",
+    "title": "Paper 2 Writing — Paragraph Development",
+    "description": "Learn to develop ideas to 7/7 level with evidence, explanation, and sophisticated cohesion that examiners reward.",
+    "tags": ["writing:organization", "writing:cohesion", "writing:paragraphs", "writing:peel"],
+    "difficulty": "intermediate",
+    "source": "seed",
+    "quality": "seed",
+    "topics": [
+      {
+        "title": "Developing Ideas to Top Level",
+        "learningObjectives": ["Transform thin paragraphs into developed arguments", "Use evidence and explanation effectively", "Apply sophisticated cohesive devices"],
+        "lessons": [
+          {
+            "title": "From 4/7 to 7/7 Paragraphs",
+            "referenceContent": "The difference between a 4/7 paragraph and a 7/7 paragraph is not vocabulary — it's idea development. A 4/7 paragraph states an opinion and gives one example. A 7/7 paragraph states a clear position, develops it with specific evidence, explains the significance, connects it to the broader argument, and uses sophisticated cohesive devices. The PEEL framework (Point, Evidence, Explanation, Link) is the foundation, but top-scoring paragraphs go further. Point: Your topic sentence must make a specific, arguable claim — not a fact. 'Social media affects teenagers' is a fact (not arguable). 'Social media exacerbates teenage anxiety by creating unrealistic comparison standards' is a claim (arguable and specific). Evidence: Go beyond generic examples. Instead of 'For example, many students use phones,' use 'A 2023 study by the Hong Kong University found that 67% of secondary students reported feeling inadequate after browsing social media for more than an hour.' The specific statistic, source, and context make the evidence credible and impactful. Explanation: This is where most students lose marks. Don't just state the evidence — explain HOW it supports your point and WHY it matters. Use phrases like 'This demonstrates that,' 'The significance of this is,' 'What this reveals is.' Link: Connect back to your main argument and/or transition to the next point. Use sophisticated cohesive devices: 'Furthermore,' 'Equally compelling is,' 'This trend underscores the broader concern that,' 'Taken together, these factors suggest.' Avoid repetitive transitions like 'Also,' 'Another thing is,' 'Plus.' A 7/7 paragraph typically has 4-6 sentences: a strong topic sentence, 1-2 sentences of evidence, 1-2 sentences of explanation, and a linking sentence. The key is density — every sentence must add new information, not repeat what came before.",
+            "exercises": [
+              {
+                "question": "Which is the stronger topic sentence for a paragraph about social media?",
+                "type": "mcq",
+                "options": ["Social media is bad for teenagers.", "Social media exacerbates teenage anxiety by creating unrealistic comparison standards.", "Teenagers use social media a lot."],
+                "answer": "Social media exacerbates teenage anxiety by creating unrealistic comparison standards.",
+                "explanation": "A strong topic sentence makes a specific, arguable claim. The first option is too vague ('bad'), and the third is merely a fact. The second identifies the mechanism (comparison standards) and the effect (anxiety)."
+              },
+              {
+                "question": "Which evidence sentence is strongest for arguing that homework causes stress?",
+                "type": "mcq",
+                "options": ["Homework makes students stressed.", "A 2024 survey of 2,000 Hong Kong secondary students found that 72% reported sleeping fewer than six hours per night due to homework load.", "Some students have too much homework."],
+                "answer": "A 2024 survey of 2,000 Hong Kong secondary students found that 72% reported sleeping fewer than six hours per night due to homework load.",
+                "explanation": "Strong evidence is specific, credible, and contextualized. This sentence includes sample size, year, demographic, statistic, and clear causal link — far superior to generic statements."
+              },
+              {
+                "question": "Which cohesive device is most sophisticated for advancing an argument?",
+                "type": "mcq",
+                "options": ["Also,", "Another thing is,", "Equally compelling is,"],
+                "answer": "Equally compelling is,",
+                "explanation": "'Also' and 'Another thing is' are basic transitions. 'Equally compelling is' demonstrates lexical range and signals a strong supporting point, which examiners reward in the Organization criterion."
+              },
+              {
+                "question": "What is the most common mistake students make in the 'Explanation' part of PEEL?",
+                "type": "short-answer",
+                "answer": "They restate the evidence instead of explaining its significance. They need to show HOW the evidence supports their point and WHY it matters.",
+                "explanation": "Many students just repeat the evidence in different words. True explanation analyzes the evidence, connects it to the argument, and explores implications."
+              },
+              {
+                "question": "A student writes a 5-sentence paragraph about social media but receives only 3/7. Their paragraph has: a topic sentence 'Social media affects teenagers,' three separate pieces of evidence, and a linking sentence. What is the most likely reason for the low score?",
+                "type": "mcq",
+                "options": ["The paragraph has too many sentences — 3 is the maximum for 7/7", "The topic sentence is a fact not an arguable claim, and the evidence lacks explanation linking it to the point", "The linking sentence should appear before the topic sentence", "The paragraph needs to use longer words to sound more sophisticated"],
+                "answer": "The topic sentence is a fact not an arguable claim, and the evidence lacks explanation linking it to the point",
+                "explanation": "A 7/7 paragraph needs more than correct structure — each element must function well. A topic sentence must be an arguable claim ('Social media exacerbates anxiety through comparison standards') not a fact. Evidence needs explanation (HOW/WHY it supports the point), not just listing. The student focused on sentence count instead of sentence function."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Cohesion Between Paragraphs",
+        "learningObjectives": ["Use sophisticated transitions between paragraphs", "Maintain argumentative coherence across the full essay", "Avoid repetition and mechanical paragraph structures"],
+        "lessons": [
+          {
+            "title": "Building a Coherent Argument",
+            "referenceContent": "Cohesion is not just about linking words within paragraphs — it's about creating a logical flow across the entire essay. Examiners assess Organization partly on whether your paragraphs build toward a coherent argument or feel like a list of disconnected points. The secret to paragraph cohesion is the 'golden thread' technique: each paragraph should reference the previous one and point toward the next. Use pronoun references ('This trend,' 'Such evidence,' 'These findings') to link back. Use forward-looking phrases ('Having examined the causes, it is equally important to consider the solutions') to signal progression. Avoid mechanical structures like 'First,... Second,... Finally,...' which examiners recognize as template writing. Instead, use thematic progression: each paragraph develops a different aspect of the same argument. For example, in an essay about social media: Paragraph 1 argues the psychological impact, Paragraph 2 extends to the social impact (using 'Beyond psychological effects, social media also...'), Paragraph 3 addresses the economic impact (building on the previous two with 'While the personal and social costs are significant, the economic implications are equally profound'). This creates a cumulative argument rather than a list. The HKEAA examiner report specifically rewards essays that demonstrate 'sophisticated cohesive ties between and within paragraphs' — this means using a variety of linking strategies, not just repeating the same transition words.",
+            "exercises": [
+              {
+                "question": "Which transition best links a paragraph about psychological effects to one about social effects?",
+                "type": "mcq",
+                "options": ["Firstly, psychological effects are bad. Secondly, social effects are also bad.", "Beyond psychological effects, social media also reshapes interpersonal relationships.", "Social media is bad. Also, it affects relationships."],
+                "answer": "Beyond psychological effects, social media also reshapes interpersonal relationships.",
+                "explanation": "This transition builds on the previous point ('Beyond...') and introduces the new topic ('interpersonal relationships') in a way that shows progression rather than a list."
+              },
+              {
+                "question": "What does the HKEAA mean by 'sophisticated cohesive ties'?",
+                "type": "mcq",
+                "options": ["Using 'however' and 'therefore' in every paragraph", "Varied linking strategies that create logical argument progression across paragraphs", "Writing very long paragraphs", "Using fancy vocabulary"],
+                "answer": "Varied linking strategies that create logical argument progression across paragraphs",
+                "explanation": "Sophisticated cohesion means using diverse linking techniques (pronoun references, thematic progression, forward/backward pointers) to create a flowing argument, not just inserting transition words mechanically."
+              },
+              {
+                "question": "Identify the problem: An essay has paragraphs that each start with 'Another reason is...' What is wrong?",
+                "type": "short-answer",
+                "answer": "This is a mechanical, template-like structure that examiners penalize. Each paragraph should develop a different aspect of the argument with varied transitions, not repeat the same formula.",
+                "explanation": "HKEAA examiner reports consistently flag template writing. Repetitive paragraph openings signal a lack of genuine argument development."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "finalAssessment": {
+      "title": "Paragraph Development Assessment",
+      "exercises": [
+        {
+          "question": "Which paragraph shows the strongest idea development for the topic 'remote work'? A) Remote work is convenient. People can work from home. B) Remote work eliminates commuting stress, which research shows reduces cortisol levels by 23%. This physiological benefit translates to improved workplace productivity and employee wellbeing, suggesting that flexibility is not merely a perk but a health intervention.",
+          "type": "mcq",
+          "options": ["A is stronger because it's clearer", "B is stronger because it develops the point with evidence, explanation, and significance", "Both are equally strong", "Neither is strong enough"],
+          "answer": "B is stronger because it develops the point with evidence, explanation, and significance",
+          "explanation": "Paragraph B follows the 7/7 model: specific claim, quantitative evidence, explanation of significance, and broader implication. Paragraph A merely states a fact without development."
+        },
+        {
+          "question": "Rewrite this weak topic sentence to make it arguable and specific: 'Pollution is a problem.'",
+          "type": "short-answer",
+          "answer": "Air pollution in densely populated cities like Hong Kong poses a growing public health crisis that demands urgent policy intervention beyond current emission controls.",
+          "explanation": "A strong topic sentence identifies the specific issue (air pollution in dense cities), makes a claim (it's a growing crisis), and hints at the argument (policy intervention needed)."
+        },
+        {
+          "question": "Choose the best cohesive device to link a paragraph about economic benefits of tourism to one about its environmental costs:",
+          "type": "mcq",
+          "options": ["Also, tourism is good for the economy.", "While the economic benefits of tourism are undeniable, they must be weighed against the environmental degradation it accelerates.", "Tourism has many effects."],
+          "answer": "While the economic benefits of tourism are undeniable, they must be weighed against the environmental degradation it accelerates.",
+          "explanation": "This transition acknowledges the previous point ('undeniable') while pivoting to the contrasting concern ('weighed against'), creating a sophisticated argumentative flow."
+        }
+      ]
+    }
+  },
+  {
+    "id": "seed-paper3-listening-traps",
+    "title": "Paper 3 Listening — Trap Zone Mastery",
+    "description": "Master the specific trap patterns, spelling challenges, and paraphrasing skills that separate Level 4 from Level 5+ in the Listening paper.",
+    "tags": ["listening:strategy", "listening:traps", "listening:spelling", "listening:paraphrasing"],
+    "difficulty": "intermediate",
+    "source": "seed",
+    "quality": "seed",
+    "topics": [
+      {
+        "title": "Number and Spelling Traps",
+        "learningObjectives": ["Distinguish between confusing number pairs", "Spell sensitive vocabulary correctly", "Avoid the most common listening errors"],
+        "lessons": [
+          {
+            "title": "The Thirteen/Thirty Trap and Other Number Confusions",
+            "referenceContent": "The single most notorious trap in DSE Listening is the thirteen/thirty confusion. In rapid speech, 'thirteen' (/θɜːrˈtiːn/) and 'thirty' (/ˈθɜːrti/) sound remarkably similar, especially when the speaker has a non-native accent or speaks quickly. The key difference: 'thirteen' has the stress on the SECOND syllable (thir-TEEN), while 'thirty' has the stress on the FIRST syllable (THIR-ty). Listen for the stress pattern, not just the sounds. Similarly confusing pairs include: fourteen/forty, fifteen/fifty, sixteen/sixty, seventeen/seventy, eighteen/eighty. The pattern is consistent: numbers ending in '-teen' have stress on the second syllable; numbers ending in '-ty' have stress on the first syllable. In integrated tasks (Part B1/B2), you will often need to convert numerical data from the recording into written form. The trap here is not just hearing the number correctly but writing it in the required format. For example, if the recording says 'approximately three hundred and fifty students,' you must convert this to '350' or 'about 350' depending on the task requirements. Another critical trap: ordinal numbers. The recording may say 'the twelfth meeting' and you must write '12th' — but students frequently write '12rd' or 'twelth.' Common ordinal spelling errors: 1st (first, not 'furst'), 2nd (second, not 'secound'), 3rd (third, not 'thirdd'), 5th (fifth, not 'fiveeth'), 8th (eighth, not 'eightth'), 9th (ninth, not 'nineth'), 12th (twelfth, not 'twelth'), 20th (twentieth, not 'twentyth'), 21st (twenty-first). In the DSE, misspelt answers in the listening section receive ZERO marks — there is no partial credit for phonetically close attempts.",
+            "exercises": [
+              {
+                "question": "The recording says: 'The conference attracted approximately THIR-teen attendees.' How should you write this number?",
+                "type": "gap-fill",
+                "answer": "13",
+                "explanation": "The stress is on the second syllable (THIR-TEEN), indicating the number 13, not 30. Listen for the stress pattern to distinguish."
+              },
+              {
+                "question": "The recording says: 'Over THIR-ty percent of respondents disagreed.' What number should you write?",
+                "type": "gap-fill",
+                "answer": "30",
+                "explanation": "The stress is on the first syllable (THIR-ty), indicating the number 30, not 13. The first-syllable stress pattern is the key signal."
+              },
+              {
+                "question": "Which ordinal number is spelled correctly?",
+                "type": "mcq",
+                "options": ["13th (thirteenth)", "22th (twenty-twoth)", "19th (nineth)", "5th (fiveeth)"],
+                "answer": "13th (thirteenth)",
+                "explanation": "'Thirteenth' is the correct spelling. The others are all common errors: 22nd (not 22th), 19th (not nineth — it's 'nineteenth'), 5th (not fiveeth — it's 'fifth')."
+              },
+              {
+                "question": "The recording mentions 'environmemntal protection.' What should you write in your answer sheet?",
+                "type": "gap-fill",
+                "answer": "environmental",
+                "explanation": "Misspelling costs zero marks. The correct spelling is 'environmental' — note the 'on' not 'en' in the middle, and the final 'al' not 'al."
+              },
+              {
+                "question": "If the recording says 'two hundred and fifty dollars,' which format is correct for a table task requiring numbers only?",
+                "type": "mcq",
+                "options": ["two hundred and fifty", "$250", "250", "Two hundred and fifty dollars"],
+                "answer": "250",
+                "explanation": "Table tasks typically require just the number. Including '$' or writing out the number in words when a digit is expected can lose marks depending on the specific task instructions."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Distractor Recognition and Paraphrasing",
+        "learningObjectives": ["Identify when the recording corrects itself (distractor pattern)", "Paraphrase spoken language into appropriate written register", "Apply the right format for integrated task answers"],
+        "lessons": [
+          {
+            "title": "The Distractor Pattern and Paraphrasing Discipline",
+            "referenceContent": "DSE Listening recordings use a deliberate distractor pattern: the speaker states information, then immediately corrects or revises it. For example: 'The meeting was originally scheduled for 3pm... actually, let me check... it's been moved to 4:30.' If you write '3pm' on your first hearing, you get zero marks. The key strategy: wait for the final statement. Listen for correction markers like 'actually,' 'wait,' 'sorry,' 'I meant to say,' 'on second thought,' 'correction.' These signal that what came before is unreliable. In integrated tasks (Part B1/B2), you must paraphrase — you cannot copy words directly from the recording. This is a fundamental rule. If the recording says 'The government is going to build a new hospital,' you must paraphrase this in your written task. Acceptable paraphrases include: 'A new hospital will be constructed by authorities,' 'Healthcare facilities are being expanded,' or 'Medical infrastructure is undergoing development.' The level of paraphrasing depends on the text type: in a formal report, use formal register; in an email, semi-formal is acceptable. Another critical paraphrasing challenge: converting informal spoken language into formal written language. Recordings use contractions ('it's,' 'they'll,' 'won't'), colloquialisms ('a lot of,' 'big'), and fragmented sentences. Your written answers must use full forms ('it is,' 'they will,' 'will not'), precise vocabulary ('numerous,' 'significant'), and complete sentences where required. The HKEAA examiner report specifically notes that candidates who fail to adapt register from spoken to written form lose marks in the Organization criterion, even if their content is accurate.",
+            "exercises": [
+              {
+                "question": "The recording says: 'The workshop will be held on Friday... oh wait, that's the wrong room — it's actually moved to Saturday morning.' What should you write?",
+                "type": "mcq",
+                "options": ["Friday", "Saturday morning", "The wrong room", "Friday but possibly Saturday"],
+                "answer": "Saturday morning",
+                "explanation": "The speaker uses a correction marker ('oh wait') followed by revised information. Always use the final, corrected information in your answer."
+              },
+              {
+                "question": "The recording says: 'They're gonna build a bunch of new shops downtown.' Convert this to formal written language for a report.",
+                "type": "short-answer",
+                "answer": "A number of new retail establishments will be constructed in the city centre.",
+                "explanation": "Key transformations: 'gonna' → 'will be,' 'a bunch of' → 'a number of,' 'shops' → 'retail establishments,' 'downtown' → 'city centre.' This demonstrates register adaptation from spoken to formal written."
+              },
+              {
+                "question": "Which word is a correction marker that signals the speaker is about to revise their statement?",
+                "type": "mcq",
+                "options": ["Also", "Actually", "Furthermore", "Similarly"],
+                "answer": "Actually",
+                "explanation": "'Actually' is a common correction marker in DSE listening recordings. It signals that what follows contradicts or revises what was just said."
+              },
+              {
+                "question": "The recording says: 'The event was cancelled because of the rain.' Your task requires a formal report entry. Which paraphrase is best?",
+                "type": "mcq",
+                "options": ["No event because rain.", "The event was called off due to inclement weather.", "Rain stopped the thing."],
+                "answer": "The event was called off due to inclement weather.",
+                "explanation": "This paraphrase elevates the register appropriately: 'called off' is more formal than 'cancelled,' and 'inclement weather' is the standard formal expression for bad weather in official reports."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "finalAssessment": {
+      "title": "Listening Trap Assessment",
+      "exercises": [
+        {
+          "question": "The recording says: 'The deadline is the fifteenth... no, I mean the twenty-fifth.' What number should you write?",
+          "type": "gap-fill",
+          "answer": "25th",
+          "explanation": "'No, I mean' is a correction marker. The speaker is revising the date from 15th to 25th. Always use the corrected information."
+        },
+        {
+          "question": "Convert this spoken phrase to formal written language for a report: 'They wanna cut the budget by like half.'",
+          "type": "short-answer",
+          "answer": "There are proposals to reduce the budget by approximately 50%.",
+          "explanation": "Transformations: 'wanna' → 'are proposals to'/ 'wish to,' 'cut' → 'reduce,' 'by like half' → 'by approximately 50%.' This demonstrates full register adaptation."
+        },
+        {
+          "question": "The recording says: 'We planned to meet at 3pm... sorry, I made a mistake, it's actually 3:30.' What time should you write?",
+          "type": "gap-fill",
+          "answer": "3:30",
+          "explanation": "The correction marker 'sorry, I made a mistake' signals revision. The final time is 3:30, not 3:00."
+        }
+      ]
+    }
+  },
+  {
+    "id": "seed-paper4-speaking-skills",
+    "title": "Paper 4 Speaking — Turn-Taking & Signposting",
+    "description": "Master the specific phrases, strategies, and error patterns that examiners look for in the Speaking paper. Go beyond 'speak more' to speak strategically.",
+    "tags": ["speaking:strategy", "speaking:turn-taking", "speaking:signposting", "speaking:errors"],
+    "difficulty": "intermediate",
+    "source": "seed",
+    "quality": "seed",
+    "topics": [
+      {
+        "title": "Individual Response Excellence",
+        "learningObjectives": ["Structure an IR with 2-4 developed points", "Use signposting language effectively", "Avoid common Chinese English interference patterns"],
+        "lessons": [
+          {
+            "title": "The 2-Minute IR Framework",
+            "referenceContent": "The Individual Response (IR) in DSE Speaking Part A gives you 1 minute to prepare and up to 1 minute to speak (though you can speak up to 2 minutes if you have more to say). The key to a high-scoring IR is not speaking longer — it's developing fewer points more deeply. Examiners reward the 'hard/soft tactic framework': for each main point, provide a hard tactic (concrete, specific, measurable) and a soft tactic (broader, value-based, aspirational). For example, if the topic is 'How can schools reduce student stress?' a hard tactic might be 'implementing mandatory screen-free periods during lunch break,' while a soft tactic might be 'fostering a school culture that values wellbeing over academic achievement.' This demonstrates depth of thinking. Signposting language is essential: 'I would argue that the most pressing issue is..., 'Moving on to a related concern,...,' 'To illustrate this point,...,' 'Finally, I believe that...' These phrases help you organize your response and show the examiner you are thinking structurally, not just listing opinions. The most common Chinese English interference patterns in Speaking are: double comparatives ('more better,' 'more easier,' 'more cheaper') — comparative adjectives use only '-er' or 'more,' never both; subject-verb agreement errors ('People is,' 'many money,' 'childrens') — 'people' is already plural, 'money' is uncountable, 'children' is the irregular plural of 'child'; 'There have' construction — Chinese uses '有' (have) where English uses 'there is/are'; modal verb errors ('can playing,' 'may getting,' 'they may be can do') — modals are followed by base form, never -ing; dropping final consonants ('experience' pronounced without final sound, 'service' → 'servic') — this affects pronunciation marks. To avoid these, practice self-monitoring: before speaking, mentally check your subject-verb agreement and comparative forms. The HKEAA examiner report consistently notes that candidates who avoid these systematic errors and use varied sentence structures score significantly higher.",
+            "exercises": [
+              {
+                "question": "Which signposting phrase best introduces a new main point in your IR?",
+                "type": "mcq",
+                "options": ["And also...", "Moving on to a related concern,...", "Then...", "Next thing..."],
+                "answer": "Moving on to a related concern,...",
+                "explanation": "This phrase signals a structured transition between points, demonstrating organizational skills that examiners reward. 'And also' and 'Then' are too basic."
+              },
+              {
+                "question": "Identify the Chinese English error: 'There have many people think that...' What is the correct form?",
+                "type": "short-answer",
+                "answer": "Correct form: 'Many people think that...' or 'There are many people who think that...'. The error is using 'There have' (from Chinese 有) instead of 'There are' or simply starting with the subject.",
+                "explanation": "'There have' is a direct translation of Chinese '有.' In English, 'there' constructions use 'is/are,' not 'have.'"
+              },
+              {
+                "question": "Which sentence correctly applies the hard/soft tactic framework?",
+                "type": "mcq",
+                "options": ["Schools should help students. It's important.", "Schools should implement mandatory mental health days (hard tactic) and foster a culture where students feel comfortable seeking support (soft tactic).", "Students need to relax more."],
+                "answer": "Schools should implement mandatory mental health days (hard tactic) and foster a culture where students feel comfortable seeking support (soft tactic).",
+                "explanation": "This response provides a concrete, actionable hard tactic (mandatory mental health days) paired with a broader, value-based soft tactic (fostering supportive culture), demonstrating depth of thinking."
+              },
+              {
+                "question": "Correct this Chinese English error: 'She more happier than before.'",
+                "type": "short-answer",
+                "answer": "'She is happier than before.' The error is a double comparative ('more happier'). Use either 'more happy' (rare) or 'happier' (standard), never both.",
+                "explanation": "Double comparatives are a systematic Chinese English error. English comparatives use either the '-er' suffix OR 'more,' never both together."
+              },
+              {
+                "question": "Which sentence avoids Chinese English interference patterns?",
+                "type": "mcq",
+                "options": ["There have many problems we need to solve.", "Many problems need to be solved.", "People is facing many difficulties.", "We can can do better."],
+                "answer": "Many problems need to be solved.",
+                "explanation": "This sentence uses correct subject-verb agreement, avoids 'there have,' uses no double comparatives, and has no modal verb errors."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Group Discussion Strategies",
+        "learningObjectives": ["Use appropriate turn-taking phrases", "Ask specific follow-up questions", "Speak strategically to meet time requirements"],
+        "lessons": [
+          {
+            "title": "Strategic Participation in Group Discussion",
+            "referenceContent": "The Group Discussion (Part B) lasts 8 minutes with 4-5 students. Examiners assess not just WHAT you say but HOW you interact with others. The minimum requirement: speak at least 3 times with a total personal contribution of more than 2 minutes. But speaking a lot is not enough — quality of interaction matters more. Polite interruption phrases: 'Excuse me, may I jump in here?' 'Sorry to interrupt, but I'd like to add...' 'That's an interesting point, and apart from that...' These show you can enter the conversation without being rude. Specific follow-up questions: NOT 'What do you think?' (too generic) but 'Considering the cost implications, do you think this approach is feasible?' or 'You mentioned education — do you think that would be effective for younger students?' Specific questions demonstrate active listening and deepen the discussion. Acknowledging others' points: 'I agree with [name]'s point about...' 'That's a valid concern, and it connects to what [name] said about...' 'Building on what you just mentioned,...' This shows collaborative thinking rather than monologuing. Passing the turn: '[Name], what's your perspective on this?' 'I'd be interested to hear [name]'s thoughts on this.' 'Does anyone have a different view?' Strategic contribution: don't just repeat what others say. Add new angles (economic, social, practical), provide examples, or synthesize multiple viewpoints. The highest-scoring candidates are those who build on others' ideas rather than delivering prepared speeches. Monologuing (speaking for too long without acknowledging others) is penalized — examiners want to see discussion, not a series of mini-presentations. Chinese English patterns in speaking: 'Have someone said that...' (from Chinese 有人说过...) → correct: 'Has anyone said...?' or 'Someone mentioned that...'; 'widen their eye' (from Chinese 開眼界) → correct: 'broaden their horizons' or 'open their eyes'; 'open the light' (from Chinese 開燈) → correct: 'turn on the light.' These literal translations from Chinese to English are frequent error patterns that examiners notice.",
+            "exercises": [
+              {
+                "question": "Which is the best polite interruption phrase in a group discussion?",
+                "type": "mcq",
+                "options": ["Wait, let me talk.", "Excuse me, may I jump in here?", "I have something to say.", "No, you're wrong."],
+                "answer": "Excuse me, may I jump in here?",
+                "explanation": "This phrase is polite, clear, and demonstrates turn-taking competence. 'Wait, let me talk' is too blunt and 'No, you're wrong' is confrontational."
+              },
+              {
+                "question": "Which follow-up question shows the most strategic thinking?",
+                "type": "mcq",
+                "options": ["What do you think?", "Considering the financial cost, is this approach realistic for underfunded schools?", "Is that all?", "Any other ideas?"],
+                "answer": "Considering the financial cost, is this approach realistic for underfunded schools?",
+                "explanation": "This question adds a new dimension (financial feasibility) and targets a specific concern (underfunded schools), demonstrating deep engagement with the topic."
+              },
+              {
+                "question": "Correct this Chinese English pattern: 'Have someone said that education is key?'",
+                "type": "short-answer",
+                "answer": "'Has anyone said that education is key?' or 'Someone has mentioned that education is key.' The error is using 'Have someone' instead of 'Has anyone' or 'Someone has.'",
+                "explanation": "'Have someone said' is a literal translation from Chinese '有人说过.' In English, 'has anyone' is the correct interrogative form."
+              },
+              {
+                "question": "Which strategy demonstrates the best group discussion performance?",
+                "type": "mcq",
+                "options": ["Delivering a prepared 2-minute speech", "Building on another student's point and adding a new perspective", "Interrupting everyone to share your ideas", "Staying quiet and only agreeing"],
+                "answer": "Building on another student's point and adding a new perspective",
+                "explanation": "This demonstrates active listening, collaborative thinking, and the ability to contribute original ideas — exactly what examiners reward in the Group Discussion."
+              },
+              {
+                "question": "What does 'widen their eye' mean in standard English?",
+                "type": "mcq",
+                "options": ["Open their eyes", "Broaden their horizons", "Look wider", "Expand their vision"],
+                "answer": "Broaden their horizons",
+                "explanation": "'Widen their eye' is a literal translation of Chinese 開眼界. The correct English idiom is 'broaden one's horizons' or 'open one's eyes to new possibilities.'"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "finalAssessment": {
+      "title": "Speaking Skills Assessment",
+      "exercises": [
+        {
+          "question": "During a group discussion about environmental protection, another student says 'We should recycle more.' Which response demonstrates the best turn-taking strategy?",
+          "type": "mcq",
+          "options": ["I agree. Recycling is good.", "Building on your point about recycling, I think we should also consider reducing consumption at the source, which has a bigger impact.", "That's wrong. Recycling isn't enough.", "What do you think about recycling?"],
+          "answer": "Building on your point about recycling, I think we should also consider reducing consumption at the source, which has a bigger impact.",
+          "explanation": "This response acknowledges the previous speaker ('Building on your point'), adds a new dimension (reducing consumption), and provides reasoning — demonstrating collaborative, strategic participation."
+        },
+        {
+          "question": "Identify and correct this Chinese English error: 'They may be can do better.'",
+          "type": "short-answer",
+          "answer": "Correct: 'They may be able to do better.' or 'They can do better.' The error combines two modals ('may be' + 'can') which is grammatically incorrect in English.",
+          "explanation": "Modals cannot be stacked. 'May be' and 'can' serve similar functions and should not appear together. Use 'may be able to' or just 'can.'"
+        },
+        {
+          "question": "You need to introduce your third main point in an Individual Response. Which signposting phrase is most effective?",
+          "type": "mcq",
+          "options": ["And then...", "Finally, I would like to address the economic dimension of this issue.", "Third...", "Another thing..."],
+          "answer": "Finally, I would like to address the economic dimension of this issue.",
+          "explanation": "This phrase signals a structured transition, specifies the topic ('economic dimension'), and uses formal register appropriate for the IR. 'And then' and 'Another thing' are too basic."
+        }
+      ]
+    }
+  }
+]

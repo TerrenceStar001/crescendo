@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import bundledContent from '../assets/bundled-content.json';
 import { STRUCTURAL_CONSTRAINTS, ARGUMENTATION_FLOW, WORD_COUNT_TARGETS, TEXT_TYPE_REQUIREMENTS, getMaxTokensForPart, GENRE_TEMPLATES, PROMPT_ENFORCEMENT_RULES } from '../utils/structuralConstraints';
-import { getAvailablePrompts, markPromptUsed, clearUsedPrompts } from '../utils/writingPrompts';
+import { getAvailablePrompts, markPromptUsed, clearUsedPrompts, getDiversePrompts, getTopicDomains } from '../utils/writingPrompts';
 import { getRandomPartAType, getRandomPartBType } from '../utils/textTypeDistribution';
 import { scoreToDseLevel } from '../utils/dseGrading';
 import { convertToHkeaa } from '../utils/ieltsToDseMap';
@@ -1601,40 +1601,42 @@ export default function useDSEPapers() {
 
       if (!partA) {
         const partAType = getRandomPartAType();
-        const aiPrompt = `You are an expert HKDSE English examiner. Generate a HKDSE Paper 2 Part A writing task.
+        const aiPrompt = `You are an expert HKDSE English examiner. Generate a realistic HKDSE Paper 2 Part A writing task.
 
-Task: A short writing task (~200 words) in the form of a ${partAType.genre}.
+TASK FORMAT: ${partAType.genre} (~200 words)
 
-Part A in HKDSE typically uses ONE of these formats:
-1. A form with 2-3 sections to fill in (e.g. application form, evaluation form, questionnaire)
-2. A structured task with 2-3 specific points to address (e.g. "explain why... and describe how...")
-3. A short email/letter with 2 specific things to cover
-4. A leaflet/poster with given headings to write under
-5. A review/response with guided questions
+REALISTIC HONG KONG CONTEXT — The scenario must be grounded in a believable Hong Kong school or community situation. Examples: your school magazine, the Students' Association, a district council consultation, a local community centre, the Green Club, the English Society.
 
-Use format type ${Math.floor(Math.random() * 5) + 1} for this task.
+SPECIFIC ROLE — The student must have a clear role: "You are a Form 6 student who...", "You are the secretary of...", "You are a member of the Students' Association..."
 
-Requirements:
-- Realistic Hong Kong context
-- Clear role for the student (e.g., "You are a Form 6 student who...")
-- Specific task instruction
-- 2-3 things to cover (incorporated into the task, NOT as separate bullet hints)
-- Do NOT add "suggestedPoints" — real HKDSE Part A does not give bullet-point hints
+TASK INSTRUCTION — Clear, specific instruction incorporating 2-3 things to cover. Do NOT present these as bullet-point hints — weave them into the task naturally.
+
+HKEAA CONVENTIONS:
+- Sign with "Chris Wong" (not your real name)
+- Do NOT write addresses
 - Word limit: ~200 words
+- Use appropriate register for the text type
 
-${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
+AVOID:
+- Overly abstract or philosophical topics
+- International contexts without Hong Kong grounding
+- Topics requiring specialist knowledge
+- Generic "discuss the pros and cons" without specific scenario
 
-Return EXACTLY this JSON format (no extra fields):
+Student's notes for inspiration:
+${noteContexts || 'No notes available.'}
+
+Return EXACTLY this JSON format (no extra fields, no markdown):
 { "type": "${partAType.slug}",
   "title": "Short descriptive title",
-  "context": "2-3 sentences setting up the realistic situation and the student's role",
-  "task": "Clear task instruction that incorporates what to cover",
+  "context": "2-3 sentences setting up the realistic Hong Kong situation and the student's role",
+  "task": "Clear task instruction incorporating 2-3 things to cover",
   "wordLimit": { "min": 180, "max": 250 },
   "instructions": "Exam-style instructions (e.g. 'Sign your name as Chris Wong. Do not write any addresses.')" }`;
 
         const raw = await callAI(aiPrompt, {
-          system: 'You are an expert HKDSE English examiner. Generate a short Part A writing prompt in valid JSON. Return ONLY valid JSON.',
-          temperature: 0.8,
+          system: 'You are an expert HKDSE English examiner. Generate a short Part A writing prompt in valid JSON. Return ONLY valid JSON. Do not include any text outside the JSON object.',
+          temperature: 0.6,
           maxTokens: 800,
         });
 
@@ -1667,14 +1669,14 @@ Return EXACTLY this JSON format (no extra fields):
 
       // Part B: try curated bank first (get 3)
       if (!forceAI) {
-        let partBPrompts = getAvailablePrompts('B', 3);
+        let partBPrompts = getDiversePrompts('B', 3);
         if (partBPrompts.length < 3) {
           clearUsedPrompts();
-          partBPrompts = getAvailablePrompts('B', 3);
+          partBPrompts = getDiversePrompts('B', 3);
         }
-        if (partBPrompts.length === 3) {
-          partB = { options: partBPrompts, source: 'curated' };
-          partBPrompts.forEach(markPromptUsed);
+        if (partBPrompts.length >= 3) {
+          partB = { options: partBPrompts.slice(0, 3), source: 'curated' };
+          partBPrompts.slice(0, 3).forEach(p => markPromptUsed(p.id));
         }
       }
 
@@ -1684,21 +1686,39 @@ Return EXACTLY this JSON format (no extra fields):
         const type3 = getRandomPartBType();
         const aiPrompt = `Generate 3 distinct HKDSE English Paper 2 Part B writing prompts.
 
-Each prompt must use the specified text type:
+TEXT TYPES REQUIRED:
 1. ${type1.label} (${type1.genre})
 2. ${type2.label} (${type2.genre})
 3. ${type3.label} (${type3.genre})
 
-Each must have a different topic domain. Make topics relevant to Hong Kong students. Format each as: a short context (1-2 sentences) setting the situation, then a clear task instruction. Do NOT include suggested points or bullet hints — real HKDSE Part B gives NO hints.
+TOPIC DOMAINS — Each prompt must cover a DIFFERENT topic domain from this list: health, environment, technology, education, social issues, culture, career, sports, media, family. Do NOT repeat domains across the 3 prompts.
 
-${noteContexts ? `Student's notes for inspiration:\n${noteContexts}` : ''}
+HONG KONG CONTEXT — Each prompt must be grounded in a realistic Hong Kong scenario. Use HK-specific institutions (School Management, District Council, HKSAR Government, South China Morning Post, Students' Association, Green Club, etc.), locations (Causeway Bay, Sham Shui Po, Tai O, etc.), and cultural references.
 
-Return as JSON array of 3 objects:
-[{ "type": "${type1.slug}", "title": "...", "context": "1-2 sentence context", "task": "Clear task instruction", "wordLimit": { "min": 380, "max": 450 }, "instructions": "Exam-style instructions" }]`;
+REALISTIC SCENARIOS — Ground each prompt in a concrete situation:
+- A school committee meeting
+- A community consultation
+- A newspaper/magazine submission
+- A government policy proposal
+- A student-led initiative
+- A local cultural event
+
+FORMAT RULES:
+- Each prompt has: context (1-2 sentences setting the situation), title, task (clear instruction), wordLimit (min:380, max:450), instructions
+- Do NOT include suggested points or bullet hints — real HKDSE Part B gives NO hints
+- Do NOT make topics require specialist knowledge
+- Do NOT use overly abstract or philosophical topics
+- Each prompt must discriminate between ability levels (accessible to all but allowing top candidates to excel)
+
+Student's notes for inspiration:
+${noteContexts || 'No notes available.'}
+
+Return as a JSON array of exactly 3 objects:
+[{"type":"...","title":"...","context":"...","task":"...","wordLimit":{"min":380,"max":450},"instructions":"..."},{"type":"...","title":"...","context":"...","task":"...","wordLimit":{"min":380,"max":450},"instructions":"..."},{"type":"...","title":"...","context":"...","task":"...","wordLimit":{"min":380,"max":450},"instructions":"..."}]`;
 
         const raw = await callAI(aiPrompt, {
-          system: 'You are an expert HKDSE English examiner. Generate 3 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON.',
-          temperature: 0.9,
+          system: 'You are an expert HKDSE English examiner. Generate 3 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON. Do not include any text outside the JSON array.',
+          temperature: 0.7,
           maxTokens: 2000,
         });
 
@@ -1747,6 +1767,276 @@ Return as JSON array of 3 objects:
       setIsLoading(false);
     }
   }, [getCachedPapers, cachePapers]);
+
+  /**
+   * generateCourseExercises — AI-generates exercises from a lesson's reference content.
+   * Takes the reference content and lesson topic, generates 3-5 exercises in the specified types.
+   * Uses the course exercise schema (question, type, answer, explanation, options, difficulty).
+   * Falls back to empty array if AI fails.
+   */
+  const generateCourseExercises = useCallback(async (referenceContent, lessonTitle, exerciseTypes, callAI, maxRetries = 2) => {
+    if (!referenceContent || !lessonTitle) return [];
+
+    const types = exerciseTypes || ['mcq', 'gap-fill', 'short-answer'];
+    const typeSpecs = types.map(t => {
+      switch (t) {
+        case 'mcq': return 'mcq (multiple-choice with 4 options A-D, one correct)';
+        case 'gap-fill': return 'gap-fill (fill in the blank — tests understanding of terminology/concepts)';
+        case 'short-answer': return 'short-answer (requires 1-2 sentence written response explaining why/how, not what)';
+        case 'sentence-rewrite': return 'sentence-rewrite (rewrite the sentence using the given word/phrase)';
+        case 'matching': return 'matching (match 3-5 terms to their definitions — tests conceptual relationships)';
+        case 'cloze': return 'cloze (fill in blanks with context-appropriate words)';
+        case 'reordering': return 'reordering (arrange words/phrases in correct order)';
+        default: return 'mcq';
+      }
+    }).join(', ');
+
+    // Check if answer text appears verbatim in source (shallow recall signal)
+    const isVerbatimRecall = (question, answer, source) => {
+      const ans = String(answer).toLowerCase().trim();
+      if (ans.length < 4 || ans.length > 120) return false;
+      const src = source.toLowerCase();
+      if (!src.includes(ans)) return false;
+      const shortWords = ans.split(/\s+/);
+      if (shortWords.length === 1 && src.includes(ans)) return true;
+      if (shortWords.length <= 4 && src.includes(ans)) return true;
+      return false;
+    };
+
+    // Heuristic Bloom's level estimator
+    const estimateBloomDepth = (stem) => {
+      const s = stem.toLowerCase();
+      const recall = ['what is', 'what does', 'define', 'list', 'name', 'identify', 'when did', 'who wrote', 'according to', 'how many', 'what year', 'fill in the blank with'];
+      const deep = ['compare', 'contrast', 'distinguish', 'differentiate', 'evaluate', 'judge', 'which is better', 'what is wrong', 'identify the problem', 'which strategy', 'diagnose', 'why does', 'what would happen', 'which best', 'most likely', 'which of the following best', 'choose the best'];
+      for (const v of deep) if (s.includes(v)) return 4;
+      for (const v of recall) if (s.startsWith(v) || s.includes(' ' + v) || s.includes(v)) return 1;
+      return 3;
+    };
+
+    // Detect formula questions — test memorized rules/counts, not understanding
+    const isFormulaQuestion = (stem, answer) => {
+      const s = stem.toLowerCase();
+      // "How many/much X should/does/typically/must Y" → counting prescription
+      const prescriptiveCount = /how\s+(many|much)\s.*\b(should|typically|usually|must|does|do)\b/.test(s);
+      if (prescriptiveCount) return true;
+      // Answer is a numeric range → signals "memorize this number"
+      if (/^\d+\s*[-–—to]+\s*\d+$/.test(String(answer).trim())) return true;
+      // Answer is a plain number > 1 → signals count-memorization
+      if (/^\d+$/.test(String(answer).trim()) && parseInt(answer) > 1) return true;
+      // Stem asks about sentence/paragraph/word/structure counts prescriptively
+      const entityCount = /\b(how many|how much)\b/.test(s);
+      const structureEntity = /\b(sentences?|paragraphs?|words?|steps?|points?|stages?|phases?|parts?|sections?|marks?)\b/.test(s);
+      const prescriptive = /\b(should|typically|usually|must|always|every)\b/.test(s);
+      if (entityCount && structureEntity && prescriptive) return true;
+      return false;
+    };
+
+    // Check distractor quality
+    const checkDistractors = (options) => {
+      if (!Array.isArray(options) || options.length < 3) return ['need 4 options for MCQ'];
+      const issues = [];
+      const lens = options.map(o => String(o).length);
+      const avgLen = lens.reduce((a, b) => a + b, 0) / lens.length;
+      if (Math.max(...lens) > avgLen * 2.2) issues.push('one option is much longer than others — correct answer stands out');
+      if (Math.min(...lens) < avgLen * 0.35) issues.push('one option is much shorter than others');
+      return issues;
+    };
+
+    // Full exercise validation
+    const validateExercise = (e, source) => {
+      const issues = [];
+      if (!e.question || e.question.length < 15) issues.push('question too short (< 15 chars)');
+      if (e.explanation && e.explanation.length < 35) issues.push('explanation too short (< 35 chars)');
+      if (e.type === 'mcq' && e.answer && isVerbatimRecall(e.question, e.answer, source)) {
+        issues.push('answer is a direct quote from source — rewrite to require reasoning, not recall');
+      }
+      if (isFormulaQuestion(e.question, e.answer)) {
+        issues.push('question tests a memorized rule/formula (count, range, or prescription) — rewrite to require diagnosing/analyzing, not recalling a number');
+      }
+      const bloom = estimateBloomDepth(e.question || '');
+      if (bloom <= 1) issues.push('question only tests recall (definitions, facts) — rewrite to require application, analysis, or evaluation');
+      if (e.options) issues.push(...checkDistractors(e.options));
+      return { passed: issues.length === 0, issues };
+    };
+
+    const buildFeedback = (failedItems) => {
+      return failedItems.map((e, i) => {
+        const qShort = (e.question || '').substring(0, 60);
+        return `Exercise ${i + 1} ("${qShort}..."):\n- ` + (e._issues || ['unknown issue']).join('\n- ');
+      }).join('\n\n');
+    };
+
+    const fewShotExamples = `Here are examples of the DEPTH expected — and what to avoid:
+
+EXAMPLE GOOD (Analyze):
+The passage discusses the 3C Strategy (Copy, Change, Create) for summary cloze. The instruction says a word "requires modification." Which C strategy should you use?
+A) Copy  B) Change  C) Create
+Answer: B
+Why this is deep: Tests APPLICATION of a rule. The student must understand what "modification" means in context and map it to the correct strategy — not recall the definition of each C.
+
+EXAMPLE GOOD (Evaluate):
+A student writes a formal complaint letter: "Dear mate, I wanna tell you about a problem with your service." What register errors can you identify?
+A) None — the tone matches a complaint  B) "mate" is too informal for a formal letter
+C) The sentence is too short  D) "wanna" is a contraction not used in formal writing
+Answer: B and D
+Why this is deep: Requires DIAGNOSING register mismatch. The student must know what "formal register" means AND be able to spot violations in context.
+
+EXAMPLE BAD (shallow formula — DO NOT copy):
+BAD: "A 7/7 paragraph should typically contain how many sentences?"
+Answer: "4-6"
+Why this is bad: Tests memorization of a number, not understanding of what each sentence must DO. The student can answer correctly by remembering "4-6" without understanding paragraph development.`;
+
+const formulaWarning = `\n
+CRITICAL: Do NOT generate "how many X should Y contain?" questions. 
+These test formula recall, not understanding. 
+Instead, give the student a concrete example of student work and ask them to diagnose what's wrong.`;
+
+    const buildPrompt = (feedback) => {
+      const parts = [
+        `You are a DSE English examiner writing questions for the lesson "${lessonTitle}".`,
+        '',
+        'LESSON CONTENT:',
+        referenceContent,
+        '',
+        'First, analyze the lesson to identify:',
+        '1. The CORE SKILL or CONCEPT being taught (not just facts)',
+        '2. What students commonly misunderstand about this concept',
+        '3. How a student would APPLY or MISAPPLY this concept in an exam scenario',
+        '',
+        `Then, generate EXACTLY 4 exercises of these types: ${typeSpecs}`,
+        '',
+        fewShotExamples,
+        formulaWarning,
+        '',
+        'REQUIREMENTS for ALL exercises:',
+        '1. Must test UNDERSTANDING or APPLICATION — NOT recall of a fact or direct quote',
+        '2. The correct answer must NOT appear word-for-word as a short phrase in the lesson content',
+        '3. For MCQ: exactly 4 options. Each distractor must be PLAUSIBLE (a real mistake a student might make)',
+        '4. For gap-fill: the blank requires understanding the concept, not copying a word from the text',
+        '5. For short-answer: requires explaining WHY or HOW, not just WHAT (1-2 sentences)',
+        '6. Each explanation must explain the REASONING behind the answer (40+ chars)',
+        '7. Difficulty: mix of medium (3) and hard (4-5)',
+        '',
+        'ANTI-PATTERNS — Do NOT generate:',
+        '- "What is X?" or "What does X mean?" questions (pure definition recall)',
+        '- Questions answerable by scanning for a single word or number',
+        '- "How many X should Y contain?" questions (tests formula recall, not understanding)',
+        '- Questions with numeric ranges as answers (tests memorized counts)',
+        '- Distractors that are obviously wrong (absurd, comical, unrelated to topic)',
+        '- Questions about minor details that don\'t test understanding of the core concept',
+        '- Questions answerable without reading the reference content',
+      ];
+
+      if (feedback) {
+        parts.push('', 'PREVIOUS ATTEMPT HAD THESE ISSUES — fix them:', feedback);
+      }
+
+      parts.push('', 'Return ONLY this JSON array (no markdown, no extra text):');
+      parts.push('[',
+        '  {',
+        '    "question": "Exercise question",',
+        '    "type": "mcq|gap-fill|short-answer|sentence-rewrite|matching|cloze|reordering",',
+        '    "answer": "Correct answer",',
+        '    "explanation": "Why correct (40+ chars)",',
+        '    "difficulty": 3,',
+        '    "options": ["A", "B", "C", "D"]',
+        '  }',
+        ']');
+
+      return parts.join('\n');
+    };
+
+    let lastResult = null;
+    let bestPassedCount = 0;
+    let feedback = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const prompt = buildPrompt(feedback);
+        const raw = await callAI(prompt, {
+          system: 'You are a DSE English examiner generating deep comprehension exercises. Return ONLY valid JSON, no extra text.',
+          temperature: 0.6,
+          maxTokens: 2500,
+        });
+        const parsed = parseJSONArray(raw);
+        if (!Array.isArray(parsed) || parsed.length < 3) {
+          feedback = 'Returned invalid or incomplete JSON. Output must be a JSON array of 4 exercise objects.';
+          continue;
+        }
+        const withValidation = parsed.slice(0, 5).map(e => {
+          const { passed, issues } = validateExercise(e, referenceContent);
+          return { ...e, _passed: passed, _issues: issues };
+        });
+        let passed = withValidation.filter(e => e._passed);
+        let failed = withValidation.filter(e => !e._passed);
+
+        // LLM-as-judge: evaluate passed exercises for depth
+        if (passed.length >= 1) {
+          try {
+            const judgePrompt = `Rate each exercise's DEPTH on a scale of 1-4:
+1 = FORMULA/MEMORIZED RULE (answerable by recalling a number, count, or prescription; e.g. "A 7/7 paragraph should contain how many sentences?")
+2 = SURFACE RECALL (answerable by scanning for a fact or definition; e.g. "What is the 3C Strategy?")
+3 = UNDERSTANDING (student must comprehend the concept to answer; e.g. "Which C strategy applies when a word needs modification?")
+4 = REASONING (requires application, analysis, or evaluation; e.g. "Identify the register errors in this student's writing.")
+
+${passed.map((e, i) => `Exercise ${i + 1}: "${(e.question || '').substring(0, 80)}"`).join('\n')}
+
+Return ONLY valid JSON: { "scores": [3, 4, 2, 1], "reasons": ["why 3", "why 4", "why 2", "why 1"] }
+scores length must be ${passed.length}.`;
+
+            const judgeRaw = await callAI(judgePrompt, {
+              system: 'You evaluate exercise depth. Return ONLY valid JSON.',
+              temperature: 0.2,
+              maxTokens: 800,
+            });
+            const judgeObj = tryParseJSON(judgeRaw);
+            const judgeScores = judgeObj?.scores;
+
+            if (Array.isArray(judgeScores) && judgeScores.length === passed.length) {
+              const shallowFromJudge = [];
+              const deepFromJudge = [];
+              passed.forEach((e, i) => {
+                const score = judgeScores[i];
+                const scoreVal = typeof score === 'object' && score !== null ? score.score : score;
+                if (typeof scoreVal === 'number' && scoreVal <= 2) {
+                  shallowFromJudge.push({ ...e, _passed: false, _issues: [...(e._issues || []), `judge depth score ${scoreVal}/4 — surface-level, does not require genuine understanding`] });
+                } else {
+                  deepFromJudge.push(e);
+                }
+              });
+              passed = deepFromJudge;
+              failed = [...failed, ...shallowFromJudge];
+            }
+          } catch (e) {
+            // Judge failed silently — use heuristic results as-is
+          }
+        }
+
+        if (passed.length >= 3) {
+          const clean = passed.map(e => {
+            const { _passed, _issues, ...rest } = e;
+            return rest;
+          });
+          lastResult = clean.slice(0, 5);
+          break;
+        }
+
+        feedback = buildFeedback(failed);
+        if (passed.length > bestPassedCount) {
+          bestPassedCount = passed.length;
+          const clean = passed.map(e => {
+            const { _passed, _issues, ...rest } = e;
+            return rest;
+          });
+          lastResult = clean.slice(0, 5);
+        }
+      } catch (e) {
+        if (attempt === maxRetries) break;
+        feedback = `Error: ${e.message}. Please try again with valid JSON output.`;
+      }
+    }
+
+    return lastResult || [];
+  }, []);
 
   const buildCorrectionPrompt = useCallback((part, essayData, selfAssessment) => {
     const { text, prompt: promptInfo } = essayData || {};
@@ -2405,5 +2695,6 @@ Format the above data into well-structured study notes. Group related informatio
     bundled,
     writingSessionGet,
     writingSessionSet,
-  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, generateWritingNotes, clearCache, writingSessionGet, writingSessionSet, buildCorrectionPrompt, parseCorrectionResponse, combineCorrections, detectTextType, checkTextTypeMatch, checkPartAFormat, validateCorrectionOutput]);
+    generateCourseExercises,
+  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, generateWritingNotes, clearCache, writingSessionGet, writingSessionSet, buildCorrectionPrompt, parseCorrectionResponse, combineCorrections, detectTextType, checkTextTypeMatch, checkPartAFormat, validateCorrectionOutput, generateCourseExercises]);
 }

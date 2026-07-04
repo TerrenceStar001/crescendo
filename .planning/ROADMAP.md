@@ -21,7 +21,7 @@
 
 - [x] **Phase 7: PDF Ingestion Pipeline Fix** — Reliable PDF upload, text extraction, chunking, and AI structuring with clear error feedback (completed 2026-07-01)
 - [x] **Phase 8: Auto-Generation Reliability & Quality** — Fix timeout cascade, lower AI temperature, add semantic validation for deep, correct content (completed 2026-07-03)
-- [ ] **Phase 9: Seed Catalog & Quality Features** — 8-10 seed courses, quality badges, and post-course score improvement tracking
+- [x] **Phase 9: Seed Catalog & Quality Features** — 8-10 seed courses, quality badges, and post-course score improvement tracking (completed 2026-07-03)
 
 ## Phase Details
 
@@ -221,6 +221,6 @@ Plans:
 | 6. Courses Feature | 4/4 | ✓ | 2026-06-23 |
 | 7. PDF Ingestion Pipeline Fix | 3/3 | Complete   | 2026-07-01 |
 | 8. Auto-Generation Reliability & Quality | 4/4 | Complete   | 2026-07-03 |
-| 9. Seed Catalog & Quality Features | 0/0 | Not started | - |
+| 9. Seed Catalog & Quality Features | Done | Complete   | 2026-07-03 |
 
 

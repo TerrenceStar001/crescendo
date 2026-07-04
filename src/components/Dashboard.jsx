@@ -18,6 +18,15 @@ export default function Dashboard({
   const [showCustomize, setShowCustomize] = useState(false);
   const [showAllRecs, setShowAllRecs] = useState(false);
 
+  // Read course improvements from localStorage
+  const improvements = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('crescendo-course-improvements');
+      if (!raw) return {};
+      return JSON.parse(raw);
+    } catch { return {}; }
+  }, []);
+
   const toggleSection = useCallback((key) => {
     setVisibleSections(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
@@ -210,6 +219,33 @@ export default function Dashboard({
               ))}
             </div>
           </Section>
+        )}
+
+        {Object.keys(improvements).length > 0 && (
+          <div className="dashboard__section">
+            <div className="dashboard__section-header">
+              <h2 className="dashboard__section-title">📈 Course Improvements</h2>
+              <button className="dashboard__section-hide" onClick={() => {}} title="Course improvement tracking">✕</button>
+            </div>
+            <div className="dse-dashboard__improvements">
+              {Object.entries(improvements).slice(0, 3).map(([courseId, entry]) => {
+                const areas = entry.beforeAnalysis?.filter?.(b => b.percentage < 60) || [];
+                return areas.length > 0 ? (
+                  <div key={courseId} className="dse-dashboard__improvement-item">
+                    <span className="dse-dashboard__improvement-area">
+                      {areas.slice(0, 2).map(a => a.area).join(', ')}
+                    </span>
+                    <span className="dse-dashboard__improvement-detail">
+                      {areas.map(a => `${a.area}: ${a.percentage}%`).join(', ')}
+                    </span>
+                    <span className="dse-dashboard__improvement-date">
+                      {new Date(entry.trackedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
         )}
 
         <Section id="quickActions" title="⚡ Quick Actions">

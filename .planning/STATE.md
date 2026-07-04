@@ -2,24 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Courses Quality Polish
-current_phase: 08
+current_phase: 09
 status: complete
-last_updated: "2026-07-03T11:30:00.000Z"
+last_updated: "2026-07-03T12:00:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
   completed_plans: 4
-  percent: 22
+  percent: 33
 ---
 
 # Project State
 
-## Session: Phase 8 — Auto-Generation Reliability & Quality
+## Session: Phase 9 — Seed Catalog & Quality Features
 
-**Current phase:** 08
-**Last action:** All 4 plans executed — semantic validation engine, global loading state, hollow template removal, PDF timeout, PostTask enrollment trigger
+**Current phase:** 09
+**Last action:** All changes executed — seed courses bundled, quality badges added, improvement tracking wired
 
 ## Project Reference
 
@@ -79,17 +79,16 @@ The Courses feature from Phase 6 has known quality issues that need fixing:
 
 | Phase | Status | Plans | Progress |
 |-------|--------|-------|----------|
-| 7 — PDF Ingestion Pipeline Fix | Not started | 0/0 | 0% |
-| 8 — Auto-Generation Reliability & Quality | Not started | 0/0 | 0% |
-| 9 — Seed Catalog & Quality Features | Not started | 0/0 | 0% |
+| 7 — PDF Ingestion Pipeline Fix | Complete | 3/3 | 100% |
+| 8 — Auto-Generation Reliability & Quality | Complete | 4/4 | 100% |
+| 9 — Seed Catalog & Quality Features | Complete | Done | 100% |
 
 ## Current Position
 
-Phase: 07 (pdf-ingestion-pipeline-fix) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 09 (seed-catalog-quality-features) — COMPLETE
+Status: Phase 9 complete — milestone v1.1 all phases done
 Last activity: 2026-07-03
 
 ## Next Steps
 
-1. `/gsd-plan-phase 7` — Plan Phase 7 (PDF Ingestion Pipeline Fix)
+1. Consider `/gsd-complete-milestone` to archive v1.1 and plan v1.2

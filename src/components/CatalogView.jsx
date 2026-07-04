@@ -157,6 +157,7 @@ export default function CatalogView({
   // Difficulty progression (D-30): check if course is locked based on DSE level
   const isLocked = useMemo(() => {
     return (course) => {
+      if (course.quality === 'seed' || course.source === 'seed') return false;
       if (!course?.difficulty) return false;
       const userLevel = levelToNumber(getOverallDseLevel(skillAnalytics));
       if (course.difficulty === 'advanced' && userLevel < 4) return true;
@@ -186,8 +187,13 @@ export default function CatalogView({
             {course.difficulty || 'intermediate'}
           </span>
           <span className="course__card-source">
-            {course.source === 'pdf-import' ? '📄 Imported' : '🤖 Auto-generated'}
+            {course.source === 'pdf-import' ? '📄 Imported' : course.source === 'seed' ? '🌱 Seed' : '🤖 Auto-generated'}
           </span>
+          {course.quality && (
+            <span className={`course__badge course__badge--${course.quality}`}>
+              {course.quality === 'seed' ? '🌱' : course.quality === 'reviewed' ? '✓' : '✎'} {course.quality}
+            </span>
+          )}
         </div>
         {course.tags && course.tags.length > 0 && (
           <div className="course__card-tags">

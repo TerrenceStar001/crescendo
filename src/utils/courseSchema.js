@@ -23,6 +23,7 @@ export const COURSE_SCHEMA = {
       generationDate: { type: 'string', required: false },
       createdAt: { type: 'string', required: false },
       published: { type: 'boolean', required: false },
+      quality: { type: 'string', required: false, values: ['seed', 'reviewed', 'draft'] },
       draft: { type: 'object', required: false },
     },
   },

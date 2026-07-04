@@ -14,7 +14,7 @@ import { normalizeAnswer } from '../utils/answerChecking';
  *   callAI   — AI function for potential content generation
  *   dsePapers — IndexedDB wrapper (for backward compat)
  */
-export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
+export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrackImprovement }) {
   const { getItem, setItem, DSE_KEYS } = useIndexedDB();
   const COURSE_PROGRESS_KEY = `${DSE_KEYS.COURSE_PROGRESS}:${course.id}`;
 
@@ -37,25 +37,112 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTermIndex, setSelectedTermIndex] = useState(null);
   const [reorderState, setReorderState] = useState(null);
+  const [generatedExercises, setGeneratedExercises] = useState(null);
+  const [currentExerciseSet, setCurrentExerciseSet] = useState(null);
+  const [generatingExercises, setGeneratingExercises] = useState(false);
 
   const saveTimerRef = useRef(null);
-  const feedbackTimerRef = useRef(null);
 
   // === Derived data ===
   const currentTopic = course.topics[currentTopicIndex];
   const currentLesson = currentTopic?.lessons[currentLessonIndex];
-  const currentExercise = currentLesson?.exercises[currentExerciseIndex];
   const allLessonsCount = useMemo(() => {
     return course.topics.reduce((sum, t) => sum + t.lessons.length, 0);
   }, [course]);
   const completedLessonCount = completedLessons.length;
   const progressPct = allLessonsCount > 0 ? Math.round((completedLessonCount / allLessonsCount) * 100) : 0;
 
+  // Determine which exercise set to use (generated > seed)
+  const lessonExercises = useMemo(() => {
+    if (!currentLesson) return [];
+    if (generatedExercises && generatedExercises.length > 0) return generatedExercises;
+    return currentLesson.exercises || [];
+  }, [currentLesson, generatedExercises]);
+
+  const currentExerciseFromSet = lessonExercises[currentExerciseIndex];
+
   // Shuffle definitions for matching exercise (stable on currentExercise change)
   const shuffledDefs = useMemo(() => {
-    if (!currentExercise || currentExercise.type !== 'matching' || !currentExercise.pairs) return [];
-    return [...currentExercise.pairs].map(p => p.match).sort(() => Math.random() - 0.5);
-  }, [currentExercise]);
+    if (!currentExerciseFromSet || currentExerciseFromSet.type !== 'matching' || !currentExerciseFromSet.pairs) return [];
+    return [...currentExerciseFromSet.pairs].map(p => p.match).sort(() => Math.random() - 0.5);
+  }, [currentExerciseFromSet]);
+
+  // Generate exercises for current lesson when it changes
+  const generationAttemptedRef = useRef(false);
+  // Reset generation state when lesson changes
+  useEffect(() => {
+    generationAttemptedRef.current = false;
+    setGeneratedExercises(null);
+    setCurrentExerciseIndex(0);
+    setAnswers({});
+    setExerciseFeedback(null);
+  }, [currentLesson?.title]);
+
+  useEffect(() => {
+    if (!currentLesson || !callAI || !dsePapers?.generateCourseExercises) return;
+    if (generationAttemptedRef.current) return;
+    generationAttemptedRef.current = true;
+
+    const types = ['mcq', 'gap-fill', 'short-answer'];
+    if (currentLesson.exercises?.some(e => e.type === 'matching')) types.push('matching');
+    if (currentLesson.exercises?.some(e => e.type === 'sentence-rewrite')) types.push('sentence-rewrite');
+    if (currentLesson.exercises?.some(e => e.type === 'reordering')) types.push('reordering');
+
+    setGeneratingExercises(true);
+    dsePapers.generateCourseExercises(
+      currentLesson.referenceContent,
+      currentLesson.title,
+      types,
+      callAI
+    ).then(exercises => {
+      if (exercises && exercises.length >= 3) {
+        setGeneratedExercises(exercises);
+        console.log('[course] AI generated', exercises.length, 'exercises for', currentLesson.title);
+      } else {
+        console.warn('[course] AI returned', exercises?.length || 0, 'exercises — falling back to seed');
+      }
+    }).catch(e => {
+      console.warn('[course] AI exercise generation failed:', e.message, '— using seed exercises');
+    }).finally(() => {
+      setGeneratingExercises(false);
+    });
+  }, [currentLesson?.title, callAI, dsePapers?.generateCourseExercises]);
+
+  // Regenerate exercises on demand
+  const handleRegenerateExercises = useCallback(() => {
+    if (!currentLesson || !callAI || !dsePapers?.generateCourseExercises) return;
+    setGeneratedExercises(null);
+    generationAttemptedRef.current = true;
+    setCurrentExerciseIndex(0);
+    setAnswers({});
+    setExerciseFeedback(null);
+
+    const types = ['mcq', 'gap-fill', 'short-answer'];
+    if (currentLesson.exercises?.some(e => e.type === 'matching')) types.push('matching');
+    if (currentLesson.exercises?.some(e => e.type === 'sentence-rewrite')) types.push('sentence-rewrite');
+    if (currentLesson.exercises?.some(e => e.type === 'reordering')) types.push('reordering');
+
+    setGeneratingExercises(true);
+    dsePapers.generateCourseExercises(
+      currentLesson.referenceContent,
+      currentLesson.title,
+      types,
+      callAI
+    ).then(exercises => {
+      if (exercises && exercises.length >= 3) {
+        setGeneratedExercises(exercises);
+        console.log('[course] AI regenerated', exercises.length, 'exercises for', currentLesson.title);
+      } else {
+        console.warn('[course] AI returned', exercises?.length || 0, 'exercises — falling back to seed');
+      }
+    }).catch(e => {
+      console.warn('[course] AI exercise regeneration failed:', e.message, '— using seed exercises');
+    }).finally(() => {
+      setGeneratingExercises(false);
+    });
+
+    setShowReference(false);
+  }, [currentLesson, callAI, dsePapers?.generateCourseExercises]);
 
   // === Load saved progress on mount ===
   useEffect(() => {
@@ -80,6 +167,13 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
       } catch {}
     })();
   }, []);
+
+  // Track post-course improvement when course completes
+  useEffect(() => {
+    if (phase === 'complete' && course.id && onTrackImprovement) {
+      onTrackImprovement(course.id);
+    }
+  }, [phase, course.id, onTrackImprovement]);
 
   // === Auto-save every 10 seconds (WritingModule pattern) ===
   useEffect(() => {
@@ -115,19 +209,18 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
   useEffect(() => {
     return () => {
       clearTimeout(saveTimerRef.current);
-      clearTimeout(feedbackTimerRef.current);
     };
   }, []);
 
   // Initialize reorderState when entering a reordering exercise
   useEffect(() => {
-    if (currentExercise?.type === 'reordering' && currentExercise.correctOrder?.length) {
-      const shuffled = [...currentExercise.correctOrder].sort(() => Math.random() - 0.5);
+    if (currentExerciseFromSet?.type === 'reordering' && currentExerciseFromSet.correctOrder?.length) {
+      const shuffled = [...currentExerciseFromSet.correctOrder].sort(() => Math.random() - 0.5);
       setReorderState(shuffled);
     } else {
       setReorderState(null);
     }
-  }, [currentExercise]);
+  }, [currentExerciseFromSet]);
 
   // === Single active lesson enforcement (D-04) ===
   const checkActiveLesson = useCallback(() => {
@@ -151,48 +244,44 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
   // === Exercise answer handling ===
   const handleExerciseAttempt = useCallback((exerciseId, answer) => {
-    if (isSubmitting || !currentExercise) return;
+    if (isSubmitting || !currentExerciseFromSet) return;
     setIsSubmitting(true);
 
     const currentAttempts = (answers[exerciseId]?.attempts || 0) + 1;
     let isCorrect = false;
 
-    // Check answer based on exercise type
-    // Course exercises use 'answer' field (not 'correctAnswer' like DSE schema)
-    switch (currentExercise.type) {
+    switch (currentExerciseFromSet.type) {
       case 'mcq': {
-        isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExercise.answer));
+        isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExerciseFromSet.answer));
         break;
       }
       case 'gap-fill':
       case 'cloze': {
-        if (currentExercise.answers && Array.isArray(currentExercise.answers)) {
-          // Multiple blanks in cloze/gap-fill
-          const blanks = currentExercise.answers;
+        if (currentExerciseFromSet.answers && Array.isArray(currentExerciseFromSet.answers)) {
+          const blanks = currentExerciseFromSet.answers;
           const userBlanks = answer || {};
           isCorrect = blanks.every((blank, i) =>
             normalizeAnswer(String(userBlanks[i] || '')) === normalizeAnswer(String(blank || ''))
           );
         } else {
-          // Single answer
-          isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExercise.answer));
+          isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExerciseFromSet.answer));
         }
         break;
       }
       case 'short-answer':
       case 'sentence-rewrite': {
-        isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExercise.answer));
+        isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExerciseFromSet.answer));
         break;
       }
       case 'matching': {
-        if (currentExercise.pairs && typeof answer === 'object') {
-          isCorrect = currentExercise.pairs.every(p => answer[p.item] === p.match);
+        if (currentExerciseFromSet.pairs && typeof answer === 'object') {
+          isCorrect = currentExerciseFromSet.pairs.every(p => answer[p.item] === p.match);
         }
         break;
       }
       case 'reordering': {
-        if (currentExercise.correctOrder && Array.isArray(answer)) {
-          isCorrect = currentExercise.correctOrder.every((item, idx) => answer[idx] === item);
+        if (currentExerciseFromSet.correctOrder && Array.isArray(answer)) {
+          isCorrect = currentExerciseFromSet.correctOrder.every((item, idx) => answer[idx] === item);
         }
         break;
       }
@@ -205,27 +294,13 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
       [exerciseId]: { answer, correct: isCorrect, attempts: currentAttempts, timestamp: Date.now() },
     }));
 
-    // Unlock reference on wrong answer, hint click, or 3rd attempt
     if (!isCorrect || currentAttempts >= 3) {
       setReferenceUnlocked(true);
     }
 
     setExerciseFeedback({ correct: isCorrect, answer, attempts: currentAttempts });
-
-    // Auto-advance after feedback delay (longer for wrong answers)
-    clearTimeout(feedbackTimerRef.current);
-    feedbackTimerRef.current = setTimeout(() => {
-      setExerciseFeedback(null);
-      setShowReference(false);
-      const nextIdx = currentExerciseIndex + 1;
-      if (nextIdx >= currentLesson.exercises.length) {
-        setLessonComplete(true);
-      } else {
-        setCurrentExerciseIndex(nextIdx);
-      }
-      setIsSubmitting(false);
-    }, isCorrect ? 1200 : 2000);
-  }, [currentExercise, currentExerciseIndex, currentLesson, answers, isSubmitting]);
+    setIsSubmitting(false);
+  }, [currentExerciseFromSet, currentExerciseIndex, currentLesson, answers, isSubmitting]);
 
   // === Hint/reference click ===
   const handleHintClick = useCallback(() => {
@@ -235,13 +310,14 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
   // === Skip current exercise ===
   const handleSkipExercise = useCallback(() => {
+    if (!currentExerciseFromSet) return;
     setAnswers(prev => ({
       ...prev,
-      [currentExercise.question]: { answer: null, correct: false, skipped: true, timestamp: Date.now() },
+      [currentExerciseFromSet.question]: { answer: null, correct: false, skipped: true, timestamp: Date.now() },
     }));
     setExerciseFeedback({ correct: false });
     setTimeout(() => {
-      if (currentExerciseIndex < currentLesson.exercises.length - 1) {
+      if (currentExerciseIndex < lessonExercises.length - 1) {
         setCurrentExerciseIndex(prev => prev + 1);
         setExerciseFeedback(null);
       } else {
@@ -249,22 +325,34 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
         setExerciseFeedback(null);
       }
     }, 800);
-  }, [currentExercise, currentExerciseIndex, currentLesson]);
+  }, [currentExerciseFromSet, currentExerciseIndex, currentLesson]);
+
+  // === Next exercise (manual advance) ===
+  const handleNextExercise = useCallback(() => {
+    setExerciseFeedback(null);
+    setShowReference(false);
+    const nextIdx = currentExerciseIndex + 1;
+    if (nextIdx >= lessonExercises.length) {
+      setLessonComplete(true);
+    } else {
+      setCurrentExerciseIndex(nextIdx);
+    }
+  }, [currentExerciseIndex, lessonExercises.length]);
 
   // === Reveal correct answer ===
   const handleRevealAnswer = useCallback(() => {
+    if (!currentExerciseFromSet) return;
     setAnswers(prev => ({
       ...prev,
-      [currentExercise.question]: { answer: null, correct: false, revealed: true, timestamp: Date.now() },
+      [currentExerciseFromSet.question]: { answer: null, correct: false, revealed: true, timestamp: Date.now() },
     }));
     setExerciseFeedback({ correct: false });
-  }, [currentExercise]);
+  }, [currentExerciseFromSet]);
 
   // === Start lesson ===
   const handleStartLesson = useCallback(() => {
     const activeCourseId = checkActiveLesson();
     if (activeCourseId && activeCourseId !== course.id) {
-      // Show confirmation dialog (handled via dedicated state)
       if (window.confirm(`You have an active lesson in another course. Start this one anyway?`)) {
         handleConfirmSwitch();
       }
@@ -282,7 +370,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
   // === Next lesson / topic ===
   const handleNextLesson = useCallback(() => {
-    // Mark current lesson as complete
     const lessonGlobalIdx = course.topics
       .slice(0, currentTopicIndex)
       .reduce((sum, t) => sum + t.lessons.length, 0) + currentLessonIndex;
@@ -290,7 +377,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
     setCompletedLessons(newCompleted);
     setLessonComplete(false);
 
-    // Check if all lessons in current topic are done
     const nextLessonIdx = currentLessonIndex + 1;
     if (nextLessonIdx < currentTopic.lessons.length) {
       setCurrentLessonIndex(nextLessonIdx);
@@ -299,7 +385,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
       setShowReference(false);
       setAnswers({});
     } else {
-      // Move to next topic or final assessment
       const nextTopicIdx = currentTopicIndex + 1;
       if (nextTopicIdx < course.topics.length) {
         setCurrentTopicIndex(nextTopicIdx);
@@ -309,7 +394,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
         setShowReference(false);
         setAnswers({});
       } else {
-        // All lessons done — final assessment
         setPhase('final-assessment');
       }
     }
@@ -317,12 +401,10 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
   // === Final assessment ===
   const finalAssessmentExercises = useMemo(() => {
-    // Pick 2-3 exercises per topic for composite assessment (D-12)
     const selected = [];
     course.topics.forEach(topic => {
       const allExercises = topic.lessons.flatMap(l => l.exercises || []);
       if (allExercises.length === 0) return;
-      // Pick 2 exercises per topic (or min available)
       const count = Math.min(2, allExercises.length);
       for (let i = 0; i < count; i++) {
         selected.push(allExercises[i % allExercises.length]);
@@ -367,12 +449,9 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
       setFinalAssessmentPassed(true);
       setPhase('complete');
     } else {
-      // Failed — retry if attempts < 3
       if (finalAssessmentAttempts + 1 >= 3) {
-        // Max retries reached, still fail
         setPhase('complete');
       } else {
-        // Show failure message, can retry
         setExerciseFeedback({ correct: false, finalAssessment: true, score });
       }
     }
@@ -406,7 +485,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
             )}
           </div>
 
-          {/* Progress bar */}
           {enrolled && allLessonsCount > 0 && (
             <div className="course__progress-section">
               <div className="course__progress-header">
@@ -422,7 +500,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
             </div>
           )}
 
-          {/* Topic list accordion */}
           <div className="course__overview-topics">
             <h3 className="course__section-title">Topics</h3>
             {course.topics.map((topic, ti) => {
@@ -459,7 +536,6 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
             })}
           </div>
 
-          {/* Actions */}
           <div className="course__overview-actions">
             {!enrolled && (
               <button className="course__btn course__btn--primary course__btn--start" onClick={handleStartLesson}>
@@ -481,20 +557,44 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
   if (phase === 'lesson') {
     // Lesson complete screen
     if (lessonComplete) {
+      const correctCount = Object.values(answers).filter(a => a.correct).length;
+      const totalCount = Object.keys(answers).length;
+      const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+
       return (
         <div className="course__player">
           <div className="course__player-header">
-            <h2 className="course__section-title">Lesson Complete</h2>
-            <span className="course__breadcrumb">
-              {course.title} &rsaquo; {currentTopic.title} &rsaquo; {currentLesson.title}
-            </span>
+            <button className="course__btn" onClick={onBack}>← Back</button>
+            <div className="course__player-progress">
+              <span className="course__breadcrumb">
+                {course.title} &rsaquo; {currentTopic.title} &rsaquo; {currentLesson.title}
+              </span>
+            </div>
           </div>
-          <div className="course__complete-lesson">
-            <div className="course__complete-icon">✅</div>
-            <p className="course__complete-text">Great job! You completed this lesson.</p>
-            <div className="course__overview-actions">
-              <button className="course__btn course__btn--primary" onClick={handleNextLesson}>
-                Next Lesson
+
+          <div className="course__lesson-complete">
+            <div className="course__lesson-complete-icon">🎉</div>
+            <h2 className="course__lesson-complete-title">Lesson Complete!</h2>
+            <p className="course__lesson-complete-subtitle">You finished all exercises in this lesson.</p>
+            <div className="course__lesson-complete-stats">
+              <div className="course__stat-item">
+                <span className="course__stat-value">{accuracy}%</span>
+                <span className="course__stat-label">Accuracy</span>
+              </div>
+              <div className="course__stat-divider" />
+              <div className="course__stat-item">
+                <span className="course__stat-value">{correctCount}/{totalCount}</span>
+                <span className="course__stat-label">Correct</span>
+              </div>
+              <div className="course__stat-divider" />
+              <div className="course__stat-item">
+                <span className="course__stat-value">{completedLessonCount}/{allLessonsCount}</span>
+                <span className="course__stat-label">Lessons</span>
+              </div>
+            </div>
+            <div className="course__lesson-complete-actions">
+              <button className="course__btn course__btn--primary course__btn--lg" onClick={handleNextLesson}>
+                Next Lesson →
               </button>
             </div>
           </div>
@@ -502,39 +602,47 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
       );
     }
 
+    const refWordCount = currentLesson.referenceContent?.trim().split(/\s+/).length || 0;
+
     return (
       <div className="course__player">
-        <div className="course__player-header">
-          <button className="course__btn" onClick={onBack}>← Back</button>
-          <div className="course__player-progress">
-            <span className="course__breadcrumb">
-              {course.title} &rsaquo; {currentTopic.title} &rsaquo; {currentLesson.title}
+        {/* Top progress strip */}
+        <div className="course__progress-strip">
+          <div className="course__progress-strip-bar">
+            <div
+              className="course__progress-strip-fill"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <div className="course__progress-strip-info">
+            <span className="course__progress-strip-lessons">
+              {completedLessonCount} of {allLessonsCount} lessons
             </span>
-            <span className="course__exercise-counter">
-              Exercise {currentExerciseIndex + 1} of {currentLesson.exercises.length}
+            <span className="course__progress-strip-exercise">
+              Exercise {currentExerciseIndex + 1} of {lessonExercises.length}
             </span>
           </div>
         </div>
 
         <div className="course__exercise-area">
           {/* Exercise question */}
-          {currentExercise && (
+          {currentExerciseFromSet && (
             <div className="course__exercise">
               <div className="course__exercise-header">
-                <span className={`course__exercise-type course__exercise-type--${currentExercise.type}`}>
-                  {currentExercise.type.replace('-', ' ')}
+                <span className={`course__exercise-type course__exercise-type--${currentExerciseFromSet.type}`}>
+                  {currentExerciseFromSet.type.replace('-', ' ')}
                 </span>
-                {currentExercise.difficulty && (
+                {currentExerciseFromSet.difficulty && (
                   <span className="course__exercise-difficulty">
-                    {'★'.repeat(currentExercise.difficulty)}{'☆'.repeat(5 - currentExercise.difficulty)}
+                    {'★'.repeat(currentExerciseFromSet.difficulty)}{'☆'.repeat(5 - currentExerciseFromSet.difficulty)}
                   </span>
                 )}
               </div>
 
-              <p className="course__exercise-question">{currentExercise.question}</p>
+              <p className="course__exercise-question">{currentExerciseFromSet.question}</p>
 
               {/* Exercise input per type */}
-              {(currentExercise.type === 'gap-fill') && (
+              {(currentExerciseFromSet.type === 'gap-fill') && (
                 <div className="course__exercise-input-group">
                   <input
                     className="course__exercise-input"
@@ -544,12 +652,12 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        handleExerciseAttempt(currentExercise.question, e.target.value);
+                        handleExerciseAttempt(currentExerciseFromSet.question, e.target.value);
                       }
                     }}
                     onBlur={e => {
                       if (e.target.value.trim()) {
-                        handleExerciseAttempt(currentExercise.question, e.target.value);
+                        handleExerciseAttempt(currentExerciseFromSet.question, e.target.value);
                       }
                     }}
                     disabled={exerciseFeedback !== null}
@@ -557,16 +665,16 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 </div>
               )}
 
-              {(currentExercise.type === 'short-answer' || currentExercise.type === 'sentence-rewrite') && (
+              {(currentExerciseFromSet.type === 'short-answer' || currentExerciseFromSet.type === 'sentence-rewrite') && (
                 <div className="course__exercise-input-group">
                   <textarea
                     className="course__exercise-textarea"
-                    placeholder={currentExercise.type === 'sentence-rewrite' ? 'Rewrite the sentence...' : 'Type your answer...'}
+                    placeholder={currentExerciseFromSet.type === 'sentence-rewrite' ? 'Rewrite the sentence...' : 'Type your answer...'}
                     rows={3}
                     defaultValue=""
                     onBlur={e => {
                       if (e.target.value.trim()) {
-                        handleExerciseAttempt(currentExercise.question, e.target.value);
+                        handleExerciseAttempt(currentExerciseFromSet.question, e.target.value);
                       }
                     }}
                     disabled={exerciseFeedback !== null}
@@ -576,7 +684,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                     onClick={() => {
                       const textarea = document.querySelector('.course__exercise-textarea');
                       if (textarea && textarea.value.trim()) {
-                        handleExerciseAttempt(currentExercise.question, textarea.value);
+                        handleExerciseAttempt(currentExerciseFromSet.question, textarea.value);
                       }
                     }}
                     disabled={exerciseFeedback !== null}
@@ -586,16 +694,16 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 </div>
               )}
 
-              {currentExercise.type === 'mcq' && currentExercise.options?.length > 0 && (
+              {currentExerciseFromSet.type === 'mcq' && currentExerciseFromSet.options?.length > 0 && (
                 <div className="course__exercise-mcq">
-                  {currentExercise.options.map((opt, oi) => {
-                    const isSelected = answers[currentExercise.question]?.answer === opt;
+                  {currentExerciseFromSet.options.map((opt, oi) => {
+                    const isSelected = answers[currentExerciseFromSet.question]?.answer === opt;
                     const showCorrect = exerciseFeedback && isSelected;
                     return (
                       <button
                         key={oi}
                         className={`course__exercise-option${isSelected ? ' course__exercise-option--selected' : ''}${showCorrect && exerciseFeedback.correct ? ' course__exercise-option--correct' : ''}${exerciseFeedback && isSelected && !exerciseFeedback.correct ? ' course__exercise-option--wrong' : ''}`}
-                        onClick={() => handleExerciseAttempt(currentExercise.question, opt)}
+                        onClick={() => handleExerciseAttempt(currentExerciseFromSet.question, opt)}
                         disabled={exerciseFeedback !== null}
                       >
                         {opt}
@@ -605,13 +713,13 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 </div>
               )}
 
-              {currentExercise.type === 'matching' && currentExercise.pairs?.length > 0 && (
+              {currentExerciseFromSet.type === 'matching' && currentExerciseFromSet.pairs?.length > 0 && (
                 <div className="course__exercise-matching">
                   <p className="course__exercise-instruction">Click a term, then click its matching definition.</p>
                   <div className="course__matching-columns">
                     <div className="course__matching-col">
-                      {currentExercise.pairs.map((pair, pi) => {
-                        const currentMatch = answers[currentExercise.question]?.answer || {};
+                      {currentExerciseFromSet.pairs.map((pair, pi) => {
+                        const currentMatch = answers[currentExerciseFromSet.question]?.answer || {};
                         const isPaired = currentMatch[pair.item] !== undefined;
                         return (
                           <button
@@ -630,7 +738,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                     </div>
                     <div className="course__matching-col">
                       {shuffledDefs.map((def, di) => {
-                        const currentMatch = answers[currentExercise.question]?.answer || {};
+                        const currentMatch = answers[currentExerciseFromSet.question]?.answer || {};
                         const isUsed = Object.values(currentMatch).includes(def);
                         return (
                           <button
@@ -638,12 +746,11 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                             className={`course__matching-def${isUsed ? ' course__matching-def--used' : ''}`}
                             onClick={() => {
                               if (exerciseFeedback || selectedTermIndex === null || isUsed) return;
-                              const term = currentExercise.pairs[selectedTermIndex].item;
+                              const term = currentExerciseFromSet.pairs[selectedTermIndex].item;
                               const newMatch = { ...currentMatch };
-                              // Remove previous match for this term if any
                               Object.keys(newMatch).forEach(k => { if (newMatch[k] === def) delete newMatch[k]; });
                               newMatch[term] = def;
-                              handleExerciseAttempt(currentExercise.question, newMatch);
+                              handleExerciseAttempt(currentExerciseFromSet.question, newMatch);
                               setSelectedTermIndex(null);
                             }}
                             disabled={exerciseFeedback !== null}
@@ -657,12 +764,12 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 </div>
               )}
 
-              {currentExercise.type === 'cloze' && (
+              {currentExerciseFromSet.type === 'cloze' && (
                 <div className="course__exercise-cloze">
-                  {currentExercise.answers?.length > 1 ? (
+                  {currentExerciseFromSet.answers?.length > 1 ? (
                     <div className="course__cloze-blanks">
                       <p className="course__exercise-instruction">Fill in the blanks.</p>
-                      {currentExercise.answers.map((blank, bi) => (
+                      {currentExerciseFromSet.answers.map((blank, bi) => (
                         <div key={bi} className="course__cloze-blank-row">
                           <label className="course__cloze-label">Blank {bi + 1}:</label>
                           <input
@@ -671,9 +778,9 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                             placeholder="..."
                             defaultValue=""
                             onBlur={e => {
-                              const currentVal = answers[currentExercise.question]?.answer || {};
+                              const currentVal = answers[currentExerciseFromSet.question]?.answer || {};
                               currentVal[bi] = e.target.value;
-                              handleExerciseAttempt(currentExercise.question, currentVal);
+                              handleExerciseAttempt(currentExerciseFromSet.question, currentVal);
                             }}
                             disabled={exerciseFeedback !== null}
                           />
@@ -688,7 +795,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                       defaultValue=""
                       onBlur={e => {
                         if (e.target.value.trim()) {
-                          handleExerciseAttempt(currentExercise.question, e.target.value);
+                          handleExerciseAttempt(currentExerciseFromSet.question, e.target.value);
                         }
                       }}
                       disabled={exerciseFeedback !== null}
@@ -697,11 +804,11 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 </div>
               )}
 
-              {currentExercise.type === 'reordering' && currentExercise.correctOrder?.length > 0 && (
+              {currentExerciseFromSet.type === 'reordering' && currentExerciseFromSet.correctOrder?.length > 0 && (
                 <div className="course__exercise-reorder">
                   <p className="course__exercise-instruction">Arrange the items in the correct order using the ▲ ▼ buttons.</p>
                   <div className="course__reorder-list">
-                    {(reorderState || currentExercise.correctOrder).map((item, ri) => (
+                    {(reorderState || currentExerciseFromSet.correctOrder).map((item, ri) => (
                       <div key={ri} className="course__reorder-item">
                         <span className="course__reorder-number">{ri + 1}.</span>
                         <span className="course__reorder-text">{item}</span>
@@ -710,7 +817,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                             className="course__reorder-arrow"
                             onClick={() => {
                               if (ri === 0 || exerciseFeedback) return;
-                              const next = [...(reorderState || currentExercise.correctOrder)];
+                              const next = [...(reorderState || currentExerciseFromSet.correctOrder)];
                               [next[ri - 1], next[ri]] = [next[ri], next[ri - 1]];
                               setReorderState(next);
                             }}
@@ -720,13 +827,13 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                           <button
                             className="course__reorder-arrow"
                             onClick={() => {
-                              const list = reorderState || currentExercise.correctOrder;
+                              const list = reorderState || currentExerciseFromSet.correctOrder;
                               if (ri >= list.length - 1 || exerciseFeedback) return;
                               const next = [...list];
                               [next[ri], next[ri + 1]] = [next[ri + 1], next[ri]];
                               setReorderState(next);
                             }}
-                            disabled={ri >= (reorderState || currentExercise.correctOrder).length - 1 || exerciseFeedback !== null}
+                            disabled={ri >= (reorderState || currentExerciseFromSet.correctOrder).length - 1 || exerciseFeedback !== null}
                             aria-label="Move down"
                           >▼</button>
                         </div>
@@ -735,7 +842,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                   </div>
                   <button
                     className="course__btn course__btn--primary"
-                    onClick={() => handleExerciseAttempt(currentExercise.question, reorderState || currentExercise.correctOrder)}
+                    onClick={() => handleExerciseAttempt(currentExerciseFromSet.question, reorderState || currentExerciseFromSet.correctOrder)}
                     disabled={exerciseFeedback !== null}
                   >
                     Confirm Order
@@ -748,17 +855,17 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 <div className={`course__feedback${exerciseFeedback.correct ? ' course__feedback--correct' : ' course__feedback--incorrect'}`}>
                   <span className="course__feedback-icon">{exerciseFeedback.correct ? '✅' : '❌'}</span>
                   <span className="course__feedback-text">
-                    {exerciseFeedback.correct ? 'Correct!' : `Not quite — ${currentExercise.explanation || 'Review the reading passage and try again.'}`}
+                    {exerciseFeedback.correct ? 'Correct!' : `Not quite — ${currentExerciseFromSet?.explanation || 'Review the reading passage and try again.'}`}
                   </span>
-                  {answers[currentExercise.question]?.revealed && currentExercise.answer && (
+                  {answers[currentExerciseFromSet?.question]?.revealed && currentExerciseFromSet?.answer && (
                     <div className="course__feedback-answer">
-                      <strong>Correct answer:</strong> {String(currentExercise.answer)}
+                      <strong>Correct answer:</strong> {String(currentExerciseFromSet.answer)}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Action buttons: Skip, Reveal Answer, Next */}
+              {/* Action buttons */}
               {!exerciseFeedback && (
                 <div className="course__exercise-actions">
                   <button className="course__btn course__btn--skip" onClick={() => handleSkipExercise()}>
@@ -777,10 +884,45 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                 </div>
               )}
 
-              {/* Reading passage — shown by default as the lesson's reading material */}
-              {currentLesson.referenceContent && (
-                <div className="course__reference course__reference--visible">
-                  <span className="course__reference-label">📖 Reading Passage</span>
+              {/* Manual next button (advance only after feedback) */}
+              {exerciseFeedback && (
+                <div className="course__exercise-actions" style={{ justifyContent: 'center', marginTop: 'var(--space-2)' }}>
+                  <button className="course__btn course__btn--primary" onClick={handleNextExercise}>
+                    Next →
+                  </button>
+                </div>
+              )}
+
+              {/* Generate new practice button */}
+              {!exerciseFeedback && (
+                <div className="course__exercise-actions" style={{ justifyContent: 'center', marginTop: 'var(--space-2)' }}>
+                  {generatingExercises ? (
+                    <span className="course__generating-text">Generating new practice...</span>
+                  ) : (
+                    <button className="course__btn course__btn--secondary" onClick={handleRegenerateExercises}>
+                      🔄 New Practice
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Collapsible reading passage */}
+          {currentLesson.referenceContent && (
+            <div className="course__reference">
+              <button
+                className="course__reference-toggle"
+                onClick={() => setShowReference(!showReference)}
+                aria-expanded={showReference}
+              >
+                <span className="course__reference-toggle-icon">{showReference ? '▾' : '▸'}</span>
+                <span className="course__reference-toggle-text">
+                  📖 Reading Passage · {refWordCount} words
+                </span>
+              </button>
+              {showReference && (
+                <div className="course__reference-content">
                   <div className="course__reference-text">{currentLesson.referenceContent}</div>
                 </div>
               )}
@@ -793,22 +935,39 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
 
   // === Phase: Final Assessment ===
   if (phase === 'final-assessment') {
-    const allDone = completedLessons.length >= allLessonsCount;
-
     return (
       <div className="course__player">
         <div className="course__player-header">
-          <h2 className="course__section-title">Final Assessment</h2>
-          <span className="course__breadcrumb">{course.title}</span>
+          <button className="course__btn" onClick={onBack}>← Back</button>
+          <div className="course__player-progress">
+            <span className="course__breadcrumb">{course.title}</span>
+          </div>
         </div>
 
         <div className="course__final-assessment">
-          <p className="course__final-description">
-            This assessment covers all topics in this course. You need <strong>60%</strong> to pass.
-            {finalAssessmentAttempts < 3 && (
-              <span> Attempt {finalAssessmentAttempts + 1} of 3.</span>
-            )}
-          </p>
+          <div className="course__final-assessment-header">
+            <h2 className="course__final-assessment-title">Final Assessment</h2>
+            <p className="course__final-assessment-desc">
+              This assessment covers all topics in this course. You need <strong>60%</strong> to pass.
+              {finalAssessmentAttempts < 3 && (
+                <span className="course__assessment-attempt"> Attempt {finalAssessmentAttempts + 1} of 3.</span>
+              )}
+            </p>
+          </div>
+
+          <div className="course__progress-strip">
+            <div className="course__progress-strip-bar">
+              <div
+                className="course__progress-strip-fill"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <div className="course__progress-strip-info">
+              <span className="course__progress-strip-lessons">
+                {completedLessonCount} of {allLessonsCount} lessons completed
+              </span>
+            </div>
+          </div>
 
           {finalAssessmentExercises.length === 0 ? (
             <p className="course__empty-message">No exercises available for assessment.</p>
@@ -820,6 +979,7 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
                     <span className={`course__exercise-type course__exercise-type--${exercise.type}`}>
                       {exercise.type.replace('-', ' ')}
                     </span>
+                    <span className="course__exercise-number">Question {ei + 1}</span>
                   </div>
                   <p className="course__exercise-question">{exercise.question}</p>
 
@@ -877,9 +1037,9 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
               )}
             </div>
           ) : (
-            <div className="course__overview-actions">
+            <div className="course__final-assessment-actions">
               <button
-                className="course__btn course__btn--primary"
+                className="course__btn course__btn--primary course__btn--lg"
                 onClick={handleFinalAssessmentSubmit}
                 disabled={Object.keys(finalAssessmentAnswers).length === 0}
               >
@@ -898,27 +1058,64 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers }) {
     return (
       <div className="course__player">
         <div className="course__complete">
-          <div className="course__complete-icon course__complete-icon--large">{passed ? '🎉' : '📊'}</div>
+          <div className={`course__complete-icon course__complete-icon--large ${passed ? 'course__complete-icon--pass' : ''}`}>
+            {passed ? '🎉' : '📊'}
+          </div>
           <h2 className="course__complete-title">
-            {passed ? 'Congratulations!' : 'Course Completed — Needs Improvement'}
+            {passed ? 'Congratulations!' : 'Course Completed'}
           </h2>
           <p className="course__complete-text">
             {passed
               ? 'You passed the final assessment and completed this course!'
-              : 'You finished all lessons but the final assessment needs more practice.'}
+              : 'You finished all lessons but the final assessment needs more practice. Review the material and try again.'}
           </p>
-          <div className="course__complete-score">
-            <span className="course__complete-score-label">Final Score:</span>
-            <span className={`course__complete-score-value${passed ? ' course__complete-score--pass' : ' course__complete-score--fail'}`}>
-              {finalAssessmentScore}%
-            </span>
-            <span className="course__complete-score-threshold">
-              (Pass: 60%)
-            </span>
+
+          <div className="course__complete-score-ring">
+            <svg viewBox="0 0 120 120" className="course__score-svg">
+              <circle
+                cx="60" cy="60" r="52"
+                fill="none"
+                stroke="var(--color-border)"
+                strokeWidth="8"
+              />
+              <circle
+                cx="60" cy="60" r="52"
+                fill="none"
+                stroke={passed ? 'var(--color-success)' : 'var(--color-warning)'}
+                strokeWidth="8"
+                strokeDasharray={`${2 * Math.PI * 52}`}
+                strokeDashoffset={`${2 * Math.PI * 52 * (1 - finalAssessmentScore / 100)}`}
+                strokeLinecap="round"
+                transform="rotate(-90 60 60)"
+                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+              />
+            </svg>
+            <div className="course__score-center">
+              <span className="course__score-value">{finalAssessmentScore}%</span>
+              <span className="course__score-label">Score</span>
+            </div>
           </div>
-          <div className="course__overview-actions">
+
+          <div className="course__complete-stats">
+            <div className="course__stat-item">
+              <span className="course__stat-value">{finalAssessmentAttempts}</span>
+              <span className="course__stat-label">Attempts</span>
+            </div>
+            <div className="course__stat-divider" />
+            <div className="course__stat-item">
+              <span className="course__stat-value">{completedLessonCount}/{allLessonsCount}</span>
+              <span className="course__stat-label">Lessons</span>
+            </div>
+            <div className="course__stat-divider" />
+            <div className="course__stat-item">
+              <span className="course__stat-value">{passed ? 'Passed' : 'Failed'}</span>
+              <span className="course__stat-label">Result</span>
+            </div>
+          </div>
+
+          <div className="course__complete-actions">
             {!passed && (
-              <button className="course__btn course__btn--secondary" onClick={handleFinalAssessmentRetry} style={{ marginRight: '8px' }}>
+              <button className="course__btn course__btn--secondary" onClick={handleFinalAssessmentRetry}>
                 Retry Assessment
               </button>
             )}

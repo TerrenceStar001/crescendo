@@ -9,20 +9,22 @@ import PostTaskSuggestion from './PostTaskSuggestion';
 const SESSION_KEY = 'crescendo-writing-session';
 const TOTAL_DURATION = 7200; // 2 hours in seconds
 
-const PART_A_TYPES = ['email', 'letter', 'blog comment', 'questionnaire response', 'short article', 'speech'];
+const PART_A_TYPES = ['email', 'letter', 'article', 'speech', 'review', 'notice', 'memo', 'diary', 'form'];
 const PART_B_TYPES = ['article', 'letter', 'speech', 'report', 'story', 'blog', 'review', 'proposal'];
 
 const TEXT_TYPE_BADGES = {
   email: { label: 'Email', color: '#5b5bf0' },
   letter: { label: 'Letter', color: '#e8a87c' },
-  'blog comment': { label: 'Blog Comment', color: '#5b5bf0' },
-  questionnaire: { label: 'Questionnaire', color: '#5b5bf0' },
   article: { label: 'Article', color: '#4caf50' },
   speech: { label: 'Speech', color: '#e8a87c' },
+  review: { label: 'Review', color: '#4caf50' },
+  notice: { label: 'Notice', color: '#8a8aa0' },
+  memo: { label: 'Memo', color: '#8a8aa0' },
+  diary: { label: 'Diary', color: '#ff9800' },
+  form: { label: 'Form', color: '#8a8aa0' },
   report: { label: 'Report', color: '#8a8aa0' },
   story: { label: 'Story', color: '#ff9800' },
   blog: { label: 'Blog', color: '#5b5bf0' },
-  review: { label: 'Review', color: '#4caf50' },
   proposal: { label: 'Proposal', color: '#8a8aa0' },
 };
 

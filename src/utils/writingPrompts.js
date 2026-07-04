@@ -59,3 +59,52 @@ export function getAvailablePrompts(part, count, excludeIds) {
   const filtered = available.filter(p => !exclude.includes(p.id));
   return shufflePrompts(filtered, count);
 }
+
+/**
+ * getPromptsByDomain — Returns prompts filtered by topic domain, excluding used ones.
+ * Useful for ensuring topic diversity across generated sessions.
+ */
+export function getPromptsByDomain(domain, part, count) {
+  const used = readUsedIds();
+  const available = allPrompts
+    .filter(p => p.part === part && p.topicDomain === domain && !used.has(p.id))
+    .slice(0, count);
+  return available;
+}
+
+/**
+ * getDiversePrompts — Returns prompts spanning multiple topic domains.
+ * Ensures variety by picking at most N prompts per domain.
+ */
+export function getDiversePrompts(part, count, maxPerDomain = 2) {
+  const used = readUsedIds();
+  const byDomain = {};
+  allPrompts.forEach(p => {
+    if (p.part !== part || used.has(p.id)) return;
+    const domain = p.topicDomain || 'general';
+    if (!byDomain[domain]) byDomain[domain] = [];
+    if (byDomain[domain].length < maxPerDomain) {
+      byDomain[domain].push(p);
+    }
+  });
+  const result = [];
+  const domains = Object.keys(byDomain);
+  for (let i = 0; i < count && result.length < count; i++) {
+    const domain = domains[i % domains.length];
+    if (byDomain[domain] && byDomain[domain].length > 0) {
+      result.push(byDomain[domain].shift());
+    }
+  }
+  return result;
+}
+
+/**
+ * getTopicDomains — Returns the set of available topic domains for a given part.
+ */
+export function getTopicDomains(part) {
+  const domains = new Set();
+  allPrompts.filter(p => p.part === part).forEach(p => {
+    if (p.topicDomain) domains.add(p.topicDomain);
+  });
+  return [...domains];
+}
