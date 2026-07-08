@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useIndexedDB } from '../hooks/useIndexedDB';
-import { normalizeAnswer } from '../utils/answerChecking';
+import { normalizeAnswer, checkAnswer } from '../utils/answerChecking';
 
 /**
  * parseReferenceContent — Renders markdown-like content from lesson referenceContent.
@@ -362,20 +362,20 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
       }
       case 'gap-fill':
       case 'cloze': {
-        if (currentExerciseFromSet.answers && Array.isArray(currentExerciseFromSet.answers)) {
-          const blanks = currentExerciseFromSet.answers;
-          const userBlanks = answer || {};
-          isCorrect = blanks.every((blank, i) =>
-            normalizeAnswer(String(userBlanks[i] || '')) === normalizeAnswer(String(blank || ''))
-          );
-        } else {
-          isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExerciseFromSet.answer));
-        }
+        const checkResult = checkAnswer(
+          { ...currentExerciseFromSet, correctAnswer: currentExerciseFromSet.answer },
+          answer
+        );
+        isCorrect = checkResult.correct;
         break;
       }
       case 'short-answer':
       case 'sentence-rewrite': {
-        isCorrect = normalizeAnswer(String(answer)) === normalizeAnswer(String(currentExerciseFromSet.answer));
+        const checkResult = checkAnswer(
+          { ...currentExerciseFromSet, correctAnswer: currentExerciseFromSet.answer },
+          answer
+        );
+        isCorrect = checkResult.correct;
         break;
       }
       case 'matching': {
@@ -538,9 +538,14 @@ export default function CoursePlayer({ course, onBack, callAI, dsePapers, onTrac
           break;
         case 'gap-fill':
         case 'short-answer':
-        case 'sentence-rewrite':
-          isCorrect = normalizeAnswer(String(userAnswer)) === normalizeAnswer(String(exercise.answer));
+        case 'sentence-rewrite': {
+          const checkResult = checkAnswer(
+            { ...exercise, correctAnswer: exercise.answer },
+            userAnswer
+          );
+          isCorrect = checkResult.correct;
           break;
+        }
         case 'matching':
           if (exercise.pairs && typeof userAnswer === 'object') {
             isCorrect = exercise.pairs.every(p => userAnswer[p.item] === p.match);

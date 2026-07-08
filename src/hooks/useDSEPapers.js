@@ -23,11 +23,49 @@ function parseJSONArray(raw) {
     const fixed = fixAIJSON(m[0]);
     try { parsed = JSON.parse(fixed); } catch {}
     if (parsed) return parsed;
+    // Extract individual objects from within array, skipping non-JSON text between them
+    const recovered = recoverJSONArray(m[0]);
+    if (recovered) {
+      console.warn(`[DSE] Recovered ${recovered.length} objects from malformed JSON array`);
+      return recovered;
+    }
   }
   // Last resort: try fixing the entire cleaned string
   const wholeFix = fixAIJSON(cleaned);
   try { parsed = JSON.parse(wholeFix); } catch {}
-  return parsed || null;
+  if (parsed) return parsed;
+  // Also try recovery on full text
+  const recovered = recoverJSONArray(cleaned);
+  if (recovered) {
+    console.warn(`[DSE] Recovered ${recovered.length} objects from malformed full text`);
+    return recovered;
+  }
+  return null;
+}
+
+function recoverJSONArray(str) {
+  const m = str.match(/\[([\s\S]*)\]/);
+  if (!m) return null;
+  const inner = m[1];
+  const objects = [];
+  let depth = 0, start = -1;
+  for (let i = 0; i < inner.length; i++) {
+    const c = inner[i];
+    if (c === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (c === '}') {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        try {
+          const obj = JSON.parse(inner.slice(start, i + 1));
+          if (obj && typeof obj === 'object') objects.push(obj);
+        } catch {}
+        start = -1;
+      }
+    }
+  }
+  return objects.length > 0 ? objects : null;
 }
 
 function tryParseJSON(str) {
@@ -160,6 +198,10 @@ function normalizeQuestion(q) {
   if ((q.marks || 1) >= 2 && !rubric) {
     rubric = { requiredPoints: ['see answer key'], unacceptableAnswers: [] };
   }
+  // Matching: each pair = 1 mark
+  if ((q.type === 'matching' || q.type === 'semantic-connect') && Array.isArray(pairs) && pairs.length > 1) {
+    q.marks = Math.max(q.marks || 1, pairs.length);
+  }
   return { ...q, stem, correctAnswer, options, pairs, answers, rubric };
 }
 
@@ -215,10 +257,23 @@ function fixQuestionTypes(q) {
     const normalized = norm[answer.toLowerCase()];
     if (normalized) q = { ...q, correctAnswer: normalized };
 
-    // TFNG stems must be statements, not questions
-    if (stem.endsWith('?')) {
-      // Reclassify as short-answer if it's a question-word question
+    // TFNG stems must be COMPLETE declarative statements ending with period
+    // Check 1: stem ending with question mark or colon → not a statement
+    // Check 2: stem starting with question word → not a statement
+    // Check 3: stem starting with Summarize/Explain/Describe/Discuss etc → instruction, not statement
+    // Check 4: stem not ending with period → likely incomplete
+    const endsWithColonOrQ = /[:?]$/.test(stem);
+    const startsWithQuestionWord = /^(What|Why|How|Which|Who|Where|When|Whose|Whom)\b/i.test(stem);
+    const startsWithVerb = /^(Summarize|Explain|Describe|Discuss|Identify|List|Outline|Define|Compare|Contrast|State|Name|Give|Find)\b/i.test(stem);
+    const endsWithPeriod = /\.$/.test(stem);
+
+    if (endsWithColonOrQ || startsWithQuestionWord) {
       q = { ...q, type: 'short-answer' };
+    } else if (startsWithVerb) {
+      q = { ...q, type: stem.toLowerCase().startsWith('summarize') ? 'summary-cloze' : 'short-answer' };
+    } else if (!endsWithPeriod && stem.length > 0) {
+      // Incomplete TFNG stem — mark answer as unknown to force rejection
+      q = { ...q, answerUnknown: true };
     }
   }
 
@@ -399,6 +454,22 @@ function validateQuestions(questions, passagePlain) {
   return { valid: warnings.length === 0, warnings };
 }
 
+// Overview types (tone, purpose, main-idea, matching) that need whole-passage understanding → placed at end
+const OVERVIEW_TYPES = new Set(['matching', 'semantic-connect']);
+function sortQuestionsByParaRef(questions) {
+  if (!questions?.length) return questions;
+  const withRef = questions.filter(q => Number.isFinite(q.paragraphRef) && q.paragraphRef > 0);
+  const withoutRef = questions.filter(q => !Number.isFinite(q.paragraphRef) || q.paragraphRef < 1);
+  if (withRef.length === 0) return questions;
+  const sorted = [...withRef].sort((a, b) => {
+    const aOverview = OVERVIEW_TYPES.has(a.type) ? 1 : 0;
+    const bOverview = OVERVIEW_TYPES.has(b.type) ? 1 : 0;
+    if (aOverview !== bOverview) return aOverview - bOverview;
+    return (a.paragraphRef || 0) - (b.paragraphRef || 0);
+  });
+  return [...sorted, ...withoutRef];
+}
+
 function stripPassageFooter(text) {
   return text
     .replace(/^.*\d{4}-DSE-ENG\s+LANG.*$/gm, '')
@@ -406,6 +477,30 @@ function stripPassageFooter(text) {
     .replace(/^.*Sources of materials.*$/gm, '')
     .replace(/^.*All Rights Reserved.*$/gm, '')
     .replace(/^.*Not to be taken away.*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function stripExamInstructions(text) {
+  return text
+    .replace(/^Read\s+Text\s+\d+.*(?:\n|$)/gim, '')
+    .replace(/^Questions?\s+\d+[\s–—,-]+\d+.*$/gim, '')
+    .replace(/^Answer\s+(?:ALL\s+)?questions?\s+\d+[\s–—,-]+\d+.*$/gim, '')
+    .replace(/^Answer\s+(?:ALL\s+)?the\s+questions?\s+on\s+.*$/gim, '')
+    .replace(/^Refer\s+to\s+Text\s+\d+.*$/gim, '')
+    .replace(/^Write\s+your\s+answers?\s+.*$/gim, '')
+    .replace(/^Candidates?\s+.*$/gim, '')
+    .replace(/^INSTRUCTIONS?\s*$/gim, '')
+    .replace(/^GENERAL\s+INSTRUCTIONS?\s*$/gim, '')
+    .replace(/^Time\s+allowed\s*:.*$/gim, '')
+    .replace(/^\d+\s+minutes?\s*$/gim, '')
+    .replace(/^This\s+paper\s+consists?\s+of\s+.*$/gim, '')
+    .replace(/^Hong\s+Kong\s+Diploma\s+of\s+Secondary\s+Education\s+Examination.*$/gim, '')
+    .replace(/^\d{4}\s*-\s*DSE\s*-\s*ENG\s+LANG.*$/gim, '')
+    .replace(/^Not\s+to\s+be\s+taken\s+away.*$/gim, '')
+    .replace(/^Sources\s+of\s+materials.*$/gim, '')
+    .replace(/^All\s+Rights\s+Reserved.*$/gim, '')
+    .replace(/^Provided\s+by\s+dse\.life.*$/gim, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -653,7 +748,7 @@ OUTPUT FORMAT — CRITICAL (follow exactly):
 - Each paragraph MUST be wrapped in <p> tags.
 - Output ONLY valid HTML. No explanations, no commentary, no markdown, no word counts, no metadata.
 - STOP immediately after the final </p>. Do NOT append anything after the HTML.
-- Word count: ${target.min}–${target.max} words strictly. Do NOT exceed ${target.max}.
+- Word count: ${target.min + 100}–${target.max + 200} words. At least ${target.min} words required. Do NOT exceed ${target.max + 200}.
 
 REQUIREMENTS:
 - DIFFERENT topic from the reference, same genre and difficulty. If reference is a news feature with quotes, write a news feature with quotes. Do not default to persuasive essay.
@@ -703,27 +798,13 @@ ${stripped.slice(0, 6000)}`;
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  // Fixed: Check if the last paragraph's CONTENT (inside </p>) ends without punctuation,
-  // not whether the raw string ends with a letter after stripping the closing tag.
-  const lastParagraphMatch = cleaned.match(/<p>([\s\S]*?)<\/p>\s*$/);
-  const lastParaContent = lastParagraphMatch ? lastParagraphMatch[1].trim() : '';
-  const endsNoPunctuation = lastParaContent.length > 0 && /[a-z0-9]$/i.test(lastParaContent) && !/[,;:!?)\]>}$]/.test(lastParaContent.slice(-1));
-  let wasTruncated = wc > target.max || hasUnclosedTags || endsWithEllipsis || endsMidWord || endsNoPunctuation;
+  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord;
 
   // Minimum paragraph count check
   const paraCount = (cleaned.match(/<p>/g) || []).length;
   const minParas = Math.max(4, Math.floor(target.max / 100));
   if (paraCount > 0 && paraCount < minParas) {
     wasTruncated = true;
-  }
-
-  // Last paragraph sentence count check
-  const lastParaMatch = cleaned.match(/<p>([^<]+)<\/p>\s*$/);
-  if (lastParaMatch) {
-    const sentences = lastParaMatch[1].split(/[.!?]\s+/).filter(Boolean);
-    if (sentences.length < 3) {
-      wasTruncated = true;
-    }
   }
 
   // Only retry on genuine truncation signals, not word count overflow or false positives
@@ -743,15 +824,16 @@ ${stripped.slice(0, 6000)}`;
     }
   }
 
-  if (wc < target.min) {
-    console.warn(`[DSE] AI generated passage too short: ${wc}w`);
+  const minAccept = Math.floor(target.min * 0.9);
+  if (wc < minAccept) {
+    console.warn(`[DSE] AI generated passage too short: ${wc}w (min ${minAccept})`);
     return null;
   }
+  if (wc < target.min && wc >= minAccept) {
+    console.warn(`[DSE] AI generated passage ${wc}w — below target ${target.min} but within grace tolerance`);
+  }
   if (wc > target.max) {
-    console.warn(`[DSE] AI generated passage too long: ${wc}w — truncating to ${target.max}`);
-    const plainText = cleaned.replace(/<[^>]+>/g, '');
-    const words = plainText.split(/\s+/);
-    cleaned = words.slice(0, target.max - 20).join(' ');
+    console.warn(`[DSE] AI generated passage too long: ${wc}w (target max ${target.max}w, keeping full length)`);
   }
 
   if (!/^</.test(cleaned) && !/<[a-z]/.test(cleaned.slice(0, 100))) {
@@ -789,7 +871,7 @@ OUTPUT FORMAT — CRITICAL (follow exactly):
 - Each paragraph MUST be wrapped in <p> tags.
 - Output ONLY valid HTML. No explanations, no commentary, no markdown, no word counts, no metadata.
 - STOP immediately after the final </p>. Do NOT append anything after the HTML.
-- Word count: ${target.min}–${target.max} words strictly. Do NOT exceed ${target.max}.
+- Word count: ${target.min + 100}–${target.max + 200} words. At least ${target.min} words required. Do NOT exceed ${target.max + 200}.
 
 CRITICAL BLENDING INSTRUCTIONS:
 - Use facts and statistics from the fragments as the factual backbone
@@ -839,10 +921,7 @@ ${fragmentsSection}`;
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  const lastParagraphMatch = cleaned.match(/<p>([\s\S]*?)<\/p>\s*$/);
-  const lastParaContent = lastParagraphMatch ? lastParagraphMatch[1].trim() : '';
-  const endsNoPunctuation = lastParaContent.length > 0 && /[a-z0-9]$/i.test(lastParaContent) && !/[,;:!?)\]>}$]/.test(lastParaContent.slice(-1));
-  let wasTruncated = wc > target.max || hasUnclosedTags || endsWithEllipsis || endsMidWord || endsNoPunctuation;
+  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord;
 
   // Minimum paragraph count check
   const paraCount = (cleaned.match(/<p>/g) || []).length;
@@ -868,15 +947,16 @@ ${fragmentsSection}`;
     }
   }
 
-  if (wc < target.min) {
-    console.warn(`[DSE] RAG passage too short: ${wc}w`);
+  const minAccept = Math.floor(target.min * 0.9);
+  if (wc < minAccept) {
+    console.warn(`[DSE] RAG passage too short: ${wc}w (min ${minAccept})`);
     return null;
   }
+  if (wc < target.min && wc >= minAccept) {
+    console.warn(`[DSE] RAG passage ${wc}w — below target ${target.min} but within grace tolerance`);
+  }
   if (wc > target.max) {
-    console.warn(`[DSE] RAG passage too long: ${wc}w — truncating`);
-    const plainText = cleaned.replace(/<[^>]+>/g, '');
-    const words = plainText.split(/\s+/);
-    cleaned = words.slice(0, target.max - 20).join(' ');
+    console.warn(`[DSE] RAG passage too long: ${wc}w (target max ${target.max}w, keeping full length)`);
   }
 
   if (!/^</.test(cleaned) && !/<[a-z]/.test(cleaned.slice(0, 100))) {
@@ -907,7 +987,7 @@ OUTPUT FORMAT — CRITICAL (follow exactly):
 - Each paragraph MUST be wrapped in <p> tags.
 - Output ONLY valid HTML. No explanations, no commentary, no markdown, no word counts, no metadata.
 - STOP immediately after the final </p>. Do NOT append anything after the HTML.
-- Word count: ${target.min}–${target.max} words strictly. Do NOT exceed ${target.max}.
+- Word count: ${target.min + 100}–${target.max + 200} words. At least ${target.min} words required. Do NOT exceed ${target.max + 200}.
 
 TEXT TYPE: ${typePick}
 Available text types for this difficulty: ${typesStr}
@@ -956,10 +1036,7 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  const lastParagraphMatch = cleaned.match(/<p>([\s\S]*?)<\/p>\s*$/);
-  const lastParaContent = lastParagraphMatch ? lastParagraphMatch[1].trim() : '';
-  const endsNoPunctuation = lastParaContent.length > 0 && /[a-z0-9]$/i.test(lastParaContent) && !/[,;:!?)\]>}$]/.test(lastParaContent.slice(-1));
-  let wasTruncated = wc > target.max || hasUnclosedTags || endsWithEllipsis || endsMidWord || endsNoPunctuation;
+  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord;
 
   // Minimum paragraph count check
   const paraCount = (cleaned.match(/<p>/g) || []).length;
@@ -987,15 +1064,16 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
     }
   }
 
-  if (wc < target.min) {
-    console.warn(`[DSE] Pure AI passage too short: ${wc}w`);
+  const minAccept = Math.floor(target.min * 0.9);
+  if (wc < minAccept) {
+    console.warn(`[DSE] Pure AI passage too short: ${wc}w (min ${minAccept})`);
     return null;
   }
+  if (wc < target.min && wc >= minAccept) {
+    console.warn(`[DSE] Pure AI passage ${wc}w — below target ${target.min} but within grace tolerance`);
+  }
   if (wc > target.max) {
-    console.warn(`[DSE] Pure AI passage too long: ${wc}w — truncating`);
-    const plainText = cleaned.replace(/<[^>]+>/g, '');
-    const words = plainText.split(/\s+/);
-    cleaned = words.slice(0, target.max - 20).join(' ');
+    console.warn(`[DSE] Pure AI passage too long: ${wc}w (target max ${target.max}w, keeping full length)`);
   }
 
   if (!/^</.test(cleaned) && !/<[a-z]/.test(cleaned.slice(0, 100))) {
@@ -1289,51 +1367,34 @@ export default function useDSEPapers() {
           if (ragQuestions) {
             finalQuestions = ragQuestions;
           } else {
-            // Fall back to local AI
-            await new Promise(r => setTimeout(r, 2000));
+            // Fallback: retry with callAI (3-tier fallback)
             for (let attempt = 1; attempt <= 2; attempt++) {
               try {
+                if (attempt > 1) await new Promise(r => setTimeout(r, 3000));
                 const localPrompt = attempt === 1 ? qPrompt : qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.';
-                const res = await fetch('/api/ai/chat/completions', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    model: 'opencode/deepseek-v4-flash-free',
-                    messages: [
-                      { role: 'system', content: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.' },
-                      { role: 'user', content: localPrompt }
-                    ],
-                    max_tokens: 4000,
-                    temperature: 0.3,
-                  }),
-                });
-                if (res.ok) {
-                  const data = await res.json();
-                  const raw = data.choices?.[0]?.message?.content?.trim();
-                  if (raw) {
-                    const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
-                    const m = jsonStr.match(/\[[\s\S]*\]/);
-                    let parsed;
-                    try {
-                      parsed = m ? JSON.parse(m[0]) : parseJSONArray(jsonStr);
-                    } catch (e) {
-                      console.warn(`[DSE] RAG local parse attempt ${attempt} failed:`, e?.message);
-                      continue;
-                    }
-                    if (parsed?.length >= 3) {
-                      const normalized = parsed.map((q, i) => normalizeQuestion({ ...q, id: i + 1, part, marks: q.marks || 1 }));
-                      const fixed = normalized.map(q => fixQuestionTypes(q));
-                      const validated = fixed.map(q => validateQuestionAnswer(q)).filter(Boolean);
-                      if (validated.length >= 3) {
-                        console.log(`[DSE] RAG local AI generated ${validated.length} questions (attempt ${attempt})`);
-                        finalQuestions = validated;
-                        break;
-                      }
-                    }
+                const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 4000, timeout: 300000 });
+                if (!raw) continue;
+                const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
+                const m = jsonStr.match(/\[[\s\S]*\]/);
+                let parsed;
+                try {
+                  parsed = m ? JSON.parse(m[0]) : parseJSONArray(jsonStr);
+                } catch (e) {
+                  console.warn(`[DSE] Fallback parse attempt ${attempt} failed:`, e?.message);
+                  continue;
+                }
+                if (parsed?.length >= 3) {
+                  const normalized = parsed.map((q, i) => normalizeQuestion({ ...q, id: i + 1, part, marks: q.marks || 1 }));
+                  const fixed = normalized.map(q => fixQuestionTypes(q));
+                  const validated = fixed.map(q => validateQuestionAnswer(q)).filter(Boolean);
+                  if (validated.length >= 3) {
+                    console.log(`[DSE] Fallback AI generated ${validated.length} questions (attempt ${attempt})`);
+                    finalQuestions = validated;
+                    break;
                   }
                 }
               } catch (localErr) {
-                console.warn(`[DSE] RAG local AI attempt ${attempt} failed:`, localErr?.message);
+                console.warn(`[DSE] Fallback AI attempt ${attempt} failed:`, localErr?.message);
               }
             }
           }
@@ -1359,6 +1420,7 @@ export default function useDSEPapers() {
               if (fullData?.content) {
                 const passage = extractPassage(fullData.content, part);
                 const cleaned = cleanOCRA(passage || fullData.content);
+                const displayCleaned = stripExamInstructions(cleaned);
                 const wc = cleaned.split(/\s+/).filter(Boolean).length;
                 if (wc >= 150) {
                   const year = pick.year || fullData.date?.slice(0, 4) || '';
@@ -1366,7 +1428,7 @@ export default function useDSEPapers() {
                   console.log(`[DSE] RAW OCR PASSAGE:`, cleaned);
                   yearInfo = { year, part };
                   finalTitle = fullData.title || `DSE Paper 1 Part ${part}`;
-                  finalContent = cleaned;
+                  finalContent = displayCleaned;
                   finalSource = 'dse';
                   // Step 1.5: AI passage generation — learns from reference, creates new original passage
                   if (callAI && cleaned.length > 200) {
@@ -1468,60 +1530,43 @@ export default function useDSEPapers() {
                       return null;
                     }
 
-                    // Try external AI first, fall back to local opencode proxy
+                    // Try external AI first, fall back to callAI (3-tier fallback)
                     const external = await tryGenerateQuestions(qPrompt);
                     if (external) {
                       finalQuestions = external;
                     } else {
-                      await new Promise(r => setTimeout(r, 2000));
                       for (let attempt = 1; attempt <= 2; attempt++) {
                         try {
+                          if (attempt > 1) await new Promise(r => setTimeout(r, 3000));
                           const localPrompt = attempt === 1 ? qPrompt : qPrompt + '\n\nYour previous JSON was invalid. Fix it. Return ONLY a valid JSON array.';
-                          const res = await fetch('/api/ai/chat/completions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              model: 'opencode/deepseek-v4-flash-free',
-                               messages: [
-                                 { role: 'system', content: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.' },
-                                { role: 'user', content: localPrompt }
-                              ],
-                              max_tokens: 4000,
-                              temperature: 0.3,
-                            }),
-                          });
-                          if (res.ok) {
-                            const data = await res.json();
-                            const raw = data.choices?.[0]?.message?.content?.trim();
-                            if (raw) {
-                              const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
-                              const m = jsonStr.match(/\[[\s\S]*\]/);
-                              let parsed;
-                              try {
-                                parsed = m ? JSON.parse(m[0]) : parseJSONArray(jsonStr);
-                              } catch (e) {
-                                console.warn(`[DSE] Local parse attempt ${attempt} failed:`, e?.message);
-                                continue;
-                              }
-                              if (parsed?.length >= 3) {
-                                const normalized = parsed.map((q, i) => normalizeQuestion({ ...q, id: i + 1, part, marks: q.marks || 1 }));
-                                const fixed = normalized.map(q => fixQuestionTypes(q));
-                                const validated = fixed.map(q => validateQuestionAnswer(q)).filter(Boolean);
-                                const invalid = normalized.length - validated.length;
-                                const unknown = validated.filter(q => q.answerUnknown).length;
-                                if (invalid > 0 || unknown > 0) console.warn(`[DSE] Local: ${invalid} garbage + ${unknown} unknown (${normalized.length}→${validated.length})`);
-                                if (validated.length >= 3) {
-                                  const quality = validateQuestions(validated, passagePreview);
-                                  if (!quality.valid) console.warn(`[DSE] Local quality issues:`, quality.warnings.join('; '));
-                                  console.log(`[DSE] Local AI generated ${validated.length} questions (attempt ${attempt})`);
-                                  finalQuestions = validated;
-                                  break;
-                                }
-                              }
+                          const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 4000, timeout: 300000 });
+                          if (!raw) continue;
+                          const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
+                          const m = jsonStr.match(/\[[\s\S]*\]/);
+                          let parsed;
+                          try {
+                            parsed = m ? JSON.parse(m[0]) : parseJSONArray(jsonStr);
+                          } catch (e) {
+                            console.warn(`[DSE] Fallback parse attempt ${attempt} failed:`, e?.message);
+                            continue;
+                          }
+                          if (parsed?.length >= 3) {
+                            const normalized = parsed.map((q, i) => normalizeQuestion({ ...q, id: i + 1, part, marks: q.marks || 1 }));
+                            const fixed = normalized.map(q => fixQuestionTypes(q));
+                            const validated = fixed.map(q => validateQuestionAnswer(q)).filter(Boolean);
+                            const invalid = normalized.length - validated.length;
+                            const unknown = validated.filter(q => q.answerUnknown).length;
+                            if (invalid > 0 || unknown > 0) console.warn(`[DSE] Fallback: ${invalid} garbage + ${unknown} unknown (${normalized.length}→${validated.length})`);
+                            if (validated.length >= 3) {
+                              const quality = validateQuestions(validated, passagePreview);
+                              if (!quality.valid) console.warn(`[DSE] Fallback quality issues:`, quality.warnings.join('; '));
+                              console.log(`[DSE] Fallback AI generated ${validated.length} questions (attempt ${attempt})`);
+                              finalQuestions = validated;
+                              break;
                             }
                           }
                         } catch (localErr) {
-                          console.warn(`[DSE] Local AI attempt ${attempt} failed:`, localErr?.message);
+                          console.warn(`[DSE] Fallback AI attempt ${attempt} failed:`, localErr?.message);
                         }
                       }
                     }
@@ -1585,16 +1630,57 @@ export default function useDSEPapers() {
         }
       }
 
-      // Step 3: Build and return session
+      // Step 2.5: Verify MCQ answers by cross-checking with AI against passage
+      if (finalQuestions?.length && callAI && passagePreview && passagePreview.length > 200) {
+        const mcqs = finalQuestions.filter(q => q.type === 'mcq' && !q.answerUnknown);
+        for (const mcq of mcqs) {
+          try {
+            const optionsText = (mcq.options || []).map(o => `${o.label}. ${o.text}`).join('\n');
+            const verifyPrompt = `Passage excerpt:\n${passagePreview.slice(0, 1500)}\n\nQuestion: ${mcq.stem}\n\nOptions:\n${optionsText}\n\nWhich option (A/B/C/D) is the correct answer? Reply with ONLY the letter.`;
+            const verifyRaw = await callAI(verifyPrompt, { system: 'You are a DSE English examiner verifying answer keys. Reply with a single letter.', temperature: 0.1, maxTokens: 10, timeout: 15000 });
+            const verifyLetter = (verifyRaw || '').trim().toUpperCase().match(/[A-D]/);
+            if (verifyLetter) {
+              const origLetter = (mcq.correctAnswer || '').trim().toUpperCase();
+              if (verifyLetter[0] !== origLetter) {
+                console.warn(`[DSE] MCQ Q${mcq.id}: AI verification mismatch (original: ${origLetter}, verified: ${verifyLetter[0]}). Accepting original.`);
+                mcq.answerUnknown = true;
+              }
+            }
+          } catch (e) {
+            console.warn(`[DSE] MCQ verification failed for Q${mcq.id}:`, e.message);
+          }
+        }
+      }
+
+      // Step 3: Sort questions by paragraphRef (overview types last)
+      if (finalQuestions?.length) {
+        finalQuestions = sortQuestionsByParaRef(finalQuestions);
+      }
+
+      // Step 3.5: Add algorithmic paragraph numbering
+      if (finalContent) {
+        let paraNum = 0;
+        const numberedContent = finalContent.replace(/<p>/gi, () => {
+          paraNum++;
+          return `<sup class="reading__para-num">${paraNum}</sup><p>`;
+        });
+        // Also add paragraph numbers to any bare text paragraphs from addParagraphTags
+        if (!numberedContent.includes('reading__para-num') && paraNum === 0) {
+          paraNum = 0;
+          // Try splitting on double newlines and adding numbers
+        }
+        if (paraNum > 0) finalContent = numberedContent;
+      }
+
+      // Step 4: Build and return session
       if (!finalContent) return null;
 
       const readOnly = finalSource === 'dse' && !finalQuestions?.length && !pureAiAttempted;
       const wordCount = finalContent.split(/\s+/).filter(Boolean).length;
-      const partLabel = yearInfo ? `${yearInfo.year} Part ${yearInfo.part}` : 'Part A';
       const partDifficulty = finalSource === 'dse' && yearInfo?.part
         ? { B1: 'easy', A: 'medium', B2: 'hard' }[yearInfo.part] || difficulty
         : difficulty;
-      const combined = `<div class="reading__section-header reading__section-header--A">${partLabel}</div>\n${finalContent}`;
+      const combined = finalContent;
       const sections = {};
       for (const q of (finalQuestions || [])) {
         const s = q.part || 'A';

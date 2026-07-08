@@ -463,32 +463,86 @@ app.get('/api/rag/article/:id', (req, res) => {
 
 app.post('/api/ai/chat/completions', async (req, res) => {
   try {
-    const { model, messages, max_tokens, temperature } = req.body;
-    const apiKey = process.env.AGNES_API_KEY || process.env.NVIDIA_API_KEY;
-    const defaultEndpoint = process.env.AGNES_API_KEY
-      ? 'https://apihub.agnes-ai.com/v1/chat/completions'
-      : process.env.NVIDIA_API_KEY
-        ? 'https://integrate.api.nvidia.com/v1/chat/completions'
-        : null;
-    if (!apiKey || !defaultEndpoint) {
-      return res.status(500).json({ error: 'No AI provider configured. Set AGNES_API_KEY in server/.env or configure an AI provider in Settings.' });
+    let { model, messages, max_tokens, temperature } = req.body;
+    model = model || process.env.AI_MODEL || 'meta/llama-3.1-8b-instruct';
+
+    const nvidiaKey = process.env.NVIDIA_API_KEY;
+    const agnesKey = process.env.AGNES_API_KEY;
+
+    const endpoints = [];
+    if (nvidiaKey) {
+      endpoints.push({
+        url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+        key: nvidiaKey,
+      });
+    }
+    if (agnesKey) {
+      endpoints.push({
+        url: 'https://apihub.agnes-ai.com/v1/chat/completions',
+        key: agnesKey,
+      });
     }
 
-    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
-    const response = await fetch(defaultEndpoint, {
+    let lastError = null;
+
+    // Tier 1: NVIDIA
+    if (nvidiaKey) {
+      try {
+        return await proxyRequest('https://integrate.api.nvidia.com/v1/chat/completions', nvidiaKey, model, messages, max_tokens, temperature, res);
+      } catch (err) {
+        lastError = err;
+        console.warn('NVIDIA AI proxy failed:', err.message);
+      }
+    }
+
+    // Tier 2: Agnes
+    if (agnesKey) {
+      try {
+        return await proxyRequest('https://apihub.agnes-ai.com/v1/chat/completions', agnesKey, model, messages, max_tokens, temperature, res);
+      } catch (err) {
+        lastError = err;
+        console.warn('Agnes AI proxy failed:', err.message);
+      }
+    }
+
+    // Tier 3: OpenCode serve (dev fallback)
+    try {
+      const response = await fetch('http://127.0.0.1:4010/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'opencode/deepseek-v4-flash-free', messages, max_tokens: max_tokens || 32768, temperature: temperature ?? 0.3 }),
+        signal: AbortSignal.timeout(300000),
+      });
+      const text = await response.text();
+      const ct = response.headers.get('content-type');
+      if (ct) res.setHeader('content-type', ct);
+      return res.status(response.status).send(text);
+    } catch (err) {
+      lastError = err;
+      console.warn('OpenCode serve fallback failed:', err.message);
+    }
+
+    if (!nvidiaKey && !agnesKey) {
+      return res.status(500).json({ error: 'No AI provider configured. Set NVIDIA_API_KEY or AGNES_API_KEY in server/.env or configure an AI provider in Settings, or run opencode serve --port 4010.' });
+    }
+    throw lastError || new Error('All AI endpoints failed');
+  } catch (e) {
+    console.error('AI proxy error:', e.message);
+    res.status(502).json({ error: `AI proxy failed: ${e.message}` });
+  }
+
+  async function proxyRequest(url, key, model, messages, max_tokens, temperature, res) {
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
+    const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ model: model || 'agnes-2.0-flash', messages, max_tokens: max_tokens || 2000, temperature: temperature ?? 0.3 }),
-      signal: AbortSignal.timeout(120000),
+      body: JSON.stringify({ model, messages, max_tokens: max_tokens || 32768, temperature: temperature ?? 0.3 }),
+      signal: AbortSignal.timeout(300000),
     });
-
     const text = await response.text();
     const ct = response.headers.get('content-type');
     if (ct) res.setHeader('content-type', ct);
-    res.status(response.status).send(text);
-  } catch (e) {
-    console.error('AI chat completions proxy error:', e.message);
-    res.status(502).json({ error: `AI proxy failed: ${e.message}` });
+    return res.status(response.status).send(text);
   }
 });
 
@@ -509,7 +563,7 @@ app.post('/api/ai/external-proxy', async (req, res) => {
         max_tokens: maxTokens || 1024,
         temperature: temperature ?? 0.3,
       }),
-      signal: AbortSignal.timeout(120000),
+      signal: AbortSignal.timeout(300000),
     });
 
     const text = await response.text();

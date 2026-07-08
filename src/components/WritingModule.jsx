@@ -381,7 +381,8 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       const data = await callAI(prompt, {
         system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Assess using official HKEAA criteria: Content/7, Organization/7, Language/7. Return ONLY valid JSON.',
         temperature: 0.3,
-        maxTokens: 3000,
+        maxTokens: 4000,
+        timeout: 90000,
       });
 
       const parsed = dsePapers.parseCorrectionResponse(data);
@@ -410,6 +411,16 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         setPhase('correctionPartA');
         // Record session to skill analytics
         if (skillAnalytics && parsed?.overall) {
+          const errorCounts = {};
+          (parsed.errors || []).forEach(e => {
+            const cat = (e.type || 'general').toLowerCase();
+            errorCounts[cat] = (errorCounts[cat] || 0) + 1;
+          });
+          const totalErrors = parsed.errors?.length || 1;
+          const subScores = {};
+          for (const [cat, count] of Object.entries(errorCounts)) {
+            subScores[cat] = Math.max(0, 100 - Math.round((count / totalErrors) * 100));
+          }
           skillAnalytics.recordSession({
             skill: 'writing',
             type: practiceMode === 'both' ? 'exam' : 'practice',
@@ -419,6 +430,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             dseLevel: dseLevel,
             wordCount: getEssayPlainText(partA.essay).split(/\s+/).filter(Boolean).length,
             completedAt: new Date().toISOString(),
+            subScores,
           });
         }
         // Schedule note generation for Part A only mode
@@ -472,6 +484,17 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
         // Record combined session to skill analytics
         if (skillAnalytics && combined?.overall) {
           const totalWords = getEssayPlainText(partA.essay).split(/\s+/).filter(Boolean).length + getEssayPlainText(partB.essay).split(/\s+/).filter(Boolean).length;
+          const allErrors = [...(partAResult?.errors || []), ...(parsed?.errors || [])];
+          const errorCounts = {};
+          allErrors.forEach(e => {
+            const cat = (e.type || 'general').toLowerCase();
+            errorCounts[cat] = (errorCounts[cat] || 0) + 1;
+          });
+          const totalErrors = allErrors.length || 1;
+          const subScores = {};
+          for (const [cat, count] of Object.entries(errorCounts)) {
+            subScores[cat] = Math.max(0, 100 - Math.round((count / totalErrors) * 100));
+          }
           skillAnalytics.recordSession({
             skill: 'writing',
             type: 'exam',
@@ -481,6 +504,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             dseLevel: combined.overall.dseLevel || '—',
             wordCount: totalWords,
             completedAt: new Date().toISOString(),
+            subScores,
           });
         }
         // Schedule note generation for combined results
@@ -565,7 +589,8 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       const data = await callAI(prompt, {
         system: 'You are an expert HKDSE English examiner (Paper 2 Writing). Assess using IELTS Writing band descriptors: Task Achievement/9, Coherence & Cohesion/9, Lexical Resource/9, Grammatical Range & Accuracy/9. Return ONLY valid JSON.',
         temperature: 0.3,
-        maxTokens: 3000,
+        maxTokens: 4000,
+        timeout: 90000,
       });
       const parsed = dsePapers.parseCorrectionResponse(data);
       if (!parsed) throw new Error('Failed to parse AI response');
@@ -578,6 +603,16 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       saveCustomSessionToHistory(parsed, plainText, essayHtml);
       // Record custom session to skill analytics
       if (skillAnalytics && parsed?.overall) {
+        const errorCounts = {};
+        (parsed.errors || []).forEach(e => {
+          const cat = (e.type || 'general').toLowerCase();
+          errorCounts[cat] = (errorCounts[cat] || 0) + 1;
+        });
+        const totalErrors = parsed.errors?.length || 1;
+        const subScores = {};
+        for (const [cat, count] of Object.entries(errorCounts)) {
+          subScores[cat] = Math.max(0, 100 - Math.round((count / totalErrors) * 100));
+        }
         skillAnalytics.recordSession({
           skill: 'writing',
           type: 'custom',
@@ -587,6 +622,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           dseLevel,
           wordCount: plainText.split(/\s+/).filter(Boolean).length,
           completedAt: new Date().toISOString(),
+          subScores,
         });
       }
       setPhase('correctionCustom');
@@ -733,7 +769,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
     <div className="writing__exam-header">
       <div className="writing__exam-header-title">Hong Kong Diploma of Secondary Education Examination</div>
       <div className="writing__exam-header-paper">English Language Paper 2 \u2014 Writing</div>
-      <div className="writing__exam-header-instructions">Answer ALL questions in Part A and ONE question from Part B. Write approximately 200 words for Part A and 400\u2013500 words for Part B.</div>
+      <div className="writing__exam-header-instructions">Answer ALL questions in Part A and ONE question from Part B. Write approximately 200 words for Part A and 400–500 words for Part B.</div>
     </div>
   );
 
@@ -975,7 +1011,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
             <div className="writing__start-card">
               <div className="writing__start-card-badge writing__start-card-badge--b">Part B (Choose from options)</div>
               <div className="writing__start-card-title">Extended Writing Task</div>
-                <div className="writing__start-card-desc">Choose ONE of 3 options, write 400\u2013500 words</div>
+                <div className="writing__start-card-desc">Choose ONE of 3 options, write 400–500 words</div>
                 <div className="writing__start-card-types">
                   {PART_B_TYPES.slice(0, 3).map(t => (
                     <span key={t} className="writing__start-card-type-chip">{t}</span>
@@ -1105,7 +1141,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                     <div className="writing__part-b-option-title">{opt.title}</div>
                     <div className="writing__part-b-option-desc">{opt.context?.slice(0, 80)}...</div>
                     <div className="writing__part-b-option-limit">
-                      {opt.wordLimit?.min}\u2013{opt.wordLimit?.max} words
+                      {opt.wordLimit?.min}–{opt.wordLimit?.max} words
                     </div>
                   </button>
                 );
@@ -1697,7 +1733,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
                 )}
                 {!isPartA && currentPrompt.wordLimit && (
                   <div className="writing__prompt-card-meta">
-                    Word limit: {currentPrompt.wordLimit.min}\u2013{currentPrompt.wordLimit.max} words
+                    Word limit: {currentPrompt.wordLimit.min}–{currentPrompt.wordLimit.max} words
                   </div>
                 )}
               </>

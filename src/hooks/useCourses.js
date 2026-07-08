@@ -33,11 +33,21 @@ export default function useCourses() {
   const getCourses = useCallback(async () => {
     try {
       const courses = await getItem(COURSE_KEYS.DEFINITIONS);
-      return Array.isArray(courses) ? courses : [];
+      if (!Array.isArray(courses)) return [];
+      let changed = false;
+      const cleaned = courses.map(c => {
+        if (c.title && /^DSE\s+English\s+Language\s*[:\-–—]\s*/i.test(c.title)) {
+          changed = true;
+          return { ...c, title: c.title.replace(/^DSE\s+English\s+Language\s*[:\-–—]\s*/i, '').trim() };
+        }
+        return c;
+      });
+      if (changed) setItem(COURSE_KEYS.DEFINITIONS, cleaned).catch(() => {});
+      return cleaned;
     } catch {
       return [];
     }
-  }, [getItem, COURSE_KEYS.DEFINITIONS]);
+  }, [getItem, setItem, COURSE_KEYS.DEFINITIONS]);
 
   /**
    * saveCourse: Upserts a course into the array (find by id, update or push).
@@ -343,23 +353,23 @@ export default function useCourses() {
    * @returns {Object|null} The generated course draft or null
    */
   const autoGenerateCourse = useCallback(async (weaknessTags, completedCourseIds, callAI, options = {}) => {
-    const { simplerContent = false } = options;
+    const { simplerContent = true, aiConfig } = options;
 
     // Tier 1: Backend API call
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
+      const timeoutId = setTimeout(() => controller.abort(), 300000);
       const res = await fetch('/api/courses/auto-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weaknessTags, completedCourseIds }),
+        body: JSON.stringify({ weaknessTags, completedCourseIds, aiConfig }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`backend returned ${res.status}`);
       const data = await res.json();
       if (data.draftId && data.course) {
-        const validation = validateCourse(data.course);
+        const validation = validateCourse(data.course, { simplerContent: true });
         if (!validation.valid) {
           console.warn('[autoGenerateCourse] Validation failed:', validation.errors);
           return { course: null, error: 'Backend validation failed. Please try again.' };
@@ -409,14 +419,18 @@ export default function useCourses() {
           : aiPrompt;
 
         const text = await Promise.race([
-          callAI(prompt, { maxTokens: 8192, temperature: 0.3 }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 120000)),
+          callAI(prompt, { maxTokens: 8192, temperature: 0.3, timeout: 300000 }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 300000)),
         ]);
 
         const courseDraft = extractJSON(text);
         if (!courseDraft) {
           feedback = 'Returned invalid or incomplete JSON. Output must be a valid JSON object with topics, lessons, and exercises.';
           continue;
+        }
+        // Strip generic DSE English prefix from generated titles
+        if (courseDraft.title && typeof courseDraft.title === 'string') {
+          courseDraft.title = courseDraft.title.replace(/^DSE\s+English\s+Language\s*[:\-–—]\s*/i, '').trim();
         }
 
         const draftId = `course-auto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -478,50 +492,7 @@ export default function useCourses() {
     }
   }, []);
 
-  /**
-   * checkAndRegenerateCourse: Implements D-15 — re-generate after completion if weakness persists.
-   * Compares current weak areas against the weaknessPattern stored in completed courses.
-   * If the same weakness tags persist (overlap > 50%), calls autoGenerateCourse().
-   * @param {Array} weakAreas - Current weak areas from error analysis
-   * @param {string[]} completedCourseIds - IDs of completed courses
-   * @param {Function} callAI - AI call function
-   * @returns {Object|null} New course draft or null if no regeneration needed
-   */
-  const checkAndRegenerateCourse = useCallback(async (weakAreas, completedCourseIds, callAI) => {
-    try {
-      if (!weakAreas?.length || !completedCourseIds?.length) return null;
 
-      const { weaknessTagsToCourseTags } = await import('../utils/errorPatternAnalysis');
-      const currentTags = weaknessTagsToCourseTags(weakAreas);
-
-      // Get completed courses and check their weakness patterns
-      const completedCourses = await getCompletedCourses();
-      const persistedTags = new Set();
-      completedCourses.forEach(c => {
-        if (c.weaknessPattern) {
-          c.weaknessPattern.split(', ').forEach(t => persistedTags.add(t));
-        }
-      });
-
-      if (persistedTags.size === 0) return null;
-
-      // Calculate overlap between current weakness tags and persisted patterns
-      const overlap = currentTags.filter(t => persistedTags.has(t));
-      const overlapRatio = overlap.length / Math.max(persistedTags.size, 1);
-
-      // Re-generate only if overlap > 50% (D-15: weakness persists)
-      if (overlapRatio > 0.5 && overlap.length > 0) {
-        const result = await autoGenerateCourse(overlap, completedCourseIds, callAI);
-        if (result.course) return result.course;
-        return null;
-      }
-
-      return null;
-    } catch (e) {
-      console.error('[useCourses] checkAndRegenerateCourse failed:', e.message);
-      return null;
-    }
-  }, [getCompletedCourses, autoGenerateCourse]);
 
   // ─── Offline Caching Methods ───
 
@@ -605,7 +576,6 @@ export default function useCourses() {
     getRecommendations,
     autoGenerateCourse,
     trackPostCourseImprovement,
-    checkAndRegenerateCourse,
     cacheCourseOffline,
     getCachedCourse,
     isCourseAvailableOffline,

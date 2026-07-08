@@ -26,6 +26,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Unregister any service worker immediately so module fetches aren't intercepted
+      (function() {
+        if (!('serviceWorker' in navigator)) return;
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var i = 0; i < regs.length; i++) {
+            var reg = regs[i];
+            reg.unregister();
+            // Force any active worker to stop controlling this page
+            if (reg.active && reg.active.state === 'activated') {
+              reg.active.postMessage({ type: 'SKIP_WAITING' });
+            }
+          }
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

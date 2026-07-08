@@ -2,6 +2,17 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
+// Unregister stale service workers from previous builds (PWA)
+async function unregisterStaleSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (const reg of registrations) {
+      await reg.unregister();
+    }
+  } catch { /* noop */ }
+}
+
 const OLD_PREFIX = 'nodemind-';
 const NEW_PREFIX = 'crescendo-';
 
@@ -50,6 +61,7 @@ function cleanCorruptedStorage() {
 
 migrateStorageKeys();
 cleanCorruptedStorage();
+unregisterStaleSW();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

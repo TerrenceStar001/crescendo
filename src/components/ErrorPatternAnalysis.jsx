@@ -78,7 +78,7 @@ export default function ErrorPatternAnalysis({ questions, answers, sections, par
           </div>
         ) : (
           weakAreas.map((area, i) => (
-            <div key={i} className="error-pattern__recommendation">
+            <div key={area.area} className="error-pattern__recommendation">
               <span
                 className="error-pattern__weakest-badge"
                 style={{

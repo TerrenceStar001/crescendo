@@ -103,7 +103,7 @@ export default function MarkedScriptView({ passageHtml, questions, userAnswers }
                 ? Object.entries(ua).map(([k, v]) => `${k} \u2192 ${v}`).join(', ')
                 : q.type === 'gap-fill' && q.answers && ua && typeof ua === 'object'
                   ? q.answers.map((a, idx) => `${idx + 1}. ${ua[idx] || '\u2014'}`).join(', ')
-                  : (ua || '\u2014');
+                  : ua && typeof ua === 'object' ? JSON.stringify(ua) : (ua || '\u2014');
 
               return (
                 <div key={qi} className={`marked-script__annotation ${modClass}`}>

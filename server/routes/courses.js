@@ -199,23 +199,35 @@ Remember: Return ONLY a valid JSON object. NO markdown fences. NO extra text. NO
  * callAICourse — Helper to call AI with prompt, parse, validate, and retry.
  * Returns { courseDraft, error }.
  */
-async function callAICourse(promptText, retries = 2) {
-  // Try endpoints in order: configured API first, then OpenCode serve fallback
+async function callAICourse(promptText, retries = 2, validationOptions = {}) {
+  // Try endpoints in order: custom config first, then Express proxy, then OpenCode serve
+  const aiModel = process.env.AI_MODEL || 'meta/llama-3.1-8b-instruct';
   const endpoints = [
-    { url: 'http://localhost:3001/api/ai/chat/completions', model: 'agnes-2.0-flash' },
+    { url: `http://localhost:3001/api/ai/chat/completions`, model: aiModel },
     { url: 'http://127.0.0.1:4010/v1/chat/completions', model: 'opencode/deepseek-v4-flash-free' },
   ];
+
+  // Prepend user's custom AI config if provided
+  const { aiConfig } = validationOptions;
+  if (aiConfig?.endpoint && aiConfig?.apiKey) {
+    const customEndpoint = aiConfig.endpoint.startsWith('/api/ai')
+      ? `http://127.0.0.1:4010/v1/chat/completions`
+      : aiConfig.endpoint;
+    endpoints.unshift({ url: customEndpoint, key: aiConfig.apiKey, model: aiConfig.model || 'gpt-4o-mini' });
+  }
 
   for (const ep of endpoints) {
     for (let attempt = 0; attempt <= retries; attempt++) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 120000);
+      const timeout = setTimeout(() => controller.abort(), 300000);
 
       let aiResponse;
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (ep.key) headers['Authorization'] = `Bearer ${ep.key}`;
         const fetchRes = await fetch(ep.url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             model: ep.model,
             messages: [
@@ -252,8 +264,13 @@ async function callAICourse(promptText, retries = 2) {
         break;
       }
 
+      // Strip generic DSE English prefix from generated titles
+      if (courseDraft.title && typeof courseDraft.title === 'string') {
+        courseDraft.title = courseDraft.title.replace(/^DSE\s+English\s+Language\s*[:\-–—]\s*/i, '').trim();
+      }
+
       const validation = validateCourseDraft(courseDraft);
-      const semanticValidation = semanticValidate(courseDraft);
+      const semanticValidation = semanticValidate(courseDraft, validationOptions);
       const allErrors = [...validation.errors, ...semanticValidation.errors];
 
       if (allErrors.length > 0) {
@@ -593,6 +610,7 @@ router.get('/', (req, res) => {
 
     const parsed = courses.map(c => ({
       ...c,
+      title: c.title.replace(/^DSE\s+English\s+Language\s*[:\-–—]\s*/i, '').trim(),
       tags: (() => { try { return JSON.parse(c.tags); } catch { return []; } })(),
     }));
 
@@ -622,6 +640,7 @@ router.get('/:id', (req, res) => {
 
     return res.json({
       ...course,
+      title: course.title.replace(/^DSE\s+English\s+Language\s*[:\-–—]\s*/i, '').trim(),
       content,
       tags: (() => { try { return JSON.parse(course.tags); } catch { return []; } })(),
     });
@@ -660,11 +679,13 @@ router.put('/:id/publish', (req, res) => {
  */
 router.post('/auto-generate', async (req, res) => {
   try {
-    const { weaknessTags, completedCourseIds } = req.body;
+    const { weaknessTags, completedCourseIds, aiConfig } = req.body;
 
     if (!weaknessTags || !Array.isArray(weaknessTags) || weaknessTags.length === 0) {
       return res.status(400).json({ error: 'weaknessTags array is required' });
     }
+
+
 
     // Fetch completed courses to avoid repeating approaches
     let completedContext = '';
@@ -679,10 +700,10 @@ router.post('/auto-generate', async (req, res) => {
       }
     }
 
-    const aiPrompt = buildTutorPrompt(weaknessTags, completedContext, false);
+    const aiPrompt = buildTutorPrompt(weaknessTags, completedContext, true);
 
-    // Use the same callAICourse helper with retry logic
-    const result = await callAICourse(aiPrompt, 2);
+    // Use the same callAICourse helper with retry logic (simplerContent = fewer retries)
+    const result = await callAICourse(aiPrompt, 1, { simplerContent: true, aiConfig });
 
     if (result.error) {
       return res.status(502).json({ error: result.error });

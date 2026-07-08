@@ -354,29 +354,23 @@ function generateQuestions(content) {
   return questions.slice(0, 5);
 }
 
-async function generateAIQuestions(content, endpoint, apiKey, model, signal) {
+async function generateAIQuestions(content, callAI, signal) {
   const text = stripHtml(content).slice(0, 3000);
   if (!text) return [];
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: 'Generate 5 quiz questions based on this text. Include a mix of fill-in-the-blank, multiple choice (with 4 options), and short answer questions. Each must have a "question", "answer", and optional "options" array. Return ONLY a JSON array of objects.\n\n' +
-          'When generating distractors (wrong options), ensure they reflect plausible misreadings of the text — exploit structural asymmetry, ambiguous authorial stance, and domain-specific vocabulary. Do NOT create trivially obvious wrong answers. Distractors should test whether the student truly parsed the text\'s syntactic turbulence, tonal shifts, and unresolved tensions.' },
-        { role: 'user', content: text },
-      ],
-      max_tokens: 800,
-      temperature: 0.4,
-    }),
+  const raw = await callAI(text, {
+    system: 'Generate 5 quiz questions based on this text. Include a mix of fill-in-the-blank, multiple choice (with 4 options), and short answer questions. Each must have a "question", "answer", and optional "options" array. Return ONLY a JSON array of objects.\n\n' +
+      'When generating distractors (wrong options), ensure they reflect plausible misreadings of the text — exploit structural asymmetry, ambiguous authorial stance, and domain-specific vocabulary. Do NOT create trivially obvious wrong answers. Distractors should test whether the student truly parsed the text\'s syntactic turbulence, tonal shifts, and unresolved tensions.',
+    temperature: 0.4,
+    maxTokens: 800,
     signal,
   });
-
-  const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content?.trim() || '[]';
-  const parsed = JSON.parse(raw);
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
   return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
 }
 
@@ -396,14 +390,12 @@ function saveSession(session) {
 export default function useStudyMode() {
   const currentRef = useRef(null);
 
-  const startSession = useCallback((note, aiConfig) => {
+  const startSession = useCallback((note, callAI) => {
     const content = note?.content || '';
     let questions = null;
-    let useAI = false;
+    const useAI = !!callAI;
 
-    if (aiConfig?.apiKey) {
-      useAI = true;
-    } else {
+    if (!callAI) {
       questions = generateQuestions(content);
     }
 
@@ -411,9 +403,7 @@ export default function useStudyMode() {
       note,
       questions,
       useAI,
-      aiEndpoint: aiConfig?.endpoint || '/api/ai/chat/completions',
-      aiModel: aiConfig?.model || 'meta/llama-3.1-8b-instruct',
-      aiKey: aiConfig?.apiKey || '',
+      callAI,
       content,
       startTime: Date.now(),
       results: [],
@@ -424,10 +414,10 @@ export default function useStudyMode() {
 
   const generateWithAI = useCallback(async (signal) => {
     const ctx = currentRef.current;
-    if (!ctx || !ctx.aiKey || !ctx.content) return [];
+    if (!ctx || !ctx.callAI || !ctx.content) return [];
     try {
       const questions = await generateAIQuestions(
-        ctx.content, ctx.aiEndpoint, ctx.aiKey, ctx.aiModel, signal
+        ctx.content, ctx.callAI, signal
       );
       ctx.questions = questions;
       return questions;
@@ -511,6 +501,10 @@ export default function useStudyMode() {
     };
   }, []);
 
+  const getUseAI = useCallback(() => {
+    return currentRef.current?.useAI || false;
+  }, []);
+
   const getNoteHistory = useCallback((noteId) => {
     const sessions = loadSessions();
     return sessions.filter(s => s.noteId === noteId).slice(0, 10);
@@ -524,6 +518,7 @@ export default function useStudyMode() {
     getResults,
     recordSession,
     getStats,
+    getUseAI,
     getNoteHistory,
   };
 }

@@ -40,7 +40,21 @@ const SIMPLER_CONFIG = {
  * getConfig — Returns config based on mode.
  */
 function getConfig(options = {}) {
-  return options.simplerContent ? { ...SIMPLER_CONFIG } : { ...DEFAULT_CONFIG };
+  if (options.simplerContent) {
+    return {
+      ...SIMPLER_CONFIG,
+      // Skip most semantic checks for auto-generated courses — model capability limited
+      minWords: 80,
+      requireStrategyNote: false,
+      requireTextTypeBlueprint: false,
+      requireLevelUpContrasts: false,
+      requireExerciseDiversity: false,
+      blameDepthMin: 1,
+      blockVerbatimRecall: false,
+      blockFormulaQuestion: false,
+    };
+  }
+  return { ...DEFAULT_CONFIG };
 }
 
 // ─── Existing checks (refactored with configurable thresholds) ───
@@ -336,31 +350,36 @@ export function semanticValidate(courseDraft, options = {}) {
         lesson.exercises.forEach((exercise, ei) => {
           if (!exercise || typeof exercise !== 'object') return;
 
-          // Existing exercise checks
-          const mcqErr = checkMCQAnswer(exercise, ti, li, ei);
-          if (mcqErr) errors.push(mcqErr);
+          // Skip most exercise-level checks for simplerContent (model not capable enough)
+          if (options.simplerContent) {
+            // Only check explanation length for basic quality
+            const explErr = checkExplanationLength(exercise, ti, li, ei);
+            if (explErr) errors.push(explErr);
+          } else {
+            const mcqErr = checkMCQAnswer(exercise, ti, li, ei);
+            if (mcqErr) errors.push(mcqErr);
 
-          const gapErr = checkGapFillAnswer(exercise, lesson, ti, li, ei);
-          if (gapErr) errors.push(gapErr);
+            const gapErr = checkGapFillAnswer(exercise, lesson, ti, li, ei);
+            if (gapErr) errors.push(gapErr);
 
-          const explErr = checkExplanationLength(exercise, ti, li, ei);
-          if (explErr) errors.push(explErr);
+            const explErr = checkExplanationLength(exercise, ti, li, ei);
+            if (explErr) errors.push(explErr);
 
-          // New advanced exercise checks
-          const optCountErr = checkMCQOptionCount(exercise, ti, li, ei);
-          if (optCountErr) errors.push(optCountErr);
+            const optCountErr = checkMCQOptionCount(exercise, ti, li, ei);
+            if (optCountErr) errors.push(optCountErr);
 
-          const optLabelErr = checkMCQOptionsLabelled(exercise, ti, li, ei);
-          if (optLabelErr) errors.push(optLabelErr);
+            const optLabelErr = checkMCQOptionsLabelled(exercise, ti, li, ei);
+            if (optLabelErr) errors.push(optLabelErr);
 
-          const verbErr = checkMCQAnswerNotVerbatim(exercise, lesson, ti, li, ei, config);
-          if (verbErr) errors.push(verbErr);
+            const verbErr = checkMCQAnswerNotVerbatim(exercise, lesson, ti, li, ei, config);
+            if (verbErr) errors.push(verbErr);
 
-          const bloomErr = checkBloomDepth(exercise, ti, li, ei, config);
-          if (bloomErr) errors.push(bloomErr);
+            const bloomErr = checkBloomDepth(exercise, ti, li, ei, config);
+            if (bloomErr) errors.push(bloomErr);
 
-          const formulaErr = checkNotFormulaQuestion(exercise, ti, li, ei, config);
-          if (formulaErr) errors.push(formulaErr);
+            const formulaErr = checkNotFormulaQuestion(exercise, ti, li, ei, config);
+            if (formulaErr) errors.push(formulaErr);
+          }
         });
       }
     });

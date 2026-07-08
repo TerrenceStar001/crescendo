@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { scoreToDseLevel, isQuestionCorrect } from '../utils/dseGrading';
-import MarkedScriptView from './MarkedScriptView';
 import ErrorPatternAnalysis from './ErrorPatternAnalysis';
 import DrillGenerator from './DrillGenerator';
 
@@ -113,19 +112,7 @@ export default function ReadingResults({
             : ' Built-in practice content'}
         </div>
 
-        {/* 3. Marked Script View (collapsible, open by default) — NEW */}
-        <details className="reading__history" open>
-          <summary className="reading__history-summary" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-            Annotated Passage
-          </summary>
-          <MarkedScriptView
-            passageHtml={passageContent}
-            questions={questions}
-            userAnswers={answers}
-          />
-        </details>
-
-        {/* 4. Error Pattern Analysis — NEW */}
+        {/* 3. Error Pattern Analysis */}
         <ErrorPatternAnalysis
           questions={questions}
           answers={answers}
@@ -193,17 +180,18 @@ export default function ReadingResults({
 
         {/* 8. Skill breakdown — REMOVED (replaced by ErrorPatternAnalysis) */}
 
-        {/* 9. Review Questions */}
+        {/* 9. Review Questions + Passage (two-column) */}
         <div className="reading__results-review">
-          <h3>Review Questions</h3>
-          {questions.map((q, i) => {
+          <div className="reading__results-review-left">
+            <h3>Review Questions</h3>
+            {questions.map((q, i) => {
             const ua = answers[q.id];
             const correct = isQuestionCorrect(q, ua);
             const displayAnswer = q.type === 'matching' && ua && typeof ua === 'object'
               ? Object.entries(ua).map(([k, v]) => `${k} → ${v}`).join(', ')
               : q.type === 'gap-fill' && q.answers && ua && typeof ua === 'object'
                 ? q.answers.map((a, i) => `${i + 1}. ${ua[i] || '—'}`).join(', ')
-                : (ua || '—');
+                : ua && typeof ua === 'object' ? JSON.stringify(ua) : (ua || '—');
             return (
               <div key={q.id} className={`reading__results-review-item ${correct ? '' : 'reading__results-review-item--wrong'}`}>
                 <div className="reading__results-review-header">
@@ -245,6 +233,11 @@ export default function ReadingResults({
               </div>
             );
           })}
+          </div>
+          <div className="reading__results-review-right">
+            <h3>Passage</h3>
+            <div className="reading__results-passage" dangerouslySetInnerHTML={{ __html: passageContent }} />
+          </div>
         </div>
 
         {/* 10. AI Notes status + Actions */}

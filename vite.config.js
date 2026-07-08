@@ -13,6 +13,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      devOptions: { enabled: false },
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Crescendo',
@@ -27,6 +28,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,wasm,svg,png}'],
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ['sw-cleanup.js'],
         runtimeCaching: [{
           urlPattern: /^\/api\//,
           handler: 'NetworkOnly',
@@ -57,6 +59,8 @@ export default defineConfig({
       '/api/ai/chat/completions': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        proxyTimeout: 300000,
+        timeout: 300000,
       },
       '/api/ai': {
         target: 'http://127.0.0.1:4010',
@@ -77,8 +81,8 @@ export default defineConfig({
       '/api/courses': {
         target: 'http://localhost:3001',
         changeOrigin: true,
-        proxyTimeout: 180000,
-        timeout: 180000,
+        proxyTimeout: 300000,
+        timeout: 300000,
       },
     },
   },

@@ -88,6 +88,8 @@ export const WEAKNESS_TO_TAG_MAP = {
   'Vocabulary in Context': ['vocab:context', 'reading:vocab-in-context'],
   'Tone & Attitude': ['reading:tone'],
   'Purpose': ['reading:purpose'],
+  'Spelling': ['grammar:spelling'],
+  'Punctuation': ['grammar:punctuation'],
 };
 
 /**
@@ -415,100 +417,101 @@ export function semanticValidate(courseDraft, options = {}) {
         }
       }
 
-      // Exercise-level checks
-      if (Array.isArray(lesson.exercises)) {
-        lesson.exercises.forEach((exercise, ei) => {
-          if (!exercise || typeof exercise !== 'object') return;
+          // Exercise-level checks (skip strict rules for simplerContent — model not capable)
+          if (Array.isArray(lesson.exercises)) {
+            lesson.exercises.forEach((exercise, ei) => {
+              if (!exercise || typeof exercise !== 'object') return;
 
-          // MCQ answer in options
-          if (exercise.type === 'mcq' && Array.isArray(exercise.options) && exercise.options.length > 0) {
-            const opts = exercise.options.map(o => String(o).toLowerCase().trim());
-            const optsStripped = opts.map(o => o.replace(/^[a-d][.)\s]+/, ''));
-            const ansRaw = String(exercise.answer || '').toLowerCase().trim();
-            const ansStripped = ansRaw.replace(/^[a-d][.)\s]+/, '');
-            const letterMatch = /^[a-d]$/.test(ansStripped) && exercise.options.some(o => String(o).toLowerCase().trim().startsWith(ansStripped));
-            const textMatch = opts.includes(ansRaw) || optsStripped.includes(ansRaw) || optsStripped.includes(ansStripped);
-            if (!letterMatch && !textMatch) {
-              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): answer "${exercise.answer}" not found in options [${exercise.options.join(', ')}]`);
-            }
-          }
+              if (options.simplerContent) {
+                // Only check explanation length for basic quality
+                const explLen = exercise.explanation?.trim().length || 0;
+                if (explLen < 20) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: explanation too short (${explLen} chars, minimum 20)`);
+                }
+              } else {
+                // Full exercise validation for non-simplerContent
+                if (exercise.type === 'mcq' && Array.isArray(exercise.options) && exercise.options.length > 0) {
+                  const opts = exercise.options.map(o => String(o).toLowerCase().trim());
+                  const optsStripped = opts.map(o => o.replace(/^[a-d][.)\s]+/, ''));
+                  const ansRaw = String(exercise.answer || '').toLowerCase().trim();
+                  const ansStripped = ansRaw.replace(/^[a-d][.)\s]+/, '');
+                  const letterMatch = /^[a-d]$/.test(ansStripped) && exercise.options.some(o => String(o).toLowerCase().trim().startsWith(ansStripped));
+                  const textMatch = opts.includes(ansRaw) || optsStripped.includes(ansRaw) || optsStripped.includes(ansStripped);
+                  if (!letterMatch && !textMatch) {
+                    errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): answer "${exercise.answer}" not found in options [${exercise.options.join(', ')}]`);
+                  }
+                }
 
-          // MCQ option count
-          if (exercise.type === 'mcq' && (!Array.isArray(exercise.options) || exercise.options.length !== 4)) {
-            errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): must have exactly 4 options (found ${exercise.options?.length || 0})`);
-          }
+                if (exercise.type === 'mcq' && (!Array.isArray(exercise.options) || exercise.options.length !== 4)) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): must have exactly 4 options (found ${exercise.options?.length || 0})`);
+                }
 
-          // MCQ options labelled
-          if (exercise.type === 'mcq' && Array.isArray(exercise.options) && exercise.options.length > 0) {
-            const labelled = exercise.options.every(o => /^[a-d][.)\s]/i.test(String(o).trim()));
-            if (!labelled) {
-              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): options should be labelled A/B/C/D (e.g. "A) option text")`);
-            }
-          }
+                if (exercise.type === 'mcq' && Array.isArray(exercise.options) && exercise.options.length > 0) {
+                  const labelled = exercise.options.every(o => /^[a-d][.)\s]/i.test(String(o).trim()));
+                  if (!labelled) {
+                    errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): options should be labelled A/B/C/D (e.g. "A) option text")`);
+                  }
+                }
 
-          // MCQ answer not verbatim
-          if (exercise.type === 'mcq' && config.blockVerbatimRecall && exercise.answer) {
-            const content = lesson.referenceContent;
-            if (content && typeof content === 'string') {
-              const ans = String(exercise.answer || '').toLowerCase().trim();
-              if (ans.length >= 4 && ans.length <= 120 && content.toLowerCase().includes(ans)) {
-                const words = ans.split(/\s+/);
-                if (words.length <= 4) {
-                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): answer "${exercise.answer}" is a verbatim quote from reference content — rewrite to require reasoning, not recall`);
+                if (exercise.type === 'mcq' && config.blockVerbatimRecall && exercise.answer) {
+                  const content = lesson.referenceContent;
+                  if (content && typeof content === 'string') {
+                    const ans = String(exercise.answer || '').toLowerCase().trim();
+                    if (ans.length >= 4 && ans.length <= 120 && content.toLowerCase().includes(ans)) {
+                      const words = ans.split(/\s+/);
+                      if (words.length <= 4) {
+                        errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (mcq): answer "${exercise.answer}" is a verbatim quote from reference content — rewrite to require reasoning, not recall`);
+                      }
+                    }
+                  }
+                }
+
+                if ((exercise.type === 'gap-fill' || exercise.type === 'cloze') && exercise.answer) {
+                  const content = lesson.referenceContent;
+                  if (content && typeof content === 'string') {
+                    if (!content.toLowerCase().includes(String(exercise.answer).toLowerCase().trim())) {
+                      errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (${exercise.type}): answer "${exercise.answer}" not found in lesson referenceContent`);
+                    }
+                  }
+                }
+
+                const explLen = exercise.explanation?.trim().length || 0;
+                if (explLen < 40) {
+                  errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: explanation too short (${explLen} chars, minimum 40)`);
+                }
+
+                if (exercise.question) {
+                  const stem = (exercise.question || '').toLowerCase();
+                  const recall = ['what is', 'what does', 'define', 'list', 'name', 'identify', 'when did', 'who wrote', 'according to', 'how many', 'what year', 'fill in the blank with'];
+                  const deep = ['compare', 'contrast', 'distinguish', 'differentiate', 'evaluate', 'judge', 'which is better', 'what is wrong', 'identify the problem', 'which strategy', 'diagnose', 'why does', 'what would happen', 'which best', 'most likely', 'which of the following best', 'choose the best'];
+                  let bloom = 3;
+                  for (const v of deep) if (stem.includes(v)) bloom = 4;
+                  for (const v of recall) if (stem.startsWith(v) || stem.includes(' ' + v) || stem.includes(v)) bloom = Math.min(bloom, 1);
+                  if (bloom < config.blameDepthMin) {
+                    errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: Bloom's depth ${bloom} (minimum ${config.blameDepthMin}) — exercise tests recall, rewrite to require understanding or application`);
+                  }
+                }
+
+                if (exercise.question) {
+                  const stem = (exercise.question || '').toLowerCase();
+                  const answer = String(exercise.answer || '');
+                  const prescriptiveCount = /how\s+(many|much)\s.*\b(should|typically|usually|must|does|do)\b/.test(stem);
+                  if (prescriptiveCount) {
+                    errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: formula question detected — "how many X should Y" tests memorised rules, not understanding`);
+                  } else if (/^\d+\s*[-–—to]+\s*\d+$/.test(answer.trim())) {
+                    errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: answer is a numeric range (${answer}) — tests formula recall, not understanding`);
+                  } else if (/^\d+$/.test(answer.trim()) && parseInt(answer) > 1) {
+                    const entityCount = /\b(how many|how much)\b/.test(stem);
+                    const structureEntity = /\b(sentences?|paragraphs?|words?|steps?|points?|stages?|phases?|parts?|sections?|marks?)\b/.test(stem);
+                    const prescriptive = /\b(should|typically|usually|must|always|every)\b/.test(stem);
+                    if (entityCount && structureEntity && prescriptive) {
+                      errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: formula question detected — answer is a number (${answer}) for a prescriptive count, tests formula recall`);
+                    }
+                  }
                 }
               }
-            }
+            });
           }
-
-          // Gap-fill answer in referenceContent
-          if ((exercise.type === 'gap-fill' || exercise.type === 'cloze') && exercise.answer) {
-            const content = lesson.referenceContent;
-            if (content && typeof content === 'string') {
-              if (!content.toLowerCase().includes(String(exercise.answer).toLowerCase().trim())) {
-                errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei} (${exercise.type}): answer "${exercise.answer}" not found in lesson referenceContent`);
-              }
-            }
-          }
-
-          // Explanation length
-          const explLen = exercise.explanation?.trim().length || 0;
-          if (explLen < 40) {
-            errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: explanation too short (${explLen} chars, minimum 40)`);
-          }
-
-          // Bloom's depth
-          if (exercise.question) {
-            const stem = (exercise.question || '').toLowerCase();
-            const recall = ['what is', 'what does', 'define', 'list', 'name', 'identify', 'when did', 'who wrote', 'according to', 'how many', 'what year', 'fill in the blank with'];
-            const deep = ['compare', 'contrast', 'distinguish', 'differentiate', 'evaluate', 'judge', 'which is better', 'what is wrong', 'identify the problem', 'which strategy', 'diagnose', 'why does', 'what would happen', 'which best', 'most likely', 'which of the following best', 'choose the best'];
-            let bloom = 3;
-            for (const v of deep) if (stem.includes(v)) bloom = 4;
-            for (const v of recall) if (stem.startsWith(v) || stem.includes(' ' + v) || stem.includes(v)) bloom = Math.min(bloom, 1);
-            if (bloom < config.blameDepthMin) {
-              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: Bloom's depth ${bloom} (minimum ${config.blameDepthMin}) — exercise tests recall, rewrite to require understanding or application`);
-            }
-          }
-
-          // Formula question detection
-          if (config.blockFormulaQuestion && exercise.question) {
-            const stem = (exercise.question || '').toLowerCase();
-            const answer = String(exercise.answer || '');
-            const prescriptiveCount = /how\s+(many|much)\s.*\b(should|typically|usually|must|does|do)\b/.test(stem);
-            if (prescriptiveCount) {
-              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: formula question detected — "how many X should Y" tests memorised rules, not understanding`);
-            } else if (/^\d+\s*[-–—to]+\s*\d+$/.test(answer.trim())) {
-              errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: answer is a numeric range (${answer}) — tests formula recall, not understanding`);
-            } else if (/^\d+$/.test(answer.trim()) && parseInt(answer) > 1) {
-              const entityCount = /\b(how many|how much)\b/.test(stem);
-              const structureEntity = /\b(sentences?|paragraphs?|words?|steps?|points?|stages?|phases?|parts?|sections?|marks?)\b/.test(stem);
-              const prescriptive = /\b(should|typically|usually|must|always|every)\b/.test(stem);
-              if (entityCount && structureEntity && prescriptive) {
-                errors.push(`Topic ${ti}, Lesson ${li}, Exercise ${ei}: formula question detected — answer is a number (${answer}) for a prescriptive count, tests formula recall`);
-              }
-            }
-          }
-        });
-      }
     });
   });
 

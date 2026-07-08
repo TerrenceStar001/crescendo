@@ -36,6 +36,7 @@ import SpeakingModule from './components/SpeakingModule';
 import corpusIndex from './utils/corpusIndex';
 import { WEAKNESS_TO_TAG_MAP, safeMapLegacyCourse } from './utils/courseSchema';
 import { QUESTION_TYPE_TO_AREA } from './utils/errorPatternAnalysis';
+import { doFetch, normalizeEndpoint } from './utils/aiConstants';
 import './App.css';
 
 const CanvasView = lazy(() => import('./components/CanvasView'));
@@ -71,11 +72,9 @@ function CrescendoApp() {
     deleteCourse: deleteCourseFn,
     enrollCourse: enrollCourseFn,
     unenrollCourse: unenrollCourseFn,
-    getCompletedCourses: getCompletedCoursesFn,
     getCourseCount: getCourseCountFn,
     getRecommendations: getRecommendationsFn,
     autoGenerateCourse: autoGenerateCourseFn,
-    checkAndRegenerateCourse: checkAndRegenerateCourseFn,
     trackPostCourseImprovement: trackPostCourseImprovementFn,
   } = useCourses();
   const { syncCourses } = useIndexedDB();
@@ -87,8 +86,6 @@ function CrescendoApp() {
   const [enrolledIds, setEnrolledIds] = useState([]);
   const [completedIds, setCompletedIds] = useState([]);
   const [courseCompletionCount, setCourseCompletionCount] = useState(0);
-  const seedAttemptedRef = useRef(false);
-
   const refreshCourses = useCallback(() => {
     getCoursesFn().then(setCourses);
   }, [getCoursesFn]);
@@ -190,69 +187,163 @@ function CrescendoApp() {
   }, []);
 
   const callAI = useCallback(async (prompt, opts = {}) => {
-    const isExternal = config.endpoint && !config.endpoint.startsWith('/');
-    const ep = (() => {
-      if (!config.endpoint) return '/api/ai/chat/completions';
-      if (config.endpoint.startsWith('/api/ai')) return config.endpoint;
-      const t = config.endpoint.replace(/\/+$/, '');
-      if (t.endsWith('/chat/completions')) return t;
-      return t + '/chat/completions';
-    })();
-    const model = config.model || 'opencode/deepseek-v4-flash-free';
-    const messages = [{ role: 'user', content: prompt }];
-    if (opts.system) { messages.unshift({ role: 'system', content: opts.system }); }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), opts.timeout || 30000);
-    try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
-      const body = JSON.stringify({ model, messages, max_tokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 });
-      const res = await fetch(isExternal ? '/api/ai/external-proxy' : ep, {
-        method: 'POST',
-        headers: isExternal ? { 'Content-Type': 'application/json' } : headers,
-        body: isExternal ? JSON.stringify({ endpoint: ep, apiKey: config.apiKey, model, messages, maxTokens: opts.maxTokens || 2000, temperature: opts.temperature ?? 0.3 }) : body,
-        signal: controller.signal,
+    const { timeout = 60000, temperature = 0.3, maxTokens = 2000, system, signal: externalSignal } = opts;
+    const controller = externalSignal ? null : new AbortController();
+    const timer = setTimeout(() => controller?.abort(), timeout);
+
+    const messages = system
+      ? [{ role: 'system', content: system }, { role: 'user', content: prompt }]
+      : [{ role: 'user', content: prompt }];
+
+    const signal = externalSignal || controller?.signal;
+    const tryFetch = async (url, apiKey, model, extraOpts = {}) => {
+      const data = await doFetch(url, apiKey, model, messages, {
+        maxTokens: extraOpts.maxTokens || maxTokens,
+        temperature: extraOpts.temperature ?? temperature,
+        signal,
       });
-      clearTimeout(timeout);
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => '')}`);
-      const data = await res.json();
       return data.choices?.[0]?.message?.content?.trim() || '';
-    } catch (e) {
-      clearTimeout(timeout);
-      if (e.name === 'AbortError') throw new Error('AI request timed out');
-      throw e;
+    };
+
+    // Tier 1: User's custom API from Settings
+    if (config.endpoint || config.apiKey) {
+      try {
+        const ep = normalizeEndpoint(config.endpoint, config.provider);
+        const model = config.model || 'opencode/deepseek-v4-flash-free';
+        const result = await tryFetch(ep, config.apiKey, model, { maxTokens, temperature });
+        clearTimeout(timer);
+        return result;
+      } catch (e) {
+        console.warn('[AI] Custom endpoint failed:', e.message);
+      }
     }
+
+    // Tier 2: Backend proxy → Express port 3001 → NVIDIA/Agnes/OpenCode
+    try {
+      const result = await tryFetch('/api/ai/chat/completions', '', '', { maxTokens, temperature });
+      clearTimeout(timer);
+      return result;
+    } catch (e) {
+      console.warn('[AI] Backend proxy failed:', e.message);
+    }
+
+    // Tier 3: Direct OpenCode serve (port 4010)
+    try {
+      const result = await tryFetch('http://127.0.0.1:4010/v1/chat/completions', '', 'opencode/deepseek-v4-flash-free', { maxTokens, temperature });
+      clearTimeout(timer);
+      return result;
+    } catch (e) {
+      console.warn('[AI] OpenCode serve failed:', e.message);
+    }
+
+    clearTimeout(timer);
+    throw new Error('All AI endpoints failed');
   }, [config]);
 
-  // Re-generation trigger (D-15): fire when a new reading/writing session completes
-  // Checks if completed courses need to be regenerated based on persistent weakness
+  // Course generation: auto-generate courses from weak areas on load and after sessions
   useEffect(() => {
+    if (!skillAnalytics?.isLoaded) return;
+
+    // Only trigger for reading/writing sessions (skip initial load check when no sessions)
     const sessions = skillAnalytics?.sessions || [];
-    if (sessions.length === 0) return;
-    const latest = sessions[0];
-    if (!latest || !latest.completedAt) return;
-    // Only trigger for reading and writing sessions
-    if (latest.skill !== 'reading' && latest.skill !== 'writing') return;
+    if (sessions.length > 0) {
+      const latest = sessions[0];
+      if (!latest || !latest.completedAt) return;
+      if (latest.skill !== 'reading' && latest.skill !== 'writing') return;
+    }
+
     const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
     if (weakAreas.length === 0) return;
 
     const timer = setTimeout(async () => {
       try {
-        const completedCourses = await getCompletedCoursesFn();
-        const completedIds = completedCourses.map(c => c.id);
-        if (completedIds.length === 0) return;
-        const draft = await checkAndRegenerateCourseFn(weakAreas, completedIds, callAI);
-        if (draft) {
-          // Refresh courses list
-          refreshCourses();
+        const existingCourses = await getCoursesFn();
+        const existingTagSets = new Set();
+        for (const c of existingCourses) {
+          if (c.source === 'auto-generated' && c.tags?.length > 0) {
+            existingTagSets.add(c.tags.sort().join('|'));
+          }
         }
+
+        // Build reverse index: sub-topic name → tag + area key
+        const subTopicToTag = {};
+        const subTopicToArea = {};
+        for (const [areaKey, tags] of Object.entries(WEAKNESS_TO_TAG_MAP)) {
+          for (const tag of tags) {
+            const sub = tag.split(':')[1];
+            if (sub) {
+              const key = sub.replace(/[- ]/g, '').toLowerCase();
+              subTopicToTag[key] = tag;
+              subTopicToArea[key] = areaKey;
+            }
+          }
+        }
+
+        // Group weak sub-topics by their parent skill area (translate question types)
+        const areaWeaknesses = new Map();
+        for (const wa of weakAreas) {
+          let areaKey = null;
+          let matchedTags = [];
+
+          // Try direct sub-topic match first
+          const normalizedKey = wa.area.replace(/[- ]/g, '').toLowerCase();
+          const directTag = subTopicToTag[normalizedKey];
+          if (directTag) {
+            areaKey = subTopicToArea[normalizedKey];
+            matchedTags = [directTag];
+          }
+
+          // Fallback: translate question type to skill area
+          if (!areaKey && QUESTION_TYPE_TO_AREA[wa.area]) {
+            const skillAreaName = QUESTION_TYPE_TO_AREA[wa.area];
+            areaKey = skillAreaName;
+            matchedTags = WEAKNESS_TO_TAG_MAP[skillAreaName] || [];
+          }
+
+          if (!areaKey) {
+            console.log(`[course-gen] skipping ${wa.area}: not a recognized skill sub-topic or question type`);
+            continue;
+          }
+          if (!areaWeaknesses.has(areaKey)) {
+            areaWeaknesses.set(areaKey, { tags: new Set(), sources: [] });
+          }
+          for (const tag of matchedTags) {
+            areaWeaknesses.get(areaKey).tags.add(tag);
+          }
+          areaWeaknesses.get(areaKey).sources.push(wa.area);
+        }
+
+        // Generate one course per skill area (skip if tags already covered)
+        for (const [areaKey, { tags, sources }] of areaWeaknesses) {
+          const tagsArray = [...tags].sort();
+          const tagKey = tagsArray.join('|');
+          if (existingTagSets.has(tagKey)) {
+            console.log(`[course-gen] skipping ${sources.join(', ')}: course with these tags already exists`);
+            continue;
+          }
+          existingTagSets.add(tagKey);
+          console.log(`[course-gen] generating course for ${sources.join(', ')}:`, tagsArray);
+          const result = await autoGenerateCourseFn(tagsArray, [], callAI, { aiConfig: config });
+          if (result?.course) {
+            await saveCourseFn(result.course);
+          }
+        }
+        refreshCourses();
       } catch (e) {
-        console.error('[course-regeneration] error:', e.message);
+        console.error('[course-gen] error:', e.message);
       }
-    }, 3000);
+    }, sessions.length > 0 ? 3000 : 1000);
 
     return () => clearTimeout(timer);
-  }, [skillAnalytics?.sessions?.length, getCompletedCoursesFn, checkAndRegenerateCourseFn, callAI, refreshCourses]);
+  }, [
+    skillAnalytics?.isLoaded,
+    skillAnalytics?.sessions?.length,
+    getCoursesFn,
+    saveCourseFn,
+    autoGenerateCourseFn,
+    callAI,
+    refreshCourses,
+  ]);
 
   // Legacy course migration: stamp existing courses with isLegacy flag
   const migrationRef = useRef(false);
@@ -301,103 +392,7 @@ function CrescendoApp() {
     })();
   }, []);
 
-  // Initial course seed: auto-generate courses from weak areas
-  useEffect(() => {
-    if (seedAttemptedRef.current) return;
-    if (!skillAnalytics?.isLoaded) return;
-        // Group weak areas individually — one course per weak area
-        const weakAreas = skillAnalytics?.getWeakAreas?.() || [];
-        if (weakAreas.length === 0) {
-          console.log('[course-seed] getWeakAreas returned empty — no subScores below 60. Profile:', skillAnalytics?.profile);
-          return;
-        }
 
-        seedAttemptedRef.current = true;
-        console.log('[course-seed] weak areas found:', weakAreas.length);
-        const timer = setTimeout(async () => {
-          try {
-            const existingCourses = await getCoursesFn();
-            const existingTagSets = new Set();
-            for (const c of existingCourses) {
-              if (c.source === 'auto-generated' && c.tags?.length > 0) {
-                existingTagSets.add(c.tags.sort().join('|'));
-              }
-            }
-
-            // Build reverse index: sub-topic name → tag + area key
-            const subTopicToTag = {};
-            const subTopicToArea = {};
-            for (const [areaKey, tags] of Object.entries(WEAKNESS_TO_TAG_MAP)) {
-              for (const tag of tags) {
-                const sub = tag.split(':')[1];
-                if (sub) {
-                  const key = sub.replace(/[- ]/g, '').toLowerCase();
-                  subTopicToTag[key] = tag;
-                  subTopicToArea[key] = areaKey;
-                }
-              }
-            }
-
-            // Group weak sub-topics by their parent skill area (translate question types)
-            const areaWeaknesses = new Map();
-            for (const wa of weakAreas) {
-              let areaKey = null;
-              let matchedTag = null;
-
-              // Try direct sub-topic match first
-              const normalizedKey = wa.area.replace(/[- ]/g, '').toLowerCase();
-              const directTag = subTopicToTag[normalizedKey];
-              if (directTag) {
-                areaKey = subTopicToArea[normalizedKey];
-                matchedTag = directTag;
-              }
-
-              // Fallback: translate question type to skill area
-              if (!areaKey && QUESTION_TYPE_TO_AREA[wa.area]) {
-                const skillAreaName = QUESTION_TYPE_TO_AREA[wa.area];
-                const skillKey = skillAreaName.replace(/[- ]/g, '').toLowerCase();
-                const skillTag = subTopicToTag[skillKey];
-                if (skillTag) {
-                  areaKey = skillAreaName;
-                  matchedTag = skillTag;
-                }
-              }
-
-              if (!areaKey) {
-                console.log(`[course-seed] skipping ${wa.area}: not a recognized skill sub-topic or question type`);
-                continue;
-              }
-              if (!areaWeaknesses.has(areaKey)) {
-                areaWeaknesses.set(areaKey, { tags: new Set(), sources: [] });
-              }
-              areaWeaknesses.get(areaKey).tags.add(matchedTag);
-              areaWeaknesses.get(areaKey).sources.push(wa.area);
-            }
-
-            console.log(`[course-seed] ${weakAreas.length} weak areas → ${areaWeaknesses.size} skill-area courses`);
-
-            for (const [areaKey, { tags, sources }] of areaWeaknesses) {
-              const tagsArray = [...tags].sort();
-              const tagKey = tagsArray.join('|');
-              if (existingTagSets.has(tagKey)) {
-                console.log(`[course-seed] skipping ${sources.join(', ')}: course with these tags already exists`);
-                continue;
-              }
-              existingTagSets.add(tagKey);
-              console.log(`[course-seed] generating course for ${sources.join(', ')}:`, tagsArray);
-              const completedCourses = await getCompletedCoursesFn();
-              const completedIds = completedCourses.map(c => c.id);
-              const result = await autoGenerateCourseFn(tagsArray, completedIds, callAI);
-              console.log(`[course-seed] ${sources[0]} result:`, result ? 'success' : 'failed (null)');
-            }
-            refreshCourses();
-          } catch (e) {
-            console.error('[course-seed] error:', e.message);
-          }
-        }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [courses.length, skillAnalytics?.isLoaded, getCoursesFn, getCompletedCoursesFn, autoGenerateCourseFn, callAI, refreshCourses]);
 
   useEffect(() => {
     if (['reading', 'writing', 'listening', 'speaking', 'progress', 'courses'].includes(dseTab)) {
@@ -446,7 +441,7 @@ function CrescendoApp() {
     if (queue.length === 0) return;
     const target = queue[0];
     setActive(target.id);
-    studyMode.startSession(target, config);
+    studyMode.startSession(target, callAI);
     setStudyQueue(queue);
     setStudyQueueIndex(0);
     setShowVoid(true);
@@ -659,13 +654,12 @@ function CrescendoApp() {
         }
       }
 
-      if (isConfigured) {
+      if (isConfigured && needTitle) {
         const result = await generateBoth(current.content, controller.signal);
-        if (needTitle && result.title) updates.title = result.title;
-        if (needTags && result.tags?.length) updates.tags = result.tags;
+        if (result.title) updates.title = result.title;
       }
       if (needTitle && !updates.title) updates.title = analysis.title;
-      if (needTags && (!updates.tags || updates.tags.length === 0)) updates.tags = analysis.tags;
+      if (needTags) updates.tags = analysis.tags;
       if (updates.tags?.length || updates.title) {
         updates.aiGeneratedOnce = true;
       }
@@ -695,7 +689,7 @@ function CrescendoApp() {
   function handleOpenVoid() {
     const note = activeNoteRef.current;
     if (!note) return;
-    studyMode.startSession(note, config);
+    studyMode.startSession(note, callAI);
     setShowVoid(true);
   }
 
@@ -712,7 +706,7 @@ function CrescendoApp() {
     }
     const next = studyQueue[nextIdx];
     setActive(next.id);
-    studyMode.startSession(next, config);
+    studyMode.startSession(next, callAI);
     setStudyQueueIndex(nextIdx);
   }
 
@@ -959,7 +953,7 @@ function CrescendoApp() {
         {showVoid && (
           <TheVoid
             note={activeNoteRef.current}
-            studySession={studyMode.getQuestions().length > 0 ? { questions: studyMode.getQuestions(), useAI: !!config.apiKey } : null}
+            studySession={studyMode.getQuestions().length > 0 ? { questions: studyMode.getQuestions(), useAI: studyMode.getUseAI() } : null}
             onSubmitAnswer={(idx, answer) => studyMode.submitAnswer(idx, answer)}
             onGenerateWithAI={(signal) => studyMode.generateWithAI(signal)}
             onClose={() => { setShowVoid(false); setStudyQueue([]); }}
@@ -1194,7 +1188,6 @@ function CrescendoApp() {
               enrolledIds={enrolledIds}
               completedIds={completedIds}
               callAI={callAI}
-              skillAnalytics={skillAnalytics}
               filterTags={courseFilterTags}
             />
           )

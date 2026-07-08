@@ -2,7 +2,7 @@
 // These correct four patterns where machine-generated text diverges from
 // authentic high-tier assessment material (HKDSE Part B2 and equivalent).
 
-export const STRUCTURAL_CONSTRAINTS = `[STRUCTURAL CONSTRAINT]: Do NOT construct clean binary oppositions. Establish a thesis, present a radical subversion, then fail to cleanly resolve the tension. In multi-text sets, ensure texts do NOT share a one-to-one thematic relationship — their intersection must be oblique and asymmetrical.
+export const STRUCTURAL_CONSTRAINTS = `[STRUCTURAL CONSTRAINT]: Do NOT construct clean binary oppositions. Establish a thesis, present a radical subversion, then fail to cleanly resolve the tension. In multi-text sets, ALL texts MUST share the SAME TOPIC/THEME but approach it from DIFFERENT PERSPECTIVES and text types (e.g., Text 1 = news report about a council meeting, Text 2 = interview transcript with stakeholders, Text 3 = editorial). Texts MUST NOT be consecutive in narrative — Text 2 does NOT continue Text 1's story. Each text is an independent piece on the same topic.
 
 [LEXICAL PROFILE — MATERIALITY CONSTRAINT]: Do NOT use abstract conceptual crutches (capitalism, alienation, modernization, nostalgia, efficiency) to explain meaning directly to the reader. Replace all thematic summaries with hyper-specific, localized, domain-specific, or mechanical nouns. Describe exact physical tools, materials, technical processes, objects, or sensory conditions. Force the reader to deduce conceptual themes entirely from concrete details. Maintain a balanced 50/50 ratio between abstractions and concrete, tactile nouns. Use professional jargon and regional idioms not deducible from general academic vocabulary.
 
@@ -24,7 +24,7 @@ export const WORD_COUNT_TARGETS = {
 // This prevents the AI from over-generating (5000 tokens ≈ 3750 words was 3x the 1200-word target)
 export function getMaxTokensForPart(part) {
   const target = WORD_COUNT_TARGETS[part] || WORD_COUNT_TARGETS.A;
-  return Math.ceil(target.max * 1.33);
+  return Math.ceil(target.max * 1.66);
 }
 
 export const TEXT_TYPE_REQUIREMENTS = {

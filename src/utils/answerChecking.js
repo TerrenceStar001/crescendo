@@ -41,6 +41,28 @@ const STOP_WORDS = new Set([
   'with', 'from', 'their', 'there', 'would', 'about', 'into', 'over', 'such', 'your',
 ]);
 
+function stem(w) {
+  w = w.toLowerCase();
+  if (w.length < 4) return w;
+  if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y';
+  if (w.endsWith('ves') && w.length > 4) return w.slice(0, -3) + 'f';
+  if (w.endsWith('es') && w.length > 4 && /[szx]|sh|ch|o$/.test(w.slice(0, -2))) return w.slice(0, -2);
+  if (w.endsWith('ss')) return w;
+  if (w.endsWith('s') && w.length > 3) return w.slice(0, -1);
+  if (w.endsWith('ing') && w.length > 5) {
+    const base = w.slice(0, -3);
+    if (base.length >= 2 && base[base.length - 1] === base[base.length - 2]) return base.slice(0, -1);
+    return base;
+  }
+  if (w.endsWith('ed') && w.length > 4) {
+    const base = w.slice(0, -2);
+    if (base.length >= 2 && base[base.length - 1] === base[base.length - 2]) return base.slice(0, -1);
+    return base;
+  }
+  if (w.endsWith('ly') && w.length > 4) return w.slice(0, -2);
+  return w;
+}
+
 function extractKeyTerms(text) {
   return text
     .toLowerCase()
@@ -51,7 +73,11 @@ function extractKeyTerms(text) {
 function keywordMatch(userText, correctText) {
   const keyTerms = extractKeyTerms(correctText);
   if (keyTerms.length === 0) return userText.length > 0;
-  const matched = keyTerms.filter(term => userText.toLowerCase().includes(term));
+  const userStems = new Set(userText.toLowerCase().split(/\s+/).filter(Boolean).map(stem));
+  const matched = keyTerms.filter(term => {
+    if (userText.toLowerCase().includes(term)) return true;
+    return userStems.has(stem(term));
+  });
   return matched.length / keyTerms.length >= 0.5;
 }
 
@@ -86,14 +112,43 @@ export function checkAnswer(question, userAnswer) {
 
     case 'gap-fill':
     case 'summary-cloze': {
+      function acceptAny(userVal, expected) {
+        const norm = normalizeAnswer(String(expected || ''));
+        if (normalizeAnswer(String(userVal)) === norm) return true;
+        if (norm.includes(',')) {
+          const alts = norm.split(',').map(a => normalizeAnswer(a.trim())).filter(Boolean);
+          if (alts.some(a => normalizeAnswer(String(userVal)) === a)) return true;
+        }
+        return false;
+      }
+      function extractHintWords(text) {
+        if (!text || typeof text !== 'string') return [];
+        const matches = text.matchAll(/\((\w+)\)/g);
+        return [...matches].map(m => normalizeAnswer(m[1]));
+      }
       if (question.answers && Array.isArray(question.answers)) {
         const blanks = question.answers;
         const val = userAnswer || {};
+        const hints = extractHintWords(question.question);
         let matched = 0;
         for (let i = 0; i < blanks.length; i++) {
-          if (normalizeAnswer(String(val[i] || '')) === normalizeAnswer(String(blanks[i] || ''))) {
-            matched++;
+          const blankNorm = normalizeAnswer(String(blanks[i] || ''));
+          const userNorm = normalizeAnswer(String(val[i] || ''));
+          let ok = userNorm === blankNorm;
+          // Comma-separated alternatives for this blank
+          if (!ok && blankNorm.includes(',')) {
+            const alts = blankNorm.split(',').map(a => a.trim()).filter(Boolean);
+            ok = alts.some(a => userNorm === a);
           }
+          // Multi-blank acceptableAnswers
+          if (!ok && question.acceptableAnswers?.[i]) {
+            ok = question.acceptableAnswers[i].some(a => acceptAny(val[i], a));
+          }
+          // Hint-word detection: AI stored hint as answer, accept replacement
+          if (!ok && hints.includes(blankNorm) && userNorm && userNorm !== blankNorm) {
+            ok = true;
+          }
+          if (ok) matched++;
         }
         const perBlank = maxMarks / blanks.length;
         const marksEarned = matched * perBlank;
@@ -105,8 +160,26 @@ export function checkAnswer(question, userAnswer) {
           feedback: allCorrect ? 'Correct!' : matched > 0 ? `Partially correct (${Math.round(marksEarned)}/${maxMarks} marks)` : 'Incorrect',
         };
       }
-      // Single blank
-      const correct = normalizeAnswer(String(userAnswer || '')) === normalizeAnswer(String(question.correctAnswer || ''));
+      // Single blank: check acceptableAnswers
+      if (question.acceptableAnswers && Array.isArray(question.acceptableAnswers)) {
+        const match = question.acceptableAnswers.some(a => acceptAny(userAnswer, a));
+        if (match) {
+          return { correct: true, marksEarned: maxMarks, maxMarks, feedback: 'Correct!' };
+        }
+      }
+      // Single blank exact match with comma alternatives
+      let correct = acceptAny(userAnswer, question.correctAnswer);
+      // Hint-word detection: if expected answer matches (word) in question
+      if (!correct) {
+        const hints = extractHintWords(question.question);
+        const expectedNorm = normalizeAnswer(String(question.correctAnswer || ''));
+        if (hints.includes(expectedNorm)) {
+          const userNorm = normalizeAnswer(String(userAnswer || ''));
+          if (userNorm && userNorm !== expectedNorm) {
+            correct = true;
+          }
+        }
+      }
       return {
         correct,
         marksEarned: correct ? maxMarks : 0,
@@ -188,11 +261,11 @@ export function checkAnswer(question, userAnswer) {
       }
 
       // 5. Semantic overlap scoring for short-answer: count shared content words
-      // between user text and correct answer, with tolerance for professional terminology
+      // between user text and correct answer, with stem normalization
       const correctText = String(question.correctAnswer || '').trim();
       if (correctText) {
-        const userWords = new Set(normalizedUser.split(/\s+/));
-        const correctWords = new Set(normalizedCorrect.split(/\s+/));
+        const userWords = new Set(normalizedUser.split(/\s+/).map(stem));
+        const correctWords = new Set(normalizedCorrect.split(/\s+/).map(stem));
         const contentWords = [...correctWords].filter(w => !STOP_WORDS.has(w) && w.length > 2);
         
         if (contentWords.length > 0) {
@@ -275,8 +348,8 @@ export function checkAnswer(question, userAnswer) {
       // 5. Semantic overlap scoring for open-ended
       const correctText = String(question.correctAnswer || '').trim();
       if (correctText) {
-        const userWords = new Set(normalizeAnswer(userText).split(/\s+/));
-        const correctWords = new Set(normalizeAnswer(correctText).split(/\s+/));
+        const userWords = new Set(normalizeAnswer(userText).split(/\s+/).map(stem));
+        const correctWords = new Set(normalizeAnswer(correctText).split(/\s+/).map(stem));
         const contentWords = [...correctWords].filter(w => !STOP_WORDS.has(w) && w.length > 2);
         
         if (contentWords.length > 0) {

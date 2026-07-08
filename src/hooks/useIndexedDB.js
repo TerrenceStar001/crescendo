@@ -115,19 +115,21 @@ export function useIndexedDB() {
     try {
       const res = await fetchFn('/api/courses/sync', { method: 'POST' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { courses } = await res.json();
-      if (courses && courses.length > 0) {
-        await setItem(DSE_KEYS.COURSES, courses);
-      } else if (courses) {
-        // Empty courses array — still valid, store empty
-        await setItem(DSE_KEYS.COURSES, []);
-      }
-      return courses || [];
+      const { courses: backendCourses } = await res.json();
+      const backendIds = new Set((backendCourses || []).map(c => c.id));
+
+      // Merge: keep local courses (seed + auto-generated) that backend doesn't have
+      const existing = await getItem(DSE_KEYS.COURSES) || [];
+      const localOnly = (Array.isArray(existing) ? existing : []).filter(c => !backendIds.has(c.id));
+
+      const merged = [...(backendCourses || []), ...localOnly];
+      await setItem(DSE_KEYS.COURSES, merged);
+      return backendCourses || [];
     } catch (e) {
       console.warn('[IndexedDB] Course sync failed:', e.message);
       return null;
     }
-  }, [setItem]);
+  }, [setItem, getItem]);
 
   const getCachedCourses = useCallback(async () => {
     try {

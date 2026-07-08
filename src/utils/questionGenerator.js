@@ -33,6 +33,11 @@ CRITICAL — The "type" field MUST be exactly one of these 9 values (no alternat
 - "summary-cloze" — fill in numbered blanks from a table summarizing multiple paragraphs
 - "pronoun-ref" — "What does [word] in paragraph X refer to?"
 - "semantic-connect" — match causes to effects, or claims to evidence (include pairs and options)
+
+TYPE APPROPRIATENESS — CRITICAL: A stem's type MUST match its format.
+- If the stem starts with "Summarize", "Explain", "Describe", "Discuss", "Identify", "List", "Outline", "Define", "Compare", or "Contrast" — it MUST be "short-answer" or "summary-cloze". NEVER "tfng".
+- If the stem asks about "main argument", "primary conflict", "main purpose" — it MUST be "mcq" or "short-answer". NEVER "tfng".
+- If the stem is a declarative statement (can be answered True/False/Not Given) — it MUST be "tfng" and the stem MUST be a complete sentence ending with a period.
 `;
 
 const SHARED_JSON_FORMAT = `
@@ -87,6 +92,7 @@ export function buildMCQPrompt(numQuestions, part) {
   return `
 MCQ & DISTRACTOR DESIGN (The Distractor Engine):
 - The stem MUST be a QUESTION ending with a question mark (?) — NOT a statement. Statements should use "tfng" type instead.
+- Stems like "Dr. Thorne's reputation is based on:" are INVALID for MCQ — they must be questions like "What is Dr. Thorne's reputation based on?".
 - Exactly 4 labelled options (A/B/C/D).
 - Only ONE option can be correct. The other three must be "plausible but partial" — 100% true from a different section of the text, but incorrect for this specific question.
 - Design each distractor as one of these ${COGNITIVE_TRAP_TYPES.length} cognitive trap types:
@@ -108,7 +114,10 @@ export function buildTFNGPrompt(numQuestions) {
 
   return `
 TFNG RULES (Binary Overhaul):
-- The stem MUST be a declarative STATEMENT ending with a period (.) — NOT a question.
+- The stem MUST be a COMPLETE declarative STATEMENT ending with a period (.) — NOT a question, NOT a fragment.
+- INVALID example: "Dr. Thorne's reputation is based on:" (ends with colon, incomplete)
+- VALID example: "Dr. Thorne's reputation is based on his successful reintroduction of native ferns." (complete sentence with period)
+- Stems ending with ":", "...", or any punctuation other than "." are automatically invalid and will be rejected.
 - The correctAnswer must be exactly "T", "F", or "NG" (single letter).
 - TRUE: A statement is TRUE if the passage directly supports it through explicit wording OR through clear inferential logic (e.g., binary contrast, direct synonym substitution, or logical entailment). If the passage says "X is not A but B", then "X is B" is True — do NOT mark as NG.
 - FALSE requires explicit, verifiable contradiction in the text. The statement must directly conflict with a specific sentence, not merely differ from the overall implication.
