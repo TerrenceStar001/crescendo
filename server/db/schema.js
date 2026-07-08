@@ -1,5 +1,5 @@
-export function createSchema(db) {
-  db.exec(`
+export async function createSchema(db) {
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS articles (
       id TEXT PRIMARY KEY,
       source TEXT NOT NULL,
@@ -97,7 +97,6 @@ export function createSchema(db) {
     );
   `);
 
-  // Indexes for common queries
   const indexes = [
     'CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source)',
     'CREATE INDEX IF NOT EXISTS idx_articles_difficulty ON articles(difficulty)',
@@ -112,15 +111,22 @@ export function createSchema(db) {
   ];
 
   for (const idx of indexes) {
-    try { db.exec(idx); } catch {}
+    try { await db.execute(idx); } catch {}
   }
 
-  // Seed default podcast channels if empty
-  const count = db.prepare('SELECT COUNT(*) as c FROM podcast_channels').get().c;
+  const count = (await db.execute({ sql: 'SELECT COUNT(*) as c FROM podcast_channels' })).rows[0].c;
   if (count === 0) {
-    const insert = db.prepare('INSERT OR IGNORE INTO podcast_channels (id, title, feed_url, language, default_difficulty) VALUES (?, ?, ?, ?, ?)');
-    insert.run('bbc-6min', 'BBC 6 Minute English', 'https://podcasts.files.bbci.co.uk/p02pc9qc.rss', 'en-GB', 'medium');
-    insert.run('ted-daily', 'TED Talks Daily', 'https://feeds.feedburner.com/tedtalks_audio', 'en-US', 'hard');
-    insert.run('lukes-english', "Luke's English Podcast", 'https://feeds.libsyn.com/108160/rss', 'en-GB', 'medium');
+    await db.execute({
+      sql: 'INSERT OR IGNORE INTO podcast_channels (id, title, feed_url, language, default_difficulty) VALUES (?, ?, ?, ?, ?)',
+      args: ['bbc-6min', 'BBC 6 Minute English', 'https://podcasts.files.bbci.co.uk/p02pc9qc.rss', 'en-GB', 'medium'],
+    });
+    await db.execute({
+      sql: 'INSERT OR IGNORE INTO podcast_channels (id, title, feed_url, language, default_difficulty) VALUES (?, ?, ?, ?, ?)',
+      args: ['ted-daily', 'TED Talks Daily', 'https://feeds.feedburner.com/tedtalks_audio', 'en-US', 'hard'],
+    });
+    await db.execute({
+      sql: 'INSERT OR IGNORE INTO podcast_channels (id, title, feed_url, language, default_difficulty) VALUES (?, ?, ?, ?, ?)',
+      args: ['lukes-english', "Luke's English Podcast", 'https://feeds.libsyn.com/108160/rss', 'en-GB', 'medium'],
+    });
   }
 }

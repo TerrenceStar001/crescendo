@@ -26,10 +26,10 @@ export async function crawlPodcasts(limit = 10, db) {
 
   // Get feeds from database, or use defaults if no DB
   let feeds = [];
-  if (!db) db = getDB();
+  if (!db) db = await getDB();
 
   try {
-    feeds = db.prepare('SELECT * FROM podcast_channels WHERE enabled = 1').all();
+    feeds = (await db.execute('SELECT * FROM podcast_channels WHERE enabled = 1')).rows;
   } catch {
     // Fallback hardcoded feeds
     feeds = [
