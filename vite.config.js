@@ -9,6 +9,7 @@ const reactDir = path.resolve(__dirname, 'node_modules/react');
 const reactDomDir = path.resolve(__dirname, 'node_modules/react-dom');
 
 export default defineConfig({
+  base: '/crescendo/',
   plugins: [
     react(),
     VitePWA({
