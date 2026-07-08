@@ -24,11 +24,12 @@
 </details>
 
 <details>
-<summary>✅ v1.1 Courses Quality Polish (Phases 7-9) — SHIPPED 2026-07-04</summary>
+<summary>✅ v1.1 Courses Quality Polish (Phases 7-10) — SHIPPED 2026-07-05</summary>
 
 - [x] Phase 7: PDF Ingestion Pipeline Fix (3/3 plans) — completed 2026-07-01
 - [x] Phase 8: Auto-Generation Reliability & Quality (4/4 plans) — completed 2026-07-03
 - [x] Phase 9: Seed Catalog & Quality Features (Done) — completed 2026-07-03
+- [x] Phase 10: Auto-Generation Reliability & Quality (4/4 plans) — completed 2026-07-05
 
 </details>
 
@@ -49,3 +50,4 @@
 | 7. PDF Ingestion Pipeline Fix | v1.1 | 3/3 | ✓ | 2026-07-01 |
 | 8. Auto-Generation Reliability & Quality | v1.1 | 4/4 | ✓ | 2026-07-03 |
 | 9. Seed Catalog & Quality Features | v1.1 | Done | ✓ | 2026-07-03 |
+| 10. Auto-Generation Reliability & Quality | v1.1 | 4/4 | ✓ | 2026-07-05 |
