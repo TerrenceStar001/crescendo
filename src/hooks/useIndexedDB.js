@@ -109,6 +109,9 @@ export function useIndexedDB() {
     COURSES: 'crescendo-course-definitions',
     COURSE_PROGRESS: 'crescendo-course-progress',
     COURSE_INGESTION: 'crescendo-course-ingestion',
+    ASSESSMENT: 'crescendo-assessment',
+    STUDY_PLAN: 'crescendo-study-plan',
+    FLAW_DATA: 'crescendo-flaw-data',
   };
 
   const syncCourses = useCallback(async (fetchFn) => {
