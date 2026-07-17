@@ -1231,6 +1231,26 @@ export default function useDSEPapers() {
     }
   }, [getCachedPapers, bundled]);
 
+  const generateAdaptiveExercise = useCallback(async (constraints, callAI) => {
+    const { difficulty = 'medium', type = 'mcq', theme = 'general', format = 'passage-based', focus = 'comprehension' } = constraints || {};
+    const prompt = `Generate a DSE English exercise with the following specifications:
+- Difficulty: ${difficulty}
+- Type: ${type}
+- Theme: ${theme}
+- Format: ${format}
+- Focus: ${focus}
+
+Return a JSON object with "passage" (string) and "questions" (array of { "question": string, "options": string[], "answer": string, "explanation": string }).`;
+
+    const raw = await callAI(prompt, {
+      system: 'You are a DSE English tutor creating targeted exercises. Return ONLY valid JSON.',
+      temperature: 0.5,
+      maxTokens: 3000,
+      timeout: 60000,
+    });
+    return parseJSONObject(raw);
+  }, []);
+
   const generateReadingSession = useCallback(async (options = {}, callAI) => {
     setIsLoading(true);
     setError(null);
@@ -2820,5 +2840,6 @@ Format the above data into well-structured study notes. Group related informatio
     writingSessionGet,
     writingSessionSet,
     generateCourseExercises,
-  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, generateWritingNotes, clearCache, writingSessionGet, writingSessionSet, buildCorrectionPrompt, parseCorrectionResponse, combineCorrections, detectTextType, checkTextTypeMatch, checkPartAFormat, validateCorrectionOutput, generateCourseExercises]);
+    generateAdaptiveExercise,
+  }), [bundled, isLoading, error, getPaper, generateReadingSession, generateWritingSession, getPapersBySource, getAvailableSources, getReadingHistory, saveReadingSession, generateReadingNotes, generateWritingNotes, clearCache, writingSessionGet, writingSessionSet, buildCorrectionPrompt, parseCorrectionResponse, combineCorrections, detectTextType, checkTextTypeMatch, checkPartAFormat, validateCorrectionOutput, generateCourseExercises, generateAdaptiveExercise]);
 }

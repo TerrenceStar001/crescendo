@@ -276,10 +276,66 @@ Generate 3-4 exercises per tier with varied skills and constraint fields. Each e
     persist({ _initialized: false });
   }, [persist]);
 
+  const getReviewSchedule = useCallback((getDueItems) => {
+    if (!getDueItems) return [];
+    return getDueItems().map(item => ({
+      id: item.id,
+      skill: item.skill || 'reading',
+      label: item.label || 'Review',
+      type: 'review',
+      retrievability: item.retrievability,
+      constraints: buildConstraints({
+        difficulty: 'medium',
+        type: 'review',
+        theme: item.skill,
+        focus: 'review',
+      }),
+    }));
+  }, []);
+
+  const getDailyPlan = useCallback((getDueItems) => {
+    if (!plan) return { exercises: [], reviews: [], total: 0 };
+    const shortTermExercises = plan.tiers.shortTerm?.exercises || [];
+    const reviews = getReviewSchedule(getDueItems);
+    const exercises = shortTermExercises.filter(e => !e.completed);
+    const reviewsToday = reviews.filter(r => r.retrievability < 0.5);
+    const active = [...exercises, ...reviewsToday];
+    return { exercises, reviews: reviewsToday, total: active.length };
+  }, [plan, getReviewSchedule]);
+
+  const getWeekPlan = useCallback((getDueItems) => {
+    const now = new Date();
+    const days = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + d);
+      days.push({
+        date: date.toISOString().split('T')[0],
+        label: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        items: [],
+      });
+    }
+    if (!plan) return days;
+    const tier = plan.tiers.shortTerm;
+    if (!tier?.exercises?.length) return days;
+    const byDay = Math.max(1, Math.floor(tier.exercises.length / 7));
+    tier.exercises.filter(e => !e.completed).forEach((ex, i) => {
+      const dayIdx = i % 7;
+      days[dayIdx].items.push({ ...ex, type: 'exercise' });
+    });
+    const reviews = getReviewSchedule(getDueItems);
+    reviews.filter(r => r.retrievability < 0.5).forEach((r, i) => {
+      const dayIdx = i % 7;
+      days[dayIdx].items.push({ ...r, type: 'review' });
+    });
+    return days;
+  }, [plan, getReviewSchedule]);
+
   return {
     plan, isLoaded, isGenerating, error,
     generatePlan, regeneratePlan, adaptPlan,
     updateExerciseCompleted, getPlanByTier, exportPlan, clearPlan,
+    getDailyPlan, getReviewSchedule, getWeekPlan,
     hasPlan: plan !== null,
   };
 }
