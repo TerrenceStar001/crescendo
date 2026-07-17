@@ -10,6 +10,7 @@ import { composeFullPrompt } from '../utils/questionGenerator';
 import { validateQuestions as validateQuestionsNew } from '../utils/questionValidator';
 import { QUESTION_TYPE_DISTRIBUTIONS, getTypeDistributionForPart } from '../utils/questionTypes';
 import { checkRequiredElements, buildFormatPromptSection } from '../utils/formatConventions';
+import supabase from '../utils/supabaseClient';
 
 function parseJSONArray(raw) {
   if (!raw) return null;
@@ -1268,41 +1269,38 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
       let ragFlowSourceDate = null;
       let pureAiAttempted = false;
 
-      // Step 0: Hybrid RAG-AI generation — try backend fragments first
+      // Step 0: Try Supabase articles as source fragments for AI passage generation
       let ragFlowSuccess = false;
       try {
-        const healthRes = await fetch('/api/health');
-        if (healthRes.ok) {
-          const healthData = await healthRes.json();
-          if (healthData.embeddings > 0) {
-            const fragRes = await fetch('/api/rag/fragments', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ topic: TEXT_TYPE_REQUIREMENTS[difficultyToPart[difficulty]]?.types[0] || 'feature', difficulty, count: 3 })
-            });
-            if (fragRes.ok) {
-              const fragData = await fragRes.json();
-              if (fragData.fragments?.length > 0 && callAI) {
-                const generated = await generatePassageFromRAG(fragData.fragments, callAI, difficulty);
-                if (generated?.content) {
-                  finalContent = generated.content;
-                  passageReconstructed = true;
-                  passageTruncated = generated.truncated;
-                  finalSource = 'dse';
-                  const h2Match = generated.content.match(/<h2[^>]*>([^<]+)<\/h2>/);
-                  if (h2Match) finalTitle = h2Match[1].trim();
-                  yearInfo = { year: null, part: part };
-                  finalQuestions = null;
-                  ragFlowSourceName = generated.sourceName || null;
-                  ragFlowSourceDate = generated.sourceDate || null;
-                  ragFlowSuccess = true;
-                }
+        const healthData = await supabase.health();
+        if (healthData.ok) {
+          const articles = await supabase.searchArticles('', 5);
+          if (articles?.length > 0 && callAI) {
+            const fragments = articles.map(a => ({
+              text: a.summary || a.content || '',
+              sourceName: a.source || a.title,
+              sourceDate: a.published_at || null,
+            })).filter(f => f.text.length > 50);
+            if (fragments.length > 0) {
+              const generated = await generatePassageFromRAG(fragments, callAI, difficulty);
+              if (generated?.content) {
+                finalContent = generated.content;
+                passageReconstructed = true;
+                passageTruncated = generated.truncated;
+                finalSource = 'dse';
+                const h2Match = generated.content.match(/<h2[^>]*>([^<]+)<\/h2>/);
+                if (h2Match) finalTitle = h2Match[1].trim();
+                yearInfo = { year: null, part: part };
+                finalQuestions = null;
+                ragFlowSourceName = generated.sourceName || null;
+                ragFlowSourceDate = generated.sourceDate || null;
+                ragFlowSuccess = true;
               }
             }
           }
         }
       } catch (e) {
-        console.warn('[DSE] RAG hybrid path failed, falling to DSE OCR:', e?.message || e);
+        console.warn('[DSE] Supabase hybrid path failed:', e?.message || e);
       }
 
       // If RAG succeeded, generate questions from the passage
@@ -1424,32 +1422,25 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
         }
       }
 
-      // Step 1: Try random DSE paper from backend (only if RAG didn't produce a passage)
+      // Step 1: Try Supabase papers (only if RAG didn't produce a passage)
       if (!ragFlowSuccess || !finalQuestions?.length) {
         try {
-        const listRes = await fetch('/api/rag/content');
-        if (listRes.ok) {
-          const data = await listRes.json();
-          const allPapers = data.dsePastPapers || [];
-          const papers = allPapers.filter(p => /dse-ocr-20\d{2}-p1/.test(p.id));
-          if (papers.length > 0) {
+          const papers = await supabase.getPapers('reading');
+          if (papers?.length > 0) {
             const pick = papers[Math.floor(Math.random() * papers.length)];
-            const fullRes = await fetch(`/api/rag/article/${pick.id}`);
-            if (fullRes.ok) {
-              const fullData = await fullRes.json();
-              if (fullData?.content) {
-                const passage = extractPassage(fullData.content, part);
-                const cleaned = cleanOCRA(passage || fullData.content);
-                const displayCleaned = stripExamInstructions(cleaned);
-                const wc = cleaned.split(/\s+/).filter(Boolean).length;
-                if (wc >= 150) {
-                  const year = pick.year || fullData.date?.slice(0, 4) || '';
-                  console.log(`[DSE] Using "${fullData.title || pick.id}" Part ${part} (${wc}w)`);
-                  console.log(`[DSE] RAW OCR PASSAGE:`, cleaned);
-                  yearInfo = { year, part };
-                  finalTitle = fullData.title || `DSE Paper 1 Part ${part}`;
-                  finalContent = displayCleaned;
-                  finalSource = 'dse';
+            const fullData = await supabase.getById('papers', pick.id);
+            if (fullData?.content) {
+              const contentStr = typeof fullData.content === 'string' ? fullData.content : JSON.stringify(fullData.content);
+              const passage = extractPassage(contentStr, part);
+              const cleaned = cleanOCRA(passage || contentStr);
+              const displayCleaned = stripExamInstructions(cleaned);
+              const wc = cleaned.split(/\s+/).filter(Boolean).length;
+              if (wc >= 150) {
+                console.log(`[DSE] Using "${fullData.title || pick.id}" Part ${part} (${wc}w)`);
+                yearInfo = { year: fullData.year || null, part };
+                finalTitle = fullData.title || `DSE Paper 1 Part ${part}`;
+                finalContent = displayCleaned;
+                finalSource = 'dse';
                   // Step 1.5: AI passage generation — learns from reference, creates new original passage
                   if (callAI && cleaned.length > 200) {
                     try {
@@ -1599,12 +1590,10 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
                 }
               }
             }
-          }
+        } catch (e) {
+          console.warn('[DSE] Supabase unavailable, falling to bundled:', e?.message || e);
         }
-      } catch (e) {
-        console.warn('[DSE] Backend unavailable, falling to bundled:', e?.message || e);
       }
-      } // end if(!ragFlowSuccess || !finalQuestions?.length)
 
       // Step 1.75: Pure AI fallback — generate entirely from AI when RAG and DSE OCR unavailable
       if (!finalContent && callAI) {

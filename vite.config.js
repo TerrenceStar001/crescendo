@@ -15,15 +15,17 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: { enabled: false },
-      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-192.svg', 'icon-512.svg'],
       manifest: {
         name: 'Crescendo',
         short_name: 'Crescendo',
         description: 'Build your English mastery to a 5** peak with AI-powered DSE practice.',
         theme_color: '#1a1a2e',
+        start_url: '/crescendo/',
+        scope: '/crescendo/',
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
         ],
       },
       workbox: {
@@ -53,16 +55,6 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api/ai/external-proxy': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/api/ai/chat/completions': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        proxyTimeout: 300000,
-        timeout: 300000,
-      },
       '/api/ai': {
         target: 'http://127.0.0.1:4010',
         changeOrigin: true,
@@ -72,18 +64,6 @@ export default defineConfig({
             console.error('AI proxy error:', err.message);
           });
         },
-      },
-      '/api/health': { target: 'http://localhost:3001', changeOrigin: true },
-      '/api/papers': { target: 'http://localhost:3001', changeOrigin: true },
-      '/api/content': { target: 'http://localhost:3001', changeOrigin: true },
-      '/api/analyze': { target: 'http://localhost:3001', changeOrigin: true },
-      '/api/crawl': { target: 'http://localhost:3001', changeOrigin: true },
-      '/api/rag': { target: 'http://localhost:3001', changeOrigin: true },
-      '/api/courses': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        proxyTimeout: 300000,
-        timeout: 300000,
       },
     },
   },

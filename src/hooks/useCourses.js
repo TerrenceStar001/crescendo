@@ -353,36 +353,9 @@ export default function useCourses() {
    * @returns {Object|null} The generated course draft or null
    */
   const autoGenerateCourse = useCallback(async (weaknessTags, completedCourseIds, callAI, options = {}) => {
-    const { simplerContent = true, aiConfig } = options;
+    const { simplerContent = true } = options;
 
-    // Tier 1: Backend API call
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 300000);
-      const res = await fetch('/api/courses/auto-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weaknessTags, completedCourseIds, aiConfig }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!res.ok) throw new Error(`backend returned ${res.status}`);
-      const data = await res.json();
-      if (data.draftId && data.course) {
-        const validation = validateCourse(data.course, { simplerContent: true });
-        if (!validation.valid) {
-          console.warn('[autoGenerateCourse] Validation failed:', validation.errors);
-          return { course: null, error: 'Backend validation failed. Please try again.' };
-        }
-        await saveCourse(data.course);
-        return { course: data.course, error: null };
-      }
-    } catch (e) {
-      console.warn('[autoGenerateCourse] Backend unavailable, trying frontend AI:', e.message);
-      // Continue to frontend AI fallback
-    }
-
-    // Tier 2: Frontend AI call with retry loop
+    // Frontend AI call with retry loop
     function extractJSON(text) {
       if (!text || typeof text !== 'string') return null;
       const trimmed = text.trim();
@@ -524,18 +497,12 @@ export default function useCourses() {
 
   /**
    * getCachedCourse: Returns cached course from IndexedDB or null.
-   * Falls back to fetching from backend if not cached (for browsing).
    */
   const getCachedCourse = useCallback(async (courseId) => {
     try {
       const key = `${COURSE_CACHE_PREFIX}${courseId}`;
       const cached = await getItem(key);
-      if (cached) return cached;
-      // Fall back to backend fetch
-      const res = await fetch(`/api/courses/${courseId}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data;
+      return cached || null;
     } catch {
       return null;
     }

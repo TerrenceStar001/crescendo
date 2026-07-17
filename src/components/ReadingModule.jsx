@@ -267,12 +267,10 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
   }, [paper, questions, answers, currentQuestion, timeRemaining, skillAnalytics, clearSessionStorage, dsePapers, callAI, createNote, currentPassage]);
 
   const handleSyncContent = useCallback(async () => {
+    // Crawlers now run via GitHub Actions (daily) — no frontend sync needed
     setSyncing(true);
-    try {
-      await fetch('/api/crawl/sync', { method: 'POST' });
-      await new Promise(r => setTimeout(r, 1000));
-      setSyncing(false);
-    } catch { setSyncing(false); }
+    await new Promise(r => setTimeout(r, 500));
+    setSyncing(false);
   }, []);
 
   // Generate study notes after session finishes (separate effect avoids stale closures)
