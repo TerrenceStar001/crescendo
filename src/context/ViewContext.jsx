@@ -11,6 +11,7 @@ export function ViewProvider({ children }) {
   const [dseTab, setDseTab] = useLocalStorage('crescendo-dse-tab', 'dashboard');
   const [panelWidth, setPanelWidth] = useLocalStorage('crescendo-panel-width', 260);
   const [focusMode, setFocusMode] = useState(false);
+  const [planTab, setPlanTab] = useLocalStorage('crescendo-plan-tab', 'plan');
 
   const clearFocusTag = useCallback(() => setFocusTag(null), []);
 
@@ -31,6 +32,7 @@ export function ViewProvider({ children }) {
       dseTab, setDseTab,
       panelWidth, setPanelWidth,
       focusMode, setFocusMode,
+      planTab, setPlanTab,
     }}>
       {children}
     </ViewContext.Provider>

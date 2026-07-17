@@ -8,13 +8,14 @@ const NAV_ITEMS = [
   { id: 'listening', icon: '🎧', label: 'Listening' },
   { id: 'speaking', icon: '🎤', label: 'Speaking' },
   { id: 'courses', icon: '📚', label: 'Courses' },
+  { id: 'plan', icon: '📋', label: 'Plan' },
   { id: 'graph', icon: '🔗', label: 'Graph' },
   { id: 'progress', icon: '📊', label: 'Progress' },
   { id: 'settings', icon: '⚙', label: 'Settings' },
 ];
 
 export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes }) {
-  const { navTab, setNavTab, dseTab, setDseTab, viewMode, setViewMode, focusMode, setFocusMode } = useView();
+  const { navTab, setNavTab, dseTab, setDseTab, viewMode, setViewMode, focusMode, setFocusMode, setPlanTab } = useView();
 
   function handleClick(id) {
     switch (id) {
@@ -34,6 +35,12 @@ export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes })
         setViewMode('list');
         setNavTab('notes');
         setDseTab('progress');
+        break;
+      case 'plan':
+        setPlanTab('plan');
+        setDseTab('plan');
+        setViewMode('list');
+        setNavTab('notes');
         break;
       case 'courses':
         setDseTab('courses');
@@ -58,6 +65,7 @@ export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes })
     if (id === 'graph') return viewMode === 'constellation';
     if (id === 'progress') return dseTab === 'progress';
     if (id === 'courses') return dseTab === 'courses';
+    if (id === 'plan') return dseTab === 'plan' || dseTab === 'plan';
     if (['reading', 'writing', 'listening', 'speaking'].includes(id)) return dseTab === id;
     if (id === 'settings') return false;
     return navTab === id;

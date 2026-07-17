@@ -28,11 +28,17 @@ import useSynthesis from './hooks/useSynthesis';
 import useSkillAnalytics from './hooks/useSkillAnalytics';
 import useDSEPapers from './hooks/useDSEPapers';
 import useCourses from './hooks/useCourses';
+import useAssessment from './hooks/useAssessment';
+import useStudyPlan from './hooks/useStudyPlan';
+import useFlawDetection from './hooks/useFlawDetection';
 import { useIndexedDB } from './hooks/useIndexedDB';
 import ReadingModule from './components/ReadingModule';
 import WritingModule from './components/WritingModule';
 import ListeningModule from './components/ListeningModule';
 import SpeakingModule from './components/SpeakingModule';
+import AssessmentPage from './components/AssessmentPage';
+import StudyPlanPage from './components/StudyPlanPage';
+import FlawPanel from './components/FlawPanel';
 import corpusIndex from './utils/corpusIndex';
 import { WEAKNESS_TO_TAG_MAP, safeMapLegacyCourse } from './utils/courseSchema';
 import { QUESTION_TYPE_TO_AREA } from './utils/errorPatternAnalysis';
@@ -66,6 +72,9 @@ function CrescendoApp() {
   const { config, updateConfig, isConfigured, generateBoth, testConnection } = useAI();
   const skillAnalytics = useSkillAnalytics();
   const dsePapers = useDSEPapers();
+  const assessment = useAssessment();
+  const studyPlan = useStudyPlan();
+  const flawDetection = useFlawDetection();
   const {
     getCourses: getCoursesFn,
     saveCourse: saveCourseFn,
@@ -344,6 +353,21 @@ function CrescendoApp() {
     callAI,
     refreshCourses,
   ]);
+
+  // Flaw detection: process sessions for cognitive flaw classification
+  useEffect(() => {
+    if (skillAnalytics?.isLoaded && skillAnalytics?.sessions?.length > 0) {
+      flawDetection.processSessions(skillAnalytics.sessions);
+    }
+  }, [skillAnalytics?.isLoaded, skillAnalytics?.sessions?.length]);
+
+  // Auto-generate study plan when assessment completes
+  useEffect(() => {
+    if (assessment.hasCompletedAssessment && !studyPlan.hasPlan && !studyPlan.isGenerating) {
+      const flawSummary = flawDetection.isLoaded ? flawDetection.getFlawSummary() : null;
+      studyPlan.generatePlan(assessment.profile, flawSummary, callAI);
+    }
+  }, [assessment.hasCompletedAssessment]);
 
   // Legacy course migration: stamp existing courses with isLegacy flag
   const migrationRef = useRef(false);
@@ -1153,6 +1177,37 @@ function CrescendoApp() {
             callAI={callAI}
             onBack={() => { setDseTab('dashboard'); setActive(null); }}
           />
+        ) : dseTab === 'plan' ? (
+          <div className="app__main-content">
+            <div className="dse-module">
+              <div className="dse-module__header">
+                <button className="dse-module__back" onClick={() => setDseTab('dashboard')}>← Dashboard</button>
+                <h1 className="dse-module__title">📋 Study Plan</h1>
+              </div>
+              {!assessment.hasCompletedAssessment ? (
+                <AssessmentPage
+                  assessment={assessment}
+                  onComplete={() => setDseTab('plan')}
+                  onBack={() => setDseTab('dashboard')}
+                />
+              ) : (
+                <>
+                  <StudyPlanPage
+                    plan={studyPlan.plan}
+                    isGenerating={studyPlan.isGenerating}
+                    error={studyPlan.error}
+                    onRegenerate={() => studyPlan.regeneratePlan(assessment.profile, flawDetection.getFlawSummary(), callAI)}
+                    onUpdateExercise={studyPlan.updateExerciseCompleted}
+                  />
+                  <FlawPanel
+                    getFlawSummary={flawDetection.getFlawSummary}
+                    flawRecords={flawDetection.flawRecords}
+                    isLoaded={flawDetection.isLoaded}
+                  />
+                </>
+              )}
+            </div>
+          </div>
         ) : dseTab === 'courses' ? (
           showCourseIngestion ? (
             <CourseIngestion
