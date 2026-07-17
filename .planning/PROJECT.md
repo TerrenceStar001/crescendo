@@ -10,21 +10,20 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 
 ## Current State
 
-**Shipped:** v1.1 Courses Quality Polish (2026-07-04)
+**Shipped:** v1.2 Adaptive Study Engine (2026-07-17)
 
-All 9 roadmap phases complete. The Courses feature has been hardened with reliable PDF ingestion, quality auto-generation pipelines, and a seeded catalog with 10 built-in courses. User improvement tracking monitors progress across skill areas after course completion.
+Milestones completed:
+- **v1.0** — DSE Authenticity MVP (Phases 1-6)
+- **v1.1** — Courses Quality Polish (Phases 7-10)
+- **v1.2** — Adaptive Study Engine (Phases 11-12): student assessment, study plans, flaw detection, timeline view, forgetting curve
 
-## Current Milestone: v1.2 Adaptive Study Engine
+Backend deployment configured for Render (Phase 13).
 
-**Goal:** Build an Adaptive Study Engine that profiles students, generates personalized study plans, detects cognitive flaw patterns, and delivers targeted exercises with optimal review scheduling.
+## Current Milestone: v1.3 Backend Deployment
 
-**Target features:**
-- Student initial assessment (self-rated + verification quiz)
-- Personalized 3-tier study plans (short/mid/long-term)
-- Cognitive flaw detection from DSE session results (6 categories)
-- Adaptive exercise generation targeting weak areas
-- Timeline view with daily exercise recommendations
-- Forgetting curve review scheduling
+**Goal:** Deploy the Express/SQLite backend to Render for production-ready AI features without local server setup.
+
+**Status:** Configured — render.yaml, Procfile, production static serving, auto-crawl opt-out. Pending: manual Render dashboard setup and first deploy.
 
 ## Requirements
 
