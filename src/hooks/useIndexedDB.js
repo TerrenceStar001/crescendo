@@ -112,6 +112,7 @@ export function useIndexedDB() {
     ASSESSMENT: 'crescendo-assessment',
     STUDY_PLAN: 'crescendo-study-plan',
     FLAW_DATA: 'crescendo-flaw-data',
+    REVIEW_DATA: 'crescendo-review-data',
   };
 
   const syncCourses = useCallback(async (fetchFn) => {
