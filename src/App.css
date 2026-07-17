@@ -11956,3 +11956,156 @@ html[data-theme="dark"] .course__exercise-type--mcq { background: #bf360c33; col
     grid-template-columns: repeat(1, 1fr);
   }
 }
+
+/* ===== Dashboard Analytics Cards ===== */
+
+.dashboard__analytics-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm, 8px);
+  padding: 0.75rem;
+}
+
+.dashboard__analytics-card-body {
+  padding: 0.5rem 0;
+}
+
+.dashboard__analytics-empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+  text-align: center;
+}
+
+.dashboard__analytics-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dashboard__analytics-stat {
+  text-align: center;
+}
+
+.dashboard__analytics-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.dashboard__analytics-stat-label {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+}
+
+.dashboard__analytics-bar {
+  margin: 0.75rem 0 0.5rem;
+}
+
+.dashboard__analytics-bar-track {
+  height: 6px;
+  background: var(--color-bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dashboard__analytics-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.dashboard__analytics-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard__analytics-footer-text {
+  white-space: nowrap;
+}
+
+.dashboard__analytics-tiers {
+  margin-top: 0.5rem;
+}
+
+.dashboard__analytics-tier-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.dashboard__analytics-tier-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  min-width: 70px;
+}
+
+.dashboard__analytics-tier-bar-track {
+  flex: 1;
+  height: 4px;
+  background: var(--color-bg);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.dashboard__analytics-tier-bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.dashboard__analytics-tier-count {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  min-width: 35px;
+  text-align: right;
+}
+
+.dashboard__analytics-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.dashboard__analytics-skill-icon {
+  font-size: 1rem;
+  width: 24px;
+  text-align: center;
+}
+
+.dashboard__analytics-skill-info {
+  min-width: 60px;
+}
+
+.dashboard__analytics-skill-name {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard__analytics-skill-level {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.dashboard__analytics-skill-bar {
+  flex: 1;
+}
+
+.dashboard__analytics-skill-bar-track {
+  height: 6px;
+  background: var(--color-bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dashboard__analytics-skill-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}

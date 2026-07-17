@@ -959,6 +959,13 @@ function CrescendoApp() {
             onRandom={handleRandom}
             courseCompletionCount={courseCompletionCount}
             onBrowseCourses={() => setDseTab('courses')}
+            assessmentProfile={assessment.profile}
+            hasCompletedAssessment={assessment.hasCompletedAssessment}
+            flawRecords={flawDetection.flawRecords}
+            plan={studyPlan.plan}
+            reviewItems={forgettingCurve.reviewItems}
+            forgettingCurveGetStats={forgettingCurve.getStats}
+            forgettingCurveConfig={forgettingCurve.config}
           />
         </main>
 

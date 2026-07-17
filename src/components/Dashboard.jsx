@@ -3,13 +3,19 @@ import SkillTile from './SkillTile';
 import PerformanceChart from './PerformanceChart';
 import SkillsRadar from './SkillsRadar';
 import GoalBar from './GoalBar';
+import AssessmentProfileCard from './AssessmentProfileCard';
+import FlawTrendChart from './FlawTrendChart';
+import StudyPlanProgress from './StudyPlanProgress';
+import ReviewHealthCard from './ReviewHealthCard';
 import { computeStreak } from '../utils/dseGrading';
 
-const DEFAULT_SECTIONS = ['overview', 'recommendations', 'gradeHistory', 'weakAreas', 'quickActions'];
+const DEFAULT_SECTIONS = ['overview', 'assessment', 'planProgress', 'flawTrend', 'reviewHealth', 'recommendations', 'gradeHistory', 'weakAreas', 'quickActions'];
 
 export default function Dashboard({
   notes, skillAnalytics, onSwitchToModule, onCreate, onOpenDaily, onRandom,
   courseCompletionCount = 0, onBrowseCourses,
+  assessmentProfile, hasCompletedAssessment, flawRecords, plan,
+  reviewItems, forgettingCurveGetStats, forgettingCurveConfig,
 }) {
   const [visibleSections, setVisibleSections] = useState(() => {
     try {
@@ -205,7 +211,7 @@ export default function Dashboard({
             {DEFAULT_SECTIONS.map(key => (
               <label key={key} className="dashboard__customize-item">
                 <input type="checkbox" checked={vis(key)} onChange={() => toggleSection(key)} />
-                <span>{key === 'overview' ? 'Skill Overview' : key === 'recommendations' ? 'Recommendations' : key === 'gradeHistory' ? 'Grade History' : key === 'weakAreas' ? 'Weak Areas' : 'Quick Actions'}</span>
+                <span>{key === 'overview' ? 'Skill Overview' : key === 'assessment' ? 'Assessment Profile' : key === 'planProgress' ? 'Study Plan' : key === 'flawTrend' ? 'Flaw Trends' : key === 'reviewHealth' ? 'Review Health' : key === 'recommendations' ? 'Recommendations' : key === 'gradeHistory' ? 'Grade History' : key === 'weakAreas' ? 'Weak Areas' : 'Quick Actions'}</span>
               </label>
             ))}
           </div>
@@ -232,6 +238,22 @@ export default function Dashboard({
             </div>
           )}
           <GoalBar skillLevels={skillLevels} targetLevel="5**" />
+        </Section>
+
+        <Section id="assessment" title="🎓 Assessment Profile">
+          <AssessmentProfileCard profile={assessmentProfile} hasCompletedAssessment={hasCompletedAssessment} />
+        </Section>
+
+        <Section id="planProgress" title="📋 Study Plan Progress">
+          <StudyPlanProgress plan={plan} />
+        </Section>
+
+        <Section id="flawTrend" title="📉 Flaw Trends">
+          <FlawTrendChart flawRecords={flawRecords} />
+        </Section>
+
+        <Section id="reviewHealth" title="🔄 Review Health">
+          <ReviewHealthCard reviewItems={reviewItems} getStats={forgettingCurveGetStats} config={forgettingCurveConfig} />
         </Section>
 
         {nextAction && (
