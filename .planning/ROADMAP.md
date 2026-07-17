@@ -7,7 +7,7 @@
 
 - ✅ **v1.0 DSE Authenticity MVP** — Phases 1-6 (shipped 2026-06-23)
 - ✅ **v1.1 Courses Quality Polish** — Phases 7-9 (shipped 2026-07-04)
-- 📋 **v1.2 Adaptive Study Engine** — Phases 11-12 (planning)
+- ✅ **v1.2 Adaptive Study Engine** — Phases 11-12 (shipped 2026-07-17)
 
 ## Phases
 
@@ -33,17 +33,24 @@
 
 </details>
 
-### 📋 v1.2 Adaptive Study Engine (Current)
+### ✅ v1.2 Adaptive Study Engine (Shipped 2026-07-17)
 
 #### Phase 11: Foundation & Assessment
 **Goal:** Build student profile, assessment flow, flaw detection, and study plan generation.
 **Requirements:** ASMT-01, ASMT-02, ASMT-03, ASMT-04, PLAN-01, PLAN-02, PLAN-03, PLAN-04, PLAN-05, FLAW-01, FLAW-02, FLAW-03, FLAW-04
+**Plans:** 5 plans in 3 waves
 **Success Criteria:**
 1. Student can complete initial assessment (self-rate + quiz)
 2. System stores assessment profile in IndexedDB
 3. System generates 3-tier study plan from profile
 4. System detects cognitive flaws from DSE session data
 5. Plan adapts when new assessment or flaw data arrives
+**Plan list:**
+- [x] 11-01-PLAN.md — Foundation: data models & DSE keys (Wave 1)
+- [x] 11-02-PLAN.md — Assessment hook (Wave 2)
+- [x] 11-03-PLAN.md — Flaw detection hook (Wave 2)
+- [x] 11-04-PLAN.md — Study plan hook (Wave 2)
+- [x] 11-05-PLAN.md — UI components & routing (Wave 3)
 
 #### Phase 12: Execution & Adaptation
 **Goal:** Timeline view, AI-generated targeted exercises, forgetting curve scheduling.
@@ -53,6 +60,10 @@
 2. AI generates exercises targeting detected flaw patterns
 3. Forgetting curve schedules reviews at optimal intervals
 4. Half-life configurable and adaptive to performance
+**Plan list:**
+- [x] 12-01-PLAN.md — Forgetting curve utility & DSE keys (Wave 1)
+- [x] 12-02-PLAN.md — Hooks: forgetting curve, plan adaptation, exercise generation (Wave 2)
+- [x] 12-03-PLAN.md — Timeline view & integration (Wave 3)
 
 ## Progress
 
@@ -68,5 +79,5 @@
 | 8. Auto-Generation Reliability & Quality | v1.1 | 4/4 | ✓ | 2026-07-03 |
 | 9. Seed Catalog & Quality Features | v1.1 | Done | ✓ | 2026-07-03 |
 | 10. Auto-Generation Reliability & Quality | v1.1 | 4/4 | ✓ | 2026-07-05 |
-| 11. Foundation & Assessment | v1.2 | 0/0 | 📋 Planning | - |
-| 12. Execution & Adaptation | v1.2 | 0/0 | 📋 Planned | - |
+| 11. Foundation & Assessment | v1.2 | 5/5 | ✓ | 2026-07-17 |
+| 12. Execution & Adaptation | v1.2 | 3/3 | ✓ | 2026-07-17 |
