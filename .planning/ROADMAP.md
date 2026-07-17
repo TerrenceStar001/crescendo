@@ -1,13 +1,13 @@
 # Roadmap: Crescendo
 
 **Created:** 2026-06-23
-**Updated:** 2026-07-04
+**Updated:** 2026-07-17
 
 ## Milestones
 
 - ✅ **v1.0 DSE Authenticity MVP** — Phases 1-6 (shipped 2026-06-23)
 - ✅ **v1.1 Courses Quality Polish** — Phases 7-9 (shipped 2026-07-04)
-- 📋 **v2.0** — (planning next)
+- 📋 **v1.2 Adaptive Study Engine** — Phases 11-12 (planning)
 
 ## Phases
 
@@ -33,9 +33,26 @@
 
 </details>
 
-### 📋 v2.0 (Planned)
+### 📋 v1.2 Adaptive Study Engine (Current)
 
-*Next milestone — planning pending.*
+#### Phase 11: Foundation & Assessment
+**Goal:** Build student profile, assessment flow, flaw detection, and study plan generation.
+**Requirements:** ASMT-01, ASMT-02, ASMT-03, ASMT-04, PLAN-01, PLAN-02, PLAN-03, PLAN-04, PLAN-05, FLAW-01, FLAW-02, FLAW-03, FLAW-04
+**Success Criteria:**
+1. Student can complete initial assessment (self-rate + quiz)
+2. System stores assessment profile in IndexedDB
+3. System generates 3-tier study plan from profile
+4. System detects cognitive flaws from DSE session data
+5. Plan adapts when new assessment or flaw data arrives
+
+#### Phase 12: Execution & Adaptation
+**Goal:** Timeline view, AI-generated targeted exercises, forgetting curve scheduling.
+**Requirements:** TIME-01, TIME-02, TIME-03, EXER-01, EXER-02, EXER-03, FORGET-01, FORGET-02, FORGET-03, FORGET-04
+**Success Criteria:**
+1. Student sees daily exercise recommendations on timeline
+2. AI generates exercises targeting detected flaw patterns
+3. Forgetting curve schedules reviews at optimal intervals
+4. Half-life configurable and adaptive to performance
 
 ## Progress
 
@@ -51,3 +68,5 @@
 | 8. Auto-Generation Reliability & Quality | v1.1 | 4/4 | ✓ | 2026-07-03 |
 | 9. Seed Catalog & Quality Features | v1.1 | Done | ✓ | 2026-07-03 |
 | 10. Auto-Generation Reliability & Quality | v1.1 | 4/4 | ✓ | 2026-07-05 |
+| 11. Foundation & Assessment | v1.2 | 0/0 | 📋 Planning | - |
+| 12. Execution & Adaptation | v1.2 | 0/0 | 📋 Planned | - |

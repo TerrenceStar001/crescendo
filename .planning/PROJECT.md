@@ -14,6 +14,18 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 
 All 9 roadmap phases complete. The Courses feature has been hardened with reliable PDF ingestion, quality auto-generation pipelines, and a seeded catalog with 10 built-in courses. User improvement tracking monitors progress across skill areas after course completion.
 
+## Current Milestone: v1.2 Adaptive Study Engine
+
+**Goal:** Build an Adaptive Study Engine that profiles students, generates personalized study plans, detects cognitive flaw patterns, and delivers targeted exercises with optimal review scheduling.
+
+**Target features:**
+- Student initial assessment (self-rated + verification quiz)
+- Personalized 3-tier study plans (short/mid/long-term)
+- Cognitive flaw detection from DSE session results (6 categories)
+- Adaptive exercise generation targeting weak areas
+- Timeline view with daily exercise recommendations
+- Forgetting curve review scheduling
+
 ## Requirements
 
 ### Validated
@@ -107,7 +119,7 @@ All 9 roadmap phases complete. The Courses feature has been hardened with reliab
 
 ---
 
-*Last updated: 2026-07-04 after v1.1 milestone*
+*Last updated: 2026-07-17 after v1.1 milestone — v1.2 initialized*
 
 ## Evolution
 
