@@ -2,6 +2,7 @@ import React from 'react';
 import { useView } from '../context/ViewContext';
 
 const NAV_ITEMS = [
+  { id: 'dashboard', icon: '🏠', label: 'Home' },
   { id: 'notes', icon: '📝', label: 'Notes' },
   { id: 'reading', icon: '📖', label: 'Reading' },
   { id: 'writing', icon: '✍️', label: 'Writing' },
@@ -19,6 +20,11 @@ export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes })
 
   function handleClick(id) {
     switch (id) {
+      case 'dashboard':
+        setDseTab('dashboard');
+        setViewMode('list');
+        setNavTab('notes');
+        break;
       case 'graph':
         setViewMode('constellation');
         break;
@@ -61,6 +67,7 @@ export default function SidebarNav({ onOpenDaily, onOpenSettings, onOpenNotes })
   }
 
   function isActive(id) {
+    if (id === 'dashboard') return dseTab === 'dashboard' && viewMode !== 'constellation';
     if (id === 'notes') return navTab === 'notes' && dseTab === 'dashboard' && viewMode !== 'constellation';
     if (id === 'graph') return viewMode === 'constellation';
     if (id === 'progress') return dseTab === 'progress';
