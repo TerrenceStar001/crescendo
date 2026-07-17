@@ -39,6 +39,8 @@ import SpeakingModule from './components/SpeakingModule';
 import AssessmentPage from './components/AssessmentPage';
 import StudyPlanPage from './components/StudyPlanPage';
 import FlawPanel from './components/FlawPanel';
+import TimelineView from './components/TimelineView';
+import useForgettingCurve from './hooks/useForgettingCurve';
 import corpusIndex from './utils/corpusIndex';
 import { WEAKNESS_TO_TAG_MAP, safeMapLegacyCourse } from './utils/courseSchema';
 import { QUESTION_TYPE_TO_AREA } from './utils/errorPatternAnalysis';
@@ -75,6 +77,7 @@ function CrescendoApp() {
   const assessment = useAssessment();
   const studyPlan = useStudyPlan();
   const flawDetection = useFlawDetection();
+  const forgettingCurve = useForgettingCurve();
   const {
     getCourses: getCoursesFn,
     saveCourse: saveCourseFn,
@@ -1204,6 +1207,12 @@ function CrescendoApp() {
                     flawRecords={flawDetection.flawRecords}
                     isLoaded={flawDetection.isLoaded}
                   />
+                  {studyPlan.hasPlan && (
+                    <TimelineView
+                      weekPlan={studyPlan.getWeekPlan(forgettingCurve.getReviewSchedule)}
+                      dailyPlan={studyPlan.getDailyPlan(forgettingCurve.getReviewSchedule)}
+                    />
+                  )}
                 </>
               )}
             </div>
