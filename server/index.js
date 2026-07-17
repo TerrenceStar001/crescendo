@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import 'dotenv/config';
 import express from 'express';
 
@@ -301,7 +303,11 @@ async function autoCrawl() {
   }
 }
 
-autoCrawl();
+if (!process.env.DISABLE_AUTO_CRAWL) {
+  autoCrawl();
+} else {
+  console.log('Auto-crawl disabled (DISABLE_AUTO_CRAWL is set)');
+}
 
 app.use((req, res, next) => {
   req.db = db;
@@ -583,6 +589,16 @@ app.post('/api/ai/external-proxy', async (req, res) => {
     res.status(502).json({ error: `External AI proxy failed: ${e.message}` });
   }
 });
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distPath = path.resolve(__dirname, '..', 'dist');
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
