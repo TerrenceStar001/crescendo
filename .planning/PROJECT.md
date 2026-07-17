@@ -10,20 +10,16 @@ Students can practice authentic DSE-style English exam papers with AI-generated 
 
 ## Current State
 
-**Shipped:** v1.2 Adaptive Study Engine (2026-07-17)
+**Shipped:** v1.4 Analytics Dashboard (2026-07-17)
 
 Milestones completed:
 - **v1.0** — DSE Authenticity MVP (Phases 1-6)
 - **v1.1** — Courses Quality Polish (Phases 7-10)
-- **v1.2** — Adaptive Study Engine (Phases 11-12): student assessment, study plans, flaw detection, timeline view, forgetting curve
+- **v1.2** — Adaptive Study Engine (Phases 11-12)
+- **v1.3** — Backend Deployment configured (Phase 13)
+- **v1.4** — Analytics Dashboard (Phase 14): flaw trend chart, study plan progress, review health, assessment profile
 
-Backend deployment configured for Render (Phase 13).
-
-## Current Milestone: v1.3 Backend Deployment
-
-**Goal:** Deploy the Express/SQLite backend to Render for production-ready AI features without local server setup.
-
-**Status:** Configured — render.yaml, Procfile, production static serving, auto-crawl opt-out. Pending: manual Render dashboard setup and first deploy.
+## Current Milestone: v1.5 (TBD)
 
 ## Requirements
 
