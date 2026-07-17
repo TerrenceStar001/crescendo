@@ -13,16 +13,6 @@ services:
         value: 10000
       - key: DISABLE_AUTO_CRAWL
         value: "true"
-      - key: AI_API_KEY
-        sync: false
-      - key: AI_ENDPOINT
-        sync: false
-      - key: AI_MODEL
-        sync: false
-      - key: NVIDIA_API_KEY
-        sync: false
-      - key: AGNES_API_KEY
-        sync: false
       - key: TURSO_DB_URL
         sync: false
       - key: TURSO_DB_TOKEN
