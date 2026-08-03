@@ -49,24 +49,14 @@ export async function doFetch(url, apiKey, model, messages, opts = {}) {
   }
 
   const headers = { 'Content-Type': 'application/json' };
-  if (apiKey && url.startsWith('/')) headers['Authorization'] = `Bearer ${apiKey}`;
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
-  let res;
-  if (url.startsWith('/')) {
-    res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature }),
-      signal,
-    });
-  } else {
-    res = await fetch('/api/ai/external-proxy', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ endpoint: url, apiKey, model, messages, maxTokens, temperature }),
-      signal,
-    });
-  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature }),
+    signal,
+  });
 
   const text = await res.text();
 
