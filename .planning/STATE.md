@@ -4,8 +4,8 @@ milestone: v1.2
 milestone_name: Adaptive Study Engine
 current_phase: 12
 status: shipped
-last_updated: "2026-07-17"
-last_activity: 2026-07-17
+last_updated: "2026-08-03"
+last_activity: 2026-08-03
 progress:
   total_phases: 2
   completed_phases: 2
@@ -52,6 +52,12 @@ progress:
 - `ViewContext.jsx` — planTab state
 - `App.jsx` — hook wiring, routing, auto-generation effects
 - `App.css` — ~600 lines of new styles
+
+## Quick Tasks Completed
+
+| Date | Slug | Summary |
+|------|------|---------|
+| 2026-08-03 | fix-crawler-silent-failures-dead-feeds-v | Fixed crawler: SUPABASE_URL secret was `.com` (→`.co`), added error visibility, fixed BBC feed, removed dead Young Post feed, rotated frontend anon key. Crawler now inserts articles + podcasts (status 201). See `.planning/quick/260803-umd-fix-crawler-silent-failures-dead-feeds-v/` |
 
 ## Deferred Items
 
