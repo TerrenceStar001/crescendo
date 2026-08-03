@@ -36,3 +36,13 @@ Root cause of "nothing worked after 7 days": the **`SUPABASE_URL` GitHub secret 
 
 - Schedule runs daily at 3AM UTC — next automated run should insert fresh content
 - Optional later: add RLS policies + enable RLS on content tables
+
+## AI on GitHub Pages (follow-on fix, commit `03bbfcb3`)
+
+Deployed site console showed `405` for `/api/ai/chat/completions`, `/api/ai/external-proxy`, and `http://127.0.0.1:4010/v1/chat/completions` when opening an auto-generated course → reading. GitHub Pages is static-only — it rejects POST to any `/api/*` route.
+
+**Fix**: `src/utils/aiConstants.js` `doFetch` now POSTs OpenAI-compatible endpoints **directly from the browser** (with `Authorization: Bearer <key>`), instead of routing external calls through the dead `/api/ai/external-proxy` backend route. Dev-only fallback tiers (dev proxy `/api/ai/chat/completions`, local OpenCode `127.0.0.1:4010`) are unchanged and still work under `npm run dev`.
+
+- Result: a key + endpoint configured in **Settings → AI** now works on the deployed site (no server needed). If no key is configured, AI gracefully falls back to bundled content (`[RAG] Using bundled: ...`) as before.
+- Deployed: new bundle `index-C54h8wZg.js` (old `index-N6lom0lz.js` 404s), gh-pages `ba59612`, master `03bbfcb3`.
+- User note: hard-refresh (Ctrl/Cmd+Shift+R) to bypass the stale service worker cache.

@@ -58,6 +58,7 @@ progress:
 | Date | Slug | Summary |
 |------|------|---------|
 | 2026-08-03 | fix-crawler-silent-failures-dead-feeds-v | Fixed crawler: SUPABASE_URL secret was `.com` (→`.co`), added error visibility, fixed BBC feed, removed dead Young Post feed, rotated frontend anon key. Crawler now inserts articles + podcasts (status 201). See `.planning/quick/260803-umd-fix-crawler-silent-failures-dead-feeds-v/` |
+| 2026-08-04 | fix-ai-on-github-pages-v | AI now works on deployed GitHub Pages: `doFetch` calls external OpenAI-compatible endpoints directly from browser instead of dead `/api/ai/external-proxy` backend route (405 on static host). Key+endpoint in Settings → AI works on deployed site; falls back to bundled content when no key. Commit `03bbfcb3`, bundle `index-C54h8wZg.js`. |
 
 ## Deferred Items
 
