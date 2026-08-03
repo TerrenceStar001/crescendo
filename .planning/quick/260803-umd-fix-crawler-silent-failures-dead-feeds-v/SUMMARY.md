@@ -46,3 +46,12 @@ Deployed site console showed `405` for `/api/ai/chat/completions`, `/api/ai/exte
 - Result: a key + endpoint configured in **Settings → AI** now works on the deployed site (no server needed). If no key is configured, AI gracefully falls back to bundled content (`[RAG] Using bundled: ...`) as before.
 - Deployed: new bundle `index-C54h8wZg.js` (old `index-N6lom0lz.js` 404s), gh-pages `ba59612`, master `03bbfcb3`.
 - User note: hard-refresh (Ctrl/Cmd+Shift+R) to bypass the stale service worker cache.
+
+### Test-connection fix (`77b477cf`)
+
+Settings → AI "Test connection" reported `Connected — Unexpected response` even though the connection worked. Cause: `useAI.js` testConnection sent `maxTokens: 5`, but reasoning models (Agnes `agnes-2.0-flash` uses ~13 reasoning tokens, `reasoning_content` field) consume the whole output budget before emitting `content` → `content` came back empty → "Unexpected response" branch.
+
+**Fix**: raised test `maxTokens` 5 → 200 (`useAI.js:71`). Verified with raw fetch: Agnes returns standard OpenAI shape with `choices[0].message.content = "OK"`. User's Settings → AI test now passes.
+
+- Agnes provider verified: endpoint `https://apihub.agnes-ai.com/v1/chat/completions`, model `agnes-2.0-flash`, key valid, CORS `access-control-allow-origin: *` (browser direct fetch OK), free tier.
+- Deployed: bundle `index-B6_5118B.js`, gh-pages `5abeb40`, master `77b477cf`.
