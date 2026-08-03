@@ -68,7 +68,7 @@ export default function useAI() {
       const model = getModel(cfg);
       const data = await doFetch(endpoint, cfg.apiKey, model, [
         { role: 'user', content: 'Reply with just the word "OK".' },
-      ], { maxTokens: 5, temperature: 0.3 });
+      ], { maxTokens: 200, temperature: 0.3 });
       const reply = data.choices?.[0]?.message?.content?.trim();
       return reply
         ? `Connected via ${endpoint} — Reply: "${reply}"`
