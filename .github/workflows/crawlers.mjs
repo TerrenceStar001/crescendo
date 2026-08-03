@@ -21,63 +21,56 @@ function supabase(table, body) {
 // ── SCMP Top Stories ──
 async function crawlSCMP() {
   console.log('[SCMP] Fetching...');
-  const res = await fetch('https://www.scmp.com/rss/91/feed');
-  const xml = await res.text();
-  const feed = await parser.parseString(xml);
-  const items = feed.items.slice(0, 5).map(item => ({
-    id: `scmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    title: item.title?.trim() || '',
-    source: 'scmp',
-    url: item.link || '',
-    content: item.contentSnippet?.trim() || item.content?.trim() || '',
-    summary: item.contentSnippet?.trim().slice(0, 500) || '',
-    published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
-    difficulty: 'intermediate',
-    topics: ['{general}'],
-  }));
-  if (items.length > 0) {
-    const res = await supabase('articles', items);
-    console.log(`[SCMP] Inserted ${items.length} items (status ${res.status})`);
-  } else {
-    console.log('[SCMP] No items found');
-  }
-}
-
-// ── Young Post ──
-async function crawlYoungPost() {
-  console.log('[YoungPost] Fetching...');
-  const res = await fetch('https://www.scmp.com/rss/3187/feed');
-  const xml = await res.text();
-  const feed = await parser.parseString(xml);
-  const items = feed.items.slice(0, 5).map(item => ({
-    id: `yp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    title: item.title?.trim() || '',
-    source: 'young-post',
-    url: item.link || '',
-    content: item.contentSnippet?.trim() || item.content?.trim() || '',
-    summary: item.contentSnippet?.trim().slice(0, 500) || '',
-    published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
-    difficulty: 'intermediate',
-    topics: ['{education}'],
-  }));
-  if (items.length > 0) {
-    const res = await supabase('articles', items);
-    console.log(`[YoungPost] Inserted ${items.length} items (status ${res.status})`);
-  } else {
-    console.log('[YoungPost] No items found');
+  try {
+    const res = await fetch('https://www.scmp.com/rss/91/feed');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const xml = await res.text();
+    const feed = await parser.parseString(xml);
+    const items = feed.items.slice(0, 5).map(item => ({
+      id: `scmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: item.title?.trim() || '',
+      source: 'scmp',
+      url: item.link || '',
+      content: item.contentSnippet?.trim() || item.content?.trim() || '',
+      summary: item.contentSnippet?.trim().slice(0, 500) || '',
+      published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+      difficulty: 'intermediate',
+      topics: ['{general}'],
+    }));
+    if (items.length > 0) {
+      const sup = await supabase('articles', items);
+      console.log(`[SCMP] Inserted ${items.length} items (status ${sup.status})${!sup.ok ? ' ' + (await sup.text()).slice(0, 300) : ''}`);
+    } else {
+      console.log('[SCMP] No items found');
+    }
+  } catch (e) {
+    console.error(`[SCMP] Failed: ${e.message}`);
   }
 }
 
 // ── Podcasts ──
+async function fetchFeed(url, retries = 1) {
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await parser.parseURL(url);
+    } catch (e) {
+      lastErr = e;
+      if (i < retries) await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+  throw lastErr;
+}
+
 async function crawlPodcasts() {
   const channels = [
-    { id: 'bbc-6min', title: 'BBC 6 Minute English', feed: 'https://feeds.bbci.co.uk/learningenglish/features/6minuteenglish/rss.xml' },
+    { id: 'bbc-6min', title: 'BBC 6 Minute English', feed: 'https://podcasts.files.bbci.co.uk/p02pc9tn.rss' },
     { id: 'ted-daily', title: 'TED Talks Daily', feed: 'https://feeds.feedburner.com/tedtalksaudio' },
   ];
   for (const ch of channels) {
     console.log(`[Podcast] ${ch.title}...`);
     try {
-      const feed = await parser.parseURL(ch.feed);
+      const feed = await fetchFeed(ch.feed);
       const episodes = feed.items.slice(0, 10).map(item => ({
         id: `${ch.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         channel_id: ch.id,
@@ -96,7 +89,7 @@ async function crawlPodcasts() {
           image_url: feed.image?.url || feed.itunes?.image || '',
         }]);
         const res = await supabase('podcasts', episodes);
-        console.log(`[Podcast] Inserted ${episodes.length} episodes (status ${res.status})`);
+        console.log(`[Podcast] Inserted ${episodes.length} episodes (status ${res.status})${!res.ok ? ' ' + (await res.text()).slice(0, 300) : ''}`);
       }
     } catch (e) {
       console.error(`[Podcast] Failed ${ch.title}: ${e.message}`);
@@ -110,7 +103,7 @@ async function main() {
     console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY env vars');
     process.exit(1);
   }
-  await Promise.allSettled([crawlSCMP(), crawlYoungPost(), crawlPodcasts()]);
+  await Promise.allSettled([crawlSCMP(), crawlPodcasts()]);
   console.log('Crawl complete');
 }
 
