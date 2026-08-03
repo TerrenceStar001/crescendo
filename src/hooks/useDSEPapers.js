@@ -1084,6 +1084,105 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
   return { content: cleaned, truncated: wasTruncated, aiWordCount: wc };
 }
 
+// ─── Shared AI question generation (used by Pure AI fallback) ───
+
+async function generateQuestionsForPassage(callAI, passageContent, part, difficulty = 'medium') {
+  const passagePreview = String(passageContent || '').replace(/<[^>]+>/g, '').replace(/&[^;]+;/g, ' ').slice(0, 4000);
+  if (passagePreview.length <= 200) return null;
+
+  const numQuestions = difficulty === 'easy' ? 15 : difficulty === 'hard' ? 25 : 20;
+  const typeDist = getTypeDistributionForPart(part);
+  const qPrompt = composeFullPrompt(passagePreview, numQuestions, part, typeDist);
+  const systemMsg = 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.';
+
+  let lastQualityWarnings = [];
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    let prompt = qPrompt;
+    if (attempt > 1) {
+      await new Promise(r => setTimeout(r, (attempt - 1) * 1500));
+      let retryMsg = '\n\nCRITICAL — Your previous output had the following issues that MUST be fixed:';
+      if (lastQualityWarnings.length > 0) {
+        retryMsg += '\n- ' + lastQualityWarnings.join('\n- ');
+      } else {
+        retryMsg += '\n- JSON syntax error. Keep each question short (≤500 chars).';
+      }
+      retryMsg += '\n\nReview each issue carefully and produce a corrected output.';
+      prompt = qPrompt + retryMsg;
+    }
+    try {
+      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 4000, timeout: 300000 });
+      if (!raw) continue;
+      const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
+      const m = jsonStr.match(/\[[\s\S]*\]/);
+      let parsed;
+      try {
+        parsed = m ? JSON.parse(m[0]) : parseJSONArray(jsonStr);
+      } catch (e) {
+        console.warn(`[DSE] Pure AI Q parse attempt ${attempt} failed:`, e?.message);
+        lastQualityWarnings = [];
+        continue;
+      }
+      if (parsed?.length >= 3) {
+        const normalized = parsed.map((q, i) => normalizeQuestion({ ...q, id: i + 1, part, marks: q.marks || 1 }));
+        const fixed = normalized.map(q => fixQuestionTypes(q));
+        const validated = fixed.map(q => validateQuestionAnswer(q)).filter(Boolean);
+        const invalid = normalized.length - validated.length;
+        const unknown = validated.filter(q => q.answerUnknown).length;
+        if (invalid > 0 || unknown > 0) {
+          console.warn(`[DSE] Pure AI: ${invalid} garbage + ${unknown} unknown (${normalized.length}→${validated.length} kept)`);
+        }
+        if (validated.length >= 3) {
+          const enriched = ensureNGCount(validated);
+          const quality = validateQuestions(enriched, passagePreview);
+          const newQuality = validateQuestionsNew(enriched, passagePreview);
+          const combined = [...quality.warnings];
+          if (!newQuality.valid) combined.push(...newQuality.warnings);
+          lastQualityWarnings = combined;
+          if (quality.valid) {
+            console.log(`[DSE] Pure AI generated ${validated.length} clean questions (attempt ${attempt})`);
+            return validated;
+          }
+          const minorPattern = /Missing rubric|Low type diversity|Need ≥2 NG/;
+          const majorWarnings = quality.warnings.filter(w => !minorPattern.test(w));
+          if (attempt >= 2 && majorWarnings.length === 0) {
+            console.log(`[DSE] Pure AI accepting ${validated.length} questions with minor warnings (attempt ${attempt})`);
+            return validated;
+          }
+          console.warn(`[DSE] Pure AI quality issues on attempt ${attempt}:`, quality.warnings.join('; '));
+          if (attempt < 2) continue;
+          console.log(`[DSE] Pure AI accepting ${validated.length} questions with quality warnings (final attempt)`);
+          return validated;
+        }
+      }
+    } catch (e) {
+      console.warn(`[DSE] Pure AI Q call attempt ${attempt} failed:`, e?.message);
+      lastQualityWarnings = [];
+    }
+  }
+
+  // Fallback: single retry without quality gates
+  try {
+    const raw = await callAI(qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.', { system: systemMsg, temperature: 0.3, maxTokens: 4000, timeout: 300000 });
+    if (raw) {
+      const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
+      const m = jsonStr.match(/\[[\s\S]*\]/);
+      const parsed = m ? JSON.parse(m[0]) : parseJSONArray(jsonStr);
+      if (parsed?.length >= 3) {
+        const normalized = parsed.map((q, i) => normalizeQuestion({ ...q, id: i + 1, part, marks: q.marks || 1 }));
+        const validated = normalized.map(q => fixQuestionTypes(q)).map(q => validateQuestionAnswer(q)).filter(Boolean);
+        if (validated.length >= 3) {
+          console.log(`[DSE] Pure AI fallback generated ${validated.length} questions`);
+          return validated;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[DSE] Pure AI question fallback failed:', e?.message);
+  }
+
+  return null;
+}
+
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -1609,6 +1708,13 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
             if (h2Match) finalTitle = h2Match[1].trim();
             yearInfo = { year: null, part: part };
             console.log(`[DSE] Pure AI passage generated (${pureAiResult.aiWordCount}w)`);
+            const questions = await generateQuestionsForPassage(callAI, pureAiResult.content, part, difficulty);
+            if (questions?.length) {
+              finalQuestions = questions;
+              console.log(`[DSE] Pure AI generated ${questions.length} questions`);
+            } else {
+              console.warn('[DSE] Pure AI could not generate questions');
+            }
           }
         } catch (e) {
           console.warn('[DSE] Pure AI passage generation failed:', e?.message);
