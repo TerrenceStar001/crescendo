@@ -44,7 +44,7 @@ async function crawlSCMP() {
       console.log('[SCMP] No items found');
     }
   } catch (e) {
-    console.error(`[SCMP] Failed: ${e.message} | cause=${e.cause?.message} code=${e.cause?.code}`);
+    console.error(`[SCMP] Failed: ${e.message}`);
   }
 }
 
@@ -103,8 +103,6 @@ async function main() {
     console.error('Missing SUPABASE_URL or SUPABASE_ANON_KEY env vars');
     process.exit(1);
   }
-  console.log('[env] proxy:', JSON.stringify({ http: process.env.HTTP_PROXY, https: process.env.HTTPS_PROXY, no: process.env.NO_PROXY }));
-  console.log('[env] node:', process.version);
   await Promise.allSettled([crawlSCMP(), crawlPodcasts()]);
   console.log('Crawl complete');
 }

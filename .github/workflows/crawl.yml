@@ -3,8 +3,6 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
-  push:
-    branches: [master]
 
 jobs:
   crawl:
@@ -18,14 +16,6 @@ jobs:
         with:
           node-version: 20
       - run: npm install cheerio rss-parser
-      - name: Connectivity diagnostics
-        run: |
-          echo "=== curl SCMP ==="
-          curl -s -m 15 -o /dev/null -w "curl scmp: %{http_code}\n" https://www.scmp.com/rss/91/feed || echo "curl scmp FAILED"
-          curl -s -m 15 -o /dev/null -w "curl bbc: %{http_code}\n" https://podcasts.files.bbci.co.uk/p02pc9tn.rss || echo "curl bbc FAILED"
-          echo "=== node fetch SCMP ==="
-          node -e "fetch('https://www.scmp.com/rss/91/feed').then(r=>console.log('node fetch scmp:',r.status)).catch(e=>console.log('node fetch scmp ERROR:',e.message,'cause:',e.cause&&e.cause.message))"
-          node -e "fetch('https://podcasts.files.bbci.co.uk/p02pc9tn.rss').then(r=>console.log('node fetch bbc:',r.status)).catch(e=>console.log('node fetch bbc ERROR:',e.message,'cause:',e.cause&&e.cause.message))"
       - name: Crawl sources
         run: node .github/workflows/crawlers.mjs
 

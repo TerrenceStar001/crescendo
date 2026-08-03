@@ -1,5 +1,5 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://yfxqelscyupzqpsskzat.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmeHFlbHNjeXVwenFwc3NremF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjIzMDYxMDIsImV4cCI6MjAzNzg4MjEwMn0.TSy5V6BY-ZjMTSuqELH71nRhMZ9ld0udm4yIspARoik';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmeHFlbHNjeXVwenFwc3NremF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDQ1NTUsImV4cCI6MjA5OTc4MDU1NX0.6Xl59YNy0mAC24pHlHe8hQ8pXzJVcTNcoG7xiYGZ7GM';
 
 const headers = {
   'Content-Type': 'application/json',
