@@ -55,3 +55,13 @@ Settings → AI "Test connection" reported `Connected — Unexpected response` e
 
 - Agnes provider verified: endpoint `https://apihub.agnes-ai.com/v1/chat/completions`, model `agnes-2.0-flash`, key valid, CORS `access-control-allow-origin: *` (browser direct fetch OK), free tier.
 - Deployed: bundle `index-B6_5118B.js`, gh-pages `5abeb40`, master `77b477cf`.
+
+### Pure AI question generation fix (`ec6f9aea`)
+
+**Problem**: Auto-generated course → reading opened with passage but **no questions**. The Pure AI fallback (Step 1.75, `generatePureAIPassage`) generated only the passage text and never called question generation — the RAG path and papers path had their own question-generation loops but the Pure AI path didn't.
+
+**Fix**: extracted reusable `generateQuestionsForPassage(callAI, passageContent, part, difficulty)` helper at `useDSEPapers.js:1089` (mirrors RAG path's `tryRAGQuestions` with retry + quality gates + fallback), wired it into the Pure AI path after passage generation. Also the quality-gate retries log `wc=X truncated=true` but the passage is still accepted (the retry checks word count within target; the `truncated` flag is heuristic — unclosed tags/ellipsis — and doesn't block usage).
+
+- User reported: `[DSE] Pure AI passage failed quality gates (wc=1059, truncated=true). Retrying.` then `[DSE] Pure AI passage generated (1059w)` — passage accepted, but `finalQuestions` remained empty.
+- Agnes test: `maxTokens: 5` too small for reasoning models (13 reasoning tokens consumed budget → empty content). Raised to 200 in `useAI.js`.
+- Deployed: bundle `index-CN9cGkaz.js` live (200), gh-pages `1d2c908`, master `ec6f9aea`.
