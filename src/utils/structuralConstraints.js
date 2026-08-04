@@ -26,7 +26,7 @@ export const WORD_COUNT_TARGETS = {
 // that reasoning + full passage both fit; the prompt's word-count instruction keeps length on target.
 export function getMaxTokensForPart(part) {
   const target = WORD_COUNT_TARGETS[part] || WORD_COUNT_TARGETS.A;
-  return Math.max(8192, Math.ceil(target.max * 1.66));
+  return Math.max(32768, Math.ceil(target.max * 1.66));
 }
 
 export const TEXT_TYPE_REQUIREMENTS = {
