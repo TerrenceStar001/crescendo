@@ -799,7 +799,9 @@ ${stripped.slice(0, 6000)}`;
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  const strippedTail = cleaned.replace(/<[^>]+>/g, '').trim();
+  const endsMidSentence = strippedTail.length > 0 && !/[.!?…"»)\]]$/.test(strippedTail);
+  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord || endsMidSentence;
 
   // Minimum paragraph count check
   const paraCount = (cleaned.match(/<p>/g) || []).length;
@@ -809,7 +811,7 @@ ${stripped.slice(0, 6000)}`;
   }
 
   // Only retry on genuine truncation signals, not word count overflow or false positives
-  const genuineTruncation = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  const genuineTruncation = hasUnclosedTags || endsWithEllipsis || endsMidWord || endsMidSentence;
   const minAccept = Math.floor(target.min * 0.9);
   if (genuineTruncation) {
     console.warn(`[DSE] Passage truncated (${wc}w). Retrying.`);
@@ -924,7 +926,9 @@ ${fragmentsSection}`;
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  const strippedTail = cleaned.replace(/<[^>]+>/g, '').trim();
+  const endsMidSentence = strippedTail.length > 0 && !/[.!?…"»)\]]$/.test(strippedTail);
+  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord || endsMidSentence;
 
   // Minimum paragraph count check
   const paraCount = (cleaned.match(/<p>/g) || []).length;
@@ -934,7 +938,7 @@ ${fragmentsSection}`;
   }
 
   // Only retry on genuine truncation signals, not word count overflow or false positives
-  const genuineTruncation = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  const genuineTruncation = hasUnclosedTags || endsWithEllipsis || endsMidWord || endsMidSentence;
   const minAccept = Math.floor(target.min * 0.9);
   if (genuineTruncation) {
     console.warn(`[DSE] RAG passage truncated (${wc}w). Retrying.`);
@@ -1041,7 +1045,9 @@ ${difficulty === 'hard' ? `- MEDIUM/EASY — SUPPLEMENTARY:
   const hasUnclosedTags = /<[a-z][^>]*$/.test(cleaned) || (cleaned.match(/<p>/g) || []).length > (cleaned.match(/<\/p>/g) || []).length;
   const endsWithEllipsis = /\.{3,}$/.test(cleaned) || /…$/.test(cleaned);
   const endsMidWord = /[a-z]+–$/.test(cleaned) || /[a-z]+\n$/.test(cleaned);
-  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord;
+  const strippedTail = cleaned.replace(/<[^>]+>/g, '').trim();
+  const endsMidSentence = strippedTail.length > 0 && !/[.!?…"»)\]]$/.test(strippedTail);
+  let wasTruncated = hasUnclosedTags || endsWithEllipsis || endsMidWord || endsMidSentence;
 
   // Minimum paragraph count check
   const paraCount = (cleaned.match(/<p>/g) || []).length;
@@ -1117,7 +1123,7 @@ async function generateQuestionsForPassage(callAI, passageContent, part, difficu
       prompt = qPrompt + retryMsg;
     }
     try {
-      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 8192, timeout: 300000 });
+      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 32768, timeout: 300000 });
       if (!raw) continue;
       const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
       const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1169,7 +1175,7 @@ async function generateQuestionsForPassage(callAI, passageContent, part, difficu
 
   // Fallback: single retry without quality gates
   try {
-    const raw = await callAI(qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.', { system: systemMsg, temperature: 0.3, maxTokens: 8192, timeout: 300000 });
+    const raw = await callAI(qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.', { system: systemMsg, temperature: 0.3, maxTokens: 32768, timeout: 300000 });
     if (raw) {
       const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
       const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1434,7 +1440,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
                 prompt = basePrompt + retryMsg;
               }
               try {
-                const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 8192, timeout: 300000 });
+                const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 32768, timeout: 300000 });
                 if (!raw) continue;
                 const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                 const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1496,7 +1502,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
               try {
                 if (attempt > 1) await new Promise(r => setTimeout(r, 3000));
                 const localPrompt = attempt === 1 ? qPrompt : qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.';
-                          const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 8192, timeout: 300000 });
+                          const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 32768, timeout: 300000 });
                 if (!raw) continue;
                 const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                 const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1593,7 +1599,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
                           prompt = basePrompt + retryMsg;
                         }
                         try {
-      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 8192, timeout: 300000 });
+      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 32768, timeout: 300000 });
                           if (!raw) continue;
                           const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                           const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1656,7 +1662,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
                         try {
                           if (attempt > 1) await new Promise(r => setTimeout(r, 3000));
                           const localPrompt = attempt === 1 ? qPrompt : qPrompt + '\n\nYour previous JSON was invalid. Fix it. Return ONLY a valid JSON array.';
-                const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 8192, timeout: 300000 });
+                const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 32768, timeout: 300000 });
                           if (!raw) continue;
                           const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                           const m = jsonStr.match(/\[[\s\S]*\]/);

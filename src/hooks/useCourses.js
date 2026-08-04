@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import { calculateCourseRecommendations, validateCourse, buildRetryFeedback } from '../utils/courseSchema';
 import { buildCoursePrompt as buildTutorPrompt } from '../prompts/courseGeneratorPrompt';
+import { attachTutorialReference } from '../utils/tutorialSource';
 
 const ENROLLMENT_KEY = 'crescendo-course-enrollments';
 const COMPLETED_KEY = 'crescendo-course-completed';
@@ -384,7 +385,10 @@ export default function useCourses() {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const completedContext = ''; // Frontend doesn't have easy access to completed courses
-        const aiPrompt = buildTutorPrompt(weaknessTags, completedContext, simplerContent);
+        let aiPrompt = buildTutorPrompt(weaknessTags, completedContext, simplerContent);
+
+        // Secret source material: ground generation in authentic IELTS reading tutorials
+        aiPrompt = await attachTutorialReference(aiPrompt);
 
         // Append retry feedback if this is a retry
         const prompt = feedback
@@ -392,7 +396,7 @@ export default function useCourses() {
           : aiPrompt;
 
         const text = await Promise.race([
-          callAI(prompt, { maxTokens: 8192, temperature: 0.3, timeout: 300000 }),
+          callAI(prompt, { maxTokens: 32768, temperature: 0.3, timeout: 300000 }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 300000)),
         ]);
 

@@ -4582,6 +4582,7 @@ html[data-theme="dark"] .shortcut-overlay {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 .reading__readonly {
   flex: 1;
@@ -4615,6 +4616,7 @@ html[data-theme="dark"] .shortcut-overlay {
 
 .reading__questions-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--space-4);
   display: flex;
