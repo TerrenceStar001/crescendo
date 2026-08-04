@@ -1110,7 +1110,7 @@ async function generateQuestionsForPassage(callAI, passageContent, part, difficu
       prompt = qPrompt + retryMsg;
     }
     try {
-      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 4000, timeout: 300000 });
+      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 8192, timeout: 300000 });
       if (!raw) continue;
       const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
       const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1162,7 +1162,7 @@ async function generateQuestionsForPassage(callAI, passageContent, part, difficu
 
   // Fallback: single retry without quality gates
   try {
-    const raw = await callAI(qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.', { system: systemMsg, temperature: 0.3, maxTokens: 4000, timeout: 300000 });
+    const raw = await callAI(qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.', { system: systemMsg, temperature: 0.3, maxTokens: 8192, timeout: 300000 });
     if (raw) {
       const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
       const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1427,7 +1427,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
                 prompt = basePrompt + retryMsg;
               }
               try {
-                const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 4000, timeout: 300000 });
+                const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 8192, timeout: 300000 });
                 if (!raw) continue;
                 const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                 const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1489,7 +1489,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
               try {
                 if (attempt > 1) await new Promise(r => setTimeout(r, 3000));
                 const localPrompt = attempt === 1 ? qPrompt : qPrompt + '\n\nYour previous JSON was invalid. Return ONLY a valid JSON array.';
-                const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 4000, timeout: 300000 });
+                          const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 8192, timeout: 300000 });
                 if (!raw) continue;
                 const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                 const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1586,7 +1586,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
                           prompt = basePrompt + retryMsg;
                         }
                         try {
-                          const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 4000, timeout: 300000 });
+      const raw = await callAI(prompt, { system: systemMsg, temperature: attempt === 1 ? 0.3 : 0.2, maxTokens: 8192, timeout: 300000 });
                           if (!raw) continue;
                           const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                           const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1649,7 +1649,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
                         try {
                           if (attempt > 1) await new Promise(r => setTimeout(r, 3000));
                           const localPrompt = attempt === 1 ? qPrompt : qPrompt + '\n\nYour previous JSON was invalid. Fix it. Return ONLY a valid JSON array.';
-                          const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 4000, timeout: 300000 });
+                const raw = await callAI(localPrompt, { system: 'You are a DSE English Paper 1 examiner creating original comprehension questions. Return ONLY valid JSON array.', temperature: 0.3, maxTokens: 8192, timeout: 300000 });
                           if (!raw) continue;
                           const jsonStr = raw.replace(/```(?:json)?\s*/gi, '').replace(/\s*```/g, '').trim();
                           const m = jsonStr.match(/\[[\s\S]*\]/);
@@ -1752,7 +1752,7 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
           try {
             const optionsText = (mcq.options || []).map(o => `${o.label}. ${o.text}`).join('\n');
             const verifyPrompt = `Passage excerpt:\n${passagePreview.slice(0, 1500)}\n\nQuestion: ${mcq.stem}\n\nOptions:\n${optionsText}\n\nWhich option (A/B/C/D) is the correct answer? Reply with ONLY the letter.`;
-            const verifyRaw = await callAI(verifyPrompt, { system: 'You are a DSE English examiner verifying answer keys. Reply with a single letter.', temperature: 0.1, maxTokens: 10, timeout: 15000 });
+            const verifyRaw = await callAI(verifyPrompt, { system: 'You are a DSE English examiner verifying answer keys. Reply with a single letter.', temperature: 0.1, maxTokens: 500, timeout: 15000 });
             const verifyLetter = (verifyRaw || '').trim().toUpperCase().match(/[A-D]/);
             if (verifyLetter) {
               const origLetter = (mcq.correctAnswer || '').trim().toUpperCase();
@@ -1911,7 +1911,7 @@ Return EXACTLY this JSON format (no extra fields, no markdown):
         const raw = await callAI(aiPrompt, {
           system: 'You are an expert HKDSE English examiner. Generate a short Part A writing prompt in valid JSON. Return ONLY valid JSON. Do not include any text outside the JSON object.',
           temperature: 0.6,
-          maxTokens: 800,
+          maxTokens: 2000,
         });
 
         const parsed = parseJSONObject(raw);
@@ -1993,7 +1993,7 @@ Return as a JSON array of exactly 3 objects:
         const raw = await callAI(aiPrompt, {
           system: 'You are an expert HKDSE English examiner. Generate 3 distinct Part B writing prompts as a JSON array. Return ONLY valid JSON. Do not include any text outside the JSON array.',
           temperature: 0.7,
-          maxTokens: 2000,
+          maxTokens: 4000,
         });
 
         const parsed = parseJSONArray(raw);
@@ -2162,7 +2162,7 @@ Instead, give the student a concrete example of student work and ask them to dia
         const raw = await callAI(prompt, {
           system: 'You are a DSE English examiner generating deep comprehension exercises. Return ONLY valid JSON, no extra text.',
           temperature: 0.3,
-          maxTokens: 2500,
+          maxTokens: 5000,
         });
         const parsed = parseJSONArray(raw);
         if (!Array.isArray(parsed) || parsed.length < 3) {
@@ -2193,7 +2193,7 @@ scores length must be ${passed.length}.`;
             const judgeRaw = await callAI(judgePrompt, {
               system: 'You evaluate exercise depth. Return ONLY valid JSON.',
               temperature: 0.2,
-              maxTokens: 800,
+              maxTokens: 2000,
             });
             const judgeObj = tryParseJSON(judgeRaw);
             const judgeScores = judgeObj?.scores;

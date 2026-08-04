@@ -20,11 +20,13 @@ export const WORD_COUNT_TARGETS = {
   B2: { label: 'Part B2 — Harder', min: 1000, max: 1200, textCount: '1-2' },
 };
 
-// Token budget for AI generation: ~1.33x word count target to allow for HTML tags and formatting overhead
-// This prevents the AI from over-generating (5000 tokens ≈ 3750 words was 3x the 1200-word target)
+// Token budget for AI generation: ~1.33x word count target to allow for HTML tags and formatting overhead.
+// Reasoning models (e.g. Agnes) spend part of the max_tokens output budget on reasoning_content, so a
+// tight cap starves the actual passage (e.g. ~1992 tokens → 76-word output). Floor the budget high enough
+// that reasoning + full passage both fit; the prompt's word-count instruction keeps length on target.
 export function getMaxTokensForPart(part) {
   const target = WORD_COUNT_TARGETS[part] || WORD_COUNT_TARGETS.A;
-  return Math.ceil(target.max * 1.66);
+  return Math.max(8192, Math.ceil(target.max * 1.66));
 }
 
 export const TEXT_TYPE_REQUIREMENTS = {
