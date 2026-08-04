@@ -5,7 +5,7 @@ import { computeScore } from '../utils/answerChecking';
 import ReadingResults from './ReadingResults';
 import PostTaskSuggestion from './PostTaskSuggestion';
 
-export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack, onGetCourseRecommendations, onEnrollCourse, onBrowseCourses }) {
+export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack, onGetCourseRecommendations, onEnrollCourse, onBrowseCourses, planPreset }) {
   const [phase, setPhase] = useState('start');
   const [paper, setPaper] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -26,6 +26,14 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
   const questionStartRef = useRef(Date.now());
   const questionTimersRef = useRef({});
   const notesGenDataRef = useRef(null);
+  const planLaunchRef = useRef(false);
+
+  useEffect(() => {
+    if (!planPreset || planLaunchRef.current) return;
+    planLaunchRef.current = true;
+    const c = planPreset.exercise?.constraints || {};
+    startSession(c.difficulty || 'medium');
+  }, [planPreset]);
 
   const [courseRecommendations, setCourseRecommendations] = useState([]);
   const [showCourseSuggestion, setShowCourseSuggestion] = useState(false);
@@ -329,6 +337,15 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
             </button>
           </div>
         </div>
+        {planPreset && (
+          <div className="plan-preset-banner">
+            <span className="plan-preset-banner__icon">🎯</span>
+            <div className="plan-preset-banner__body">
+              <div className="plan-preset-banner__title">From your study plan</div>
+              <div className="plan-preset-banner__desc">{planPreset.exercise?.description}</div>
+            </div>
+          </div>
+        )}
         <div className="reading__start">
           <div className="reading__difficulty-cards">
             {['easy', 'medium', 'hard'].map(d => (
@@ -466,6 +483,9 @@ export default function ReadingModule({ dsePapers, skillAnalytics, callAI, notes
               )}
               {!paper?.metadata?.ragGenerated && paper?.metadata?.aiGenerated && !paper.metadata.sourceName && (
                 <div className="reading__passage-source">Adapted from a news article</div>
+              )}
+              {paper?.metadata?.source === 'bundled' && (
+                <div className="reading__passage-source reading__passage-source--bundled">Bundled offline content — AI unavailable</div>
               )}
 
               {/* Truncation warning */}

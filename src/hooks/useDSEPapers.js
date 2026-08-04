@@ -1846,12 +1846,17 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
     setIsLoading(true);
     setError(null);
     try {
-      const { notes = [], forceAI = false } = options;
+      const { notes = [], forceAI = false, theme, focus, difficulty } = options;
       const noteContexts = notes
         .filter(n => (n.content || '').length > 100)
         .slice(0, 5)
         .map(n => `[Note: ${n.title || 'Untitled'}]\n${n.content.replace(/<[^>]+>/g, '').slice(0, 1000)}`)
         .join('\n\n');
+
+      const planGuidance = [theme, focus, difficulty]
+        .filter(Boolean)
+        .map(v => `- ${v}`)
+        .join('\n');
 
       let partA, partB;
 
@@ -1892,7 +1897,7 @@ AVOID:
 - Topics requiring specialist knowledge
 - Generic "discuss the pros and cons" without specific scenario
 
-Student's notes for inspiration:
+${planGuidance ? `PLAN FOCUS (from user's study plan — the task should align with this focus):\n${planGuidance}\n\n` : ''}Student's notes for inspiration:
 ${noteContexts || 'No notes available.'}
 
 Return EXACTLY this JSON format (no extra fields, no markdown):
@@ -1979,7 +1984,7 @@ FORMAT RULES:
 - Do NOT use overly abstract or philosophical topics
 - Each prompt must discriminate between ability levels (accessible to all but allowing top candidates to excel)
 
-Student's notes for inspiration:
+${planGuidance ? `PLAN FOCUS (from user's study plan — at least one prompt should align with this focus):\n${planGuidance}\n\n` : ''}Student's notes for inspiration:
 ${noteContexts || 'No notes available.'}
 
 Return as a JSON array of exactly 3 objects:

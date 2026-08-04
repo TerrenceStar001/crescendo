@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 const SKILL_ICONS = { reading: '📖', writing: '✍️', listening: '🎧', speaking: '🎤' };
 const SKILL_COLORS = { reading: '#4f8ef7', writing: '#e8a838', listening: '#6bca6b', speaking: '#e86b6b' };
 
-export default function TimelineView({ weekPlan, dailyPlan }) {
+export default function TimelineView({ weekPlan, dailyPlan, onStartExercise }) {
   const [weekOffset, setWeekOffset] = useState(0);
 
   const days = useMemo(() => {
@@ -55,13 +55,19 @@ export default function TimelineView({ weekPlan, dailyPlan }) {
             <div className="timeline__day-header">{day.label}</div>
             <div className="timeline__day-items">
               {day.items.length === 0 ? (
-                <div className="timeline__day-empty">Rest</div>
+                weekOffset !== 0 ? (
+                  <div className="timeline__pending">Pending</div>
+                ) : (
+                  <div className="timeline__day-empty">Rest</div>
+                )
               ) : (
                 day.items.map((item, idx) => (
                   <div
                     key={item.id || idx}
-                    className={`timeline__card timeline__card--${item.type || 'exercise'} ${item.completed ? 'timeline__card--done' : ''}`}
+                    className={`timeline__card timeline__card--${item.type || 'exercise'} ${item.completed ? 'timeline__card--done' : ''}${item.type === 'exercise' && onStartExercise ? ' timeline__card--clickable' : ''}`}
                     style={{ borderLeftColor: SKILL_COLORS[item.skill] || '#888' }}
+                    onClick={item.type === 'exercise' && onStartExercise ? () => onStartExercise(item, 'shortTerm') : undefined}
+                    title={item.type === 'exercise' ? 'Click to start this exercise' : undefined}
                   >
                     <div className="timeline__card-icon">{SKILL_ICONS[item.skill] || '📝'}</div>
                     <div className="timeline__card-body">

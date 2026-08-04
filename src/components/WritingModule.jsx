@@ -34,7 +34,7 @@ function getBadgeInfo(type) {
   return TEXT_TYPE_BADGES[lower] || { label: type, color: '#8a8aa0' };
 }
 
-export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack, onGetCourseRecommendations, onEnrollCourse, onBrowseCourses }) {
+export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes, createNote, onBack, onGetCourseRecommendations, onEnrollCourse, onBrowseCourses, planPreset }) {
   const { focusMode, setFocusMode } = useView();
   const [phase, setPhase] = useState('start');
   const [sessionData, setSessionData] = useState(null);
@@ -67,6 +67,7 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   const [customCorrectionResult, setCustomCorrectionResult] = useState(null);
   const [viewingHistorySession, setViewingHistorySession] = useState(null);
   const notesGenDataRef = useRef(null);
+  const planLaunchRef = useRef(false);
   const partAResultRef = useRef(null);
   const editorRef = useRef(null);
   const customEditorRef = useRef(null);
@@ -251,10 +252,10 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
   }, [phase, dsePapers]);
 
   // --- Start session ---
-  const handleStartSession = useCallback(async () => {
+  const handleStartSession = useCallback(async (options = {}) => {
     setGenerating(true);
     try {
-      const session = await dsePapers.generateWritingSession({ notes }, callAI);
+      const session = await dsePapers.generateWritingSession({ notes, ...options }, callAI);
       if (session) {
         setSessionData(session);
         const partAPrompt = session.partA?.prompt || null;
@@ -270,6 +271,18 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
       setGenerating(false);
     }
   }, [dsePapers, callAI, notes]);
+
+  useEffect(() => {
+    if (!planPreset || planLaunchRef.current) return;
+    planLaunchRef.current = true;
+    const c = planPreset.exercise?.constraints || {};
+    const focus = c.type || c.focus;
+    const planOptions = {};
+    if (focus) planOptions.focus = `${focus}${c.focus && c.focus !== focus ? `, ${c.focus}` : ''}`;
+    if (c.theme) planOptions.theme = c.theme;
+    if (c.difficulty) planOptions.difficulty = c.difficulty;
+    handleStartSession(planOptions);
+  }, [planPreset]);
 
   // --- Part B option selection ---
   const handleSelectOption = useCallback((index) => {
@@ -986,6 +999,16 @@ export default function WritingModule({ dsePapers, skillAnalytics, callAI, notes
           <h1 className="dse-module__title">Writing Practice</h1>
           <p className="dse-module__subtitle">Practice DSE Paper 2 Writing with AI-powered correction</p>
         </div>
+
+        {planPreset && (
+          <div className="plan-preset-banner">
+            <span className="plan-preset-banner__icon">🎯</span>
+            <div className="plan-preset-banner__body">
+              <div className="plan-preset-banner__title">From your study plan</div>
+              <div className="plan-preset-banner__desc">{planPreset.exercise?.description}</div>
+            </div>
+          </div>
+        )}
 
         {hasSavedSession && (
           <div className="writing__resume-banner">

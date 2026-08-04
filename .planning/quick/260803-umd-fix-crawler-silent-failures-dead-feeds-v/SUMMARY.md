@@ -65,3 +65,16 @@ Settings → AI "Test connection" reported `Connected — Unexpected response` e
 - User reported: `[DSE] Pure AI passage failed quality gates (wc=1059, truncated=true). Retrying.` then `[DSE] Pure AI passage generated (1059w)` — passage accepted, but `finalQuestions` remained empty.
 - Agnes test: `maxTokens: 5` too small for reasoning models (13 reasoning tokens consumed budget → empty content). Raised to 200 in `useAI.js`.
 - Deployed: bundle `index-CN9cGkaz.js` live (200), gh-pages `1d2c908`, master `ec6f9aea`.
+
+### Study-plan UI fixes (this batch)
+
+User reported the plan/calendar/dashboard screen confused them and several things appeared broken. All six issues traced to concrete root causes and fixed:
+
+1. **Plan course click "does nothing"** — `Reading/Listening/SpeakingModule` had a `planLaunchRef` auto-start effect, but `WritingModule` did not (it only rendered the `plan-preset-banner`). Added a matching `planLaunchRef` effect in `WritingModule.jsx` that auto-starts the session, and extended `generateWritingSession` (`useDSEPapers.js`) to accept `{ theme, focus, difficulty }` from the plan exercise's constraints and inject them into the Part A/B AI prompts so the writing task matches the plan item.
+2. **Weekly Schedule cards overflowed cells** — `.timeline__grid` is `repeat(7, 1fr)` with no `min-width: 0` / `overflow: hidden` on `.timeline__day`, so unbreakable card text expanded the grid tracks. Added `min-width: 0; overflow: hidden` to `.timeline__day` (cards already ellipsize).
+3. **`← Dashboard` back button CSS broke** — orphaned fragment `} z-index: 2; background: var(--color-canvas); }` at `App.css:4063-4065` (leftover from an earlier edit) sat between `.plan-preset-banner__desc` and `.dse-module__back`, breaking parser recovery at the back-button rule. Deleted the three lines.
+4. **Next-week plan never generated** — `TimelineView` built future weeks as empty placeholder days (`items: []` → "Rest"). Now non-current weeks render a non-clickable greyed "Pending" card per day (per user choice, no extra AI cost).
+5. **"Confusing content"** — console logged `[RAG] Using bundled: "The Rise of Remote Work"` (reading plan exercise fell back to bundled because Pure AI question-gen failed) while "The Last Days at Tai Ping Market" was an unrelated AI-generated *course* from the `[course-gen]` effect. Reduced the confusion: ReadingModule now shows a "Bundled offline content — AI unavailable" pill when `metadata.source === 'bundled'`; `tutorialSource.js` no longer calls the dead `/api/tutorials/random` on static hosts (silences the 404 noise).
+6. **Today's Course vs This Week vs Weekly Schedule disagreed** — `getWeekPlan` spread exercises across 7 days by `i % 7`. Now all incomplete shortTerm exercises + due reviews land on **day 0 (today)**, so Calendar day 1 === Today's Course counts exactly (per user choice).
+
+- Deployed: bundle `index-BcZjGzjd.js` live (200), gh-pages branch pushed, master not yet committed.

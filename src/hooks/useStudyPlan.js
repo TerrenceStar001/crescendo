@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIndexedDB } from './useIndexedDB';
 import { calcDensity, buildConstraints, DSE_EXAM_DATE } from '../utils/planConstraints';
+import { attachTutorialReference } from '../utils/tutorialSource';
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
@@ -131,14 +132,18 @@ export default function useStudyPlan() {
   }
 }
 
-Student levels: ${levelStr}
+Student levels (1-5** scale): ${levelStr}
 Top flaw areas: ${flaws.length ? flaws.join(', ') : 'none detected yet'}
 Density: ${density.density} (${density.sessionsPerWeek} sessions/week, ${density.dailyMinutes} min/day)
 Days until DSE: ${density.daysRemaining}
 
+The HKDSE English exam uses a 7-level scale: 1, 2, 3, 4, 5, 5*, 5**. Level 3 is the minimum to pass. Level 5** is the highest. Generate exercises that target the student's current level and scaffold toward the next level.
+
 Generate 3-4 exercises per tier with varied skills and constraint fields. Each exercise MUST have all 6 constraint fields. Return ONLY valid JSON.`;
 
-      const raw = await callAI(prompt, {
+      const finalPrompt = await attachTutorialReference(prompt);
+
+      const raw = await callAI(finalPrompt, {
         system: 'You are a DSE English tutor creating personalized study plans. Return ONLY valid JSON.',
         temperature: 0.5,
         maxTokens: 3000,
@@ -193,7 +198,7 @@ Generate 3-4 exercises per tier with varied skills and constraint fields. Each e
             focus: tiers.longTerm?.focus || 'Exam preparation',
           },
         },
-        sourceAssessment: assessmentProfile ? { assessmentDate: assessmentProfile.completedAt, levels: Object.fromEntries(skills.map(s => [s, levels[s]?.final || 3])) } : null,
+        sourceAssessment: assessmentProfile ? { assessmentDate: assessmentProfile.completedAt, levels: Object.fromEntries(skills.map(s => [s, levels[s]?.final || '3'])) } : null,
         sourceFlaws: flawSummary ? { topCategories: flaws, severityBreakdown: flawSummary.bySeverity || {}, updatedAt: new Date().toISOString() } : null,
         version: (plan?.version || 0) + 1,
       };
@@ -317,16 +322,14 @@ Generate 3-4 exercises per tier with varied skills and constraint fields. Each e
     }
     if (!plan) return days;
     const tier = plan.tiers.shortTerm;
-    if (!tier?.exercises?.length) return days;
-    const byDay = Math.max(1, Math.floor(tier.exercises.length / 7));
-    tier.exercises.filter(e => !e.completed).forEach((ex, i) => {
-      const dayIdx = i % 7;
-      days[dayIdx].items.push({ ...ex, type: 'exercise' });
-    });
+    if (tier?.exercises?.length) {
+      tier.exercises.filter(e => !e.completed).forEach(ex => {
+        days[0].items.push({ ...ex, type: 'exercise' });
+      });
+    }
     const reviews = getReviewSchedule(getDueItems);
-    reviews.filter(r => r.retrievability < 0.5).forEach((r, i) => {
-      const dayIdx = i % 7;
-      days[dayIdx].items.push({ ...r, type: 'review' });
+    reviews.filter(r => r.retrievability < 0.5).forEach(r => {
+      days[0].items.push({ ...r, type: 'review' });
     });
     return days;
   }, [plan, getReviewSchedule]);
