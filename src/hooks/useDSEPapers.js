@@ -1307,7 +1307,7 @@ export default function useDSEPapers() {
       }
 
       const cached = await getCachedPapers(type);
-      let candidates = cached;
+      let candidates = cached.filter(p => (p.questions?.length) || p.metadata?.readOnly);
 
       if (difficulty) {
         candidates = candidates.filter(p => p.difficulty === difficulty);
@@ -1844,8 +1844,10 @@ Return a JSON object with "passage" (string) and "questions" (array of { "questi
         },
       };
 
-      const existing = await getCachedPapers('reading') || [];
-      await cachePapers([session, ...existing]);
+      if (finalQuestions?.length || readOnly) {
+        const existing = await getCachedPapers('reading') || [];
+        await cachePapers([session, ...existing]);
+      }
       return session;
     } catch (e) {
       setError(e.message);
@@ -2175,7 +2177,7 @@ Instead, give the student a concrete example of student work and ask them to dia
         const raw = await callAI(prompt, {
           system: 'You are a DSE English examiner generating deep comprehension exercises. Return ONLY valid JSON, no extra text.',
           temperature: 0.3,
-          maxTokens: 5000,
+          maxTokens: 32768,
         });
         const parsed = parseJSONArray(raw);
         if (!Array.isArray(parsed) || parsed.length < 3) {
@@ -2206,7 +2208,7 @@ scores length must be ${passed.length}.`;
             const judgeRaw = await callAI(judgePrompt, {
               system: 'You evaluate exercise depth. Return ONLY valid JSON.',
               temperature: 0.2,
-              maxTokens: 2000,
+              maxTokens: 32768,
             });
             const judgeObj = tryParseJSON(judgeRaw);
             const judgeScores = judgeObj?.scores;
