@@ -1,4 +1,4 @@
-import{C as b,P as M,V as u,W as v,H as p,U as T,S as f,a as h,b as g,A as C,M as S,F as U}from"./ConstellationGraph-B2gjOdVk.js";import"./index-DiJE8YpQ.js";import"./timer-CqwAZPIu.js";const _={uniforms:{tDiffuse:{value:null},luminosityThreshold:{value:1},smoothWidth:{value:1},defaultColor:{value:new b(0)},defaultOpacity:{value:0}},vertexShader:`
+import{C as b,P as M,V as u,W as v,H as p,U as T,S as f,a as h,b as g,A as C,M as S,F as U}from"./ConstellationGraph-C6i5IIWB.js";import"./index-Doa0UVSW.js";import"./timer-CqwAZPIu.js";const _={uniforms:{tDiffuse:{value:null},luminosityThreshold:{value:1},smoothWidth:{value:1},defaultColor:{value:new b(0)},defaultOpacity:{value:0}},vertexShader:`
 
 		varying vec2 vUv;
 
